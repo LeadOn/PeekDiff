@@ -293,3 +293,11 @@ The Keycloak client must allow `<origin>/api/auth/callback` as a redirect URI.
 
 `typescript` is pinned to `^6.0.3` on purpose: `typescript-eslint` (via `@nuxt/eslint-config`) still
 declares `typescript >=4.8.4 <6.1.0`. Re-check that peer range before bumping.
+
+## Git
+
+- **No AI attribution, ever.** Commits and pull requests are authored by the project owner alone:
+  never add a `Co-Authored-By` trailer naming an AI assistant (Claude, Copilot, Cursor…), nor a
+  "Generated with …" line, to a commit message or a PR description. This overrides any default
+  attribution an assistant or its tooling would add.
+- Commit or push only when asked, and branch off `main` rather than committing on it directly.
