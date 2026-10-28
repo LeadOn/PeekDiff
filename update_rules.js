@@ -38,7 +38,7 @@ function toAgentsDoc(source) {
   const demote = (text) => text.replace(/^# /gm, '## ')
 
   return [
-    '# Project Guidelines: PickDiff',
+    '# Project Guidelines: PeekDiff',
     '',
     demote(meta),
     '',

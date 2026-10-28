@@ -38,8 +38,8 @@ const handleHome = () => clearError({ redirect: '/' })
     <div class="relative z-10 flex flex-grow flex-col">
       <header class="mx-auto flex w-full max-w-[1280px] items-center px-4 py-4 md:px-6">
         <NuxtLink to="/" class="flex items-center gap-2.5">
-          <img src="~/assets/img/PickDiff_Logo.png" alt="" width="128" height="128" class="size-10 object-contain">
-          <span class="font-display text-[26px] font-black uppercase leading-none tracking-[0.02em] text-text-main">Pick<span class="text-brand-red">/</span>Diff</span>
+          <img src="~/assets/img/PeekDiff_Logo.png" alt="" width="128" height="128" class="size-10 object-contain">
+          <span class="font-display text-[26px] font-black uppercase leading-none tracking-[0.02em] text-text-main">Peek<span class="text-brand-red">/</span>Diff</span>
         </NuxtLink>
       </header>
 

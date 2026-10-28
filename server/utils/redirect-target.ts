@@ -3,7 +3,7 @@
  *
  * Only internal paths are accepted: without this filter, `?redirect=https://evil.example` would
  * turn `/api/auth/login` into an open redirect, usable to land an authenticated user on a third
- * party site from a link that appears to come from PickDiff.
+ * party site from a link that appears to come from PeekDiff.
  */
 export const safeInternalPath = (value: unknown, fallback = '/'): string => {
   if (typeof value !== 'string' || value.length === 0) return fallback

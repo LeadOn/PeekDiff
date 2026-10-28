@@ -1,6 +1,6 @@
 {
-  "name": "PickDiff",
-  "short_name": "PickDiff",
+  "name": "PeekDiff",
+  "short_name": "PeekDiff",
   "icons": [
     {
       "src": "/web-app-manifest-192x192.png",

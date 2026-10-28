@@ -5,7 +5,7 @@ useHead({
   htmlAttrs: {
     lang: 'fr'
   },
-  titleTemplate: '%s - PickDiff',
+  titleTemplate: '%s - PeekDiff',
   script: [
     // External rather than inline script: the CSP forbids `script-src 'unsafe-inline'`.
     // `tagPosition: 'head'` places it before render, which avoids the theme flash.
@@ -18,8 +18,8 @@ useHead({
     { rel: 'manifest', href: '/site.webmanifest' }
   ],
   meta: [
-    { name: 'apple-mobile-web-app-title', content: 'PickDiff' },
-    { name: 'description', content: 'PickDiff - Valorant stats tracker' },
+    { name: 'apple-mobile-web-app-title', content: 'PeekDiff' },
+    { name: 'description', content: 'PeekDiff - Valorant stats tracker' },
     { name: 'theme-color', content: '#0B0C0F' },
     { name: 'version', content: config.public.appVersion }
   ]

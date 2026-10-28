@@ -2,7 +2,7 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "pickdiff-prod",
+      "name": "peekdiff-prod",
       "runtimeExecutable": "node",
       "runtimeArgs": ["--env-file-if-exists=.env", ".output/server/index.mjs"],
       "port": 3000

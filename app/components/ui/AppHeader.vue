@@ -49,9 +49,9 @@ const toggleTheme = () => {
 <template>
   <header class="bg-header sticky top-0 z-20 border-b border-border-base backdrop-blur-[10px]">
     <div class="mx-auto flex h-[60px] max-w-[1280px] items-center gap-3 px-4 md:gap-6 md:px-6">
-      <NuxtLink to="/" aria-label="PickDiff, accueil" class="flex shrink-0 items-center gap-2.5">
-        <img src="~/assets/img/PickDiff_Logo.png" alt="" width="128" height="128" class="size-10 object-contain">
-        <span class="font-display text-[26px] font-black uppercase leading-none tracking-[0.02em] text-text-main">Pick<span class="text-brand-red">/</span>Diff</span>
+      <NuxtLink to="/" aria-label="PeekDiff, accueil" class="flex shrink-0 items-center gap-2.5">
+        <img src="~/assets/img/PeekDiff_Logo.png" alt="" width="128" height="128" class="size-10 object-contain">
+        <span class="font-display text-[26px] font-black uppercase leading-none tracking-[0.02em] text-text-main">Peek<span class="text-brand-red">/</span>Diff</span>
       </NuxtLink>
 
       <nav aria-label="Navigation principale" class="hidden items-center gap-5 md:flex">

@@ -88,7 +88,7 @@ const reload = async () => {
 
 useSeoMeta({
   title: 'Accueil',
-  description: 'Le classement Valorant du crew PickDiff : rangs, progression sur 7 jours et pics de rang.'
+  description: 'Le classement Valorant du crew PeekDiff : rangs, progression sur 7 jours et pics de rang.'
 })
 </script>
 
