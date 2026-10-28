@@ -24,7 +24,7 @@ export default defineEventHandler(async (event) => {
     endSessionUrl.searchParams.set('post_logout_redirect_uri', postLogoutRedirectUri)
     return { endSessionUrl: endSessionUrl.toString() }
   } catch (error) {
-    // Cookies are already cleared, so the user is signed out of PickDiff even when Keycloak is
+    // Cookies are already cleared, so the user is signed out of PeekDiff even when Keycloak is
     // unreachable. Degrade instead of failing the call.
     console.error('[auth] end_session_endpoint unavailable:', error)
     return { endSessionUrl: null }

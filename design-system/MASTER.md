@@ -1,6 +1,6 @@
-# PickDiff — Design System « Protocol » v1
+# PeekDiff — Design System « Protocol » v1
 
-> Source de vérité du design de PickDiff, le JungleDiff de Valorant (suivi des stats du crew).
+> Source de vérité du design de PeekDiff, le JungleDiff de Valorant (suivi des stats du crew).
 > Tokens : [`tokens.css`](tokens.css) · Assets du jeu : [`valorant-assets.ts`](valorant-assets.ts) ·
 > Vitrine visuelle : [`showcase.html`](showcase.html).
 > Pour une page donnée, regarder d'abord `design-system/pages/<page>.md` s'il existe : il prime sur
@@ -220,10 +220,10 @@ en file (`[■■□□□] POSITION 3`), rapport, abandonné, erreur.
 
 ### Navigation
 
-- **Header** : mascotte 40px + wordmark `PICK/DIFF` (le `/` en rouge), liens en mono MAJ. 12px, actif souligné
+- **Header** : mascotte 40px + wordmark `PEEK/DIFF` (le `/` en rouge), liens en mono MAJ. 12px, actif souligné
   rouge 2px, recherche `>_ ⌘K`, bascule thème.
 - **Barre d'état** (pied de page desktop, comme une statusline) : fond `night`, mono 11px —
-  `PICKDIFF v1.0 │ SYNCHRO 07:42 │ PATCH 11.08 │ ● 2 EN PARTIE`.
+  `PEEKDIFF v1.0 │ SYNCHRO 07:42 │ PATCH 11.08 │ ● 2 EN PARTIE`.
 - **Mobile** : bottom bar `night` 4 entrées (Crew, Parties, Recherche, Profil), icône + libellé.
 
 ### États vides et erreurs
@@ -237,8 +237,8 @@ Bloc `ticks`, petit viseur ASCII centré, titre clair, une action. Erreur : caus
 24. Pas d'emoji. Ne pas reproduire le logo Valorant.
 
 **Logo** : la mascotte (Jett en chibi, geste « OK », détourée sur fond transparent) suivie du
-wordmark `PICK/DIFF`. Original 1024px dans [`logo/pickdiff-logo-1024.png`](logo/pickdiff-logo-1024.png),
-128px dans `app/assets/img/PickDiff_Logo.png` (rendu à 40px). Toujours posée telle quelle : ni
+wordmark `PEEK/DIFF`. Original 1024px dans [`logo/peekdiff-logo-1024.png`](logo/peekdiff-logo-1024.png),
+128px dans `app/assets/img/PeekDiff_Logo.png` (rendu à 40px). Toujours posée telle quelle : ni
 recadrée, ni recolorée, ni sous un filtre. Les icônes d'application (`apple-touch-icon`, manifeste)
 la posent sur `night` avec une marge de sécurité ; le favicon la garde transparente. C'est une
 illustration de fan d'un personnage Riot : la mention légale du pied de page la couvre.
@@ -309,7 +309,7 @@ accent.
 ### Mentions légales
 
 Usage autorisé par la politique Riot pour les projets de fans (« Legal Jibber Jabber »), à
-condition d'afficher en pied de page : *« PickDiff n'est pas approuvé par Riot Games et ne reflète
+condition d'afficher en pied de page : *« PeekDiff n'est pas approuvé par Riot Games et ne reflète
 pas les opinions de Riot Games ni de quiconque officiellement impliqué dans la production ou la
 gestion des propriétés Riot Games. Riot Games et toutes les propriétés associées sont des marques
 commerciales ou des marques déposées de Riot Games, Inc. »*
@@ -325,9 +325,9 @@ commerciales ou des marques déposées de Riot Games, Inc. »*
 - Les coins coupés (`clip-path`) rognent aussi l'outline : sur un élément `notch` focusable, poser
   le focus sur un pseudo-élément intérieur ou utiliser `outline-offset: -4px`.
 
-## 10. Mapping JungleDiff → PickDiff
+## 10. Mapping JungleDiff → PeekDiff
 
-| JungleDiff (LoL) | PickDiff (Valorant) |
+| JungleDiff (LoL) | PeekDiff (Valorant) |
 |---|---|
 | Thème clair sauge par défaut | Thème sombre par défaut, Bone en option |
 | Archivo + Geist Mono | Big Shoulders + Barlow + JetBrains Mono |

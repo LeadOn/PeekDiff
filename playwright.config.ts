@@ -16,7 +16,7 @@ const baseURL = `http://127.0.0.1:${PORT}`
 const serverEnv = {
   NUXT_PUBLIC_GAME_ON_API_URL: process.env.NUXT_PUBLIC_GAME_ON_API_URL ?? 'http://127.0.0.1:9',
   NUXT_PUBLIC_KEYCLOAK_AUTHORITY: process.env.NUXT_PUBLIC_KEYCLOAK_AUTHORITY ?? 'http://127.0.0.1:9/realms/test',
-  NUXT_PUBLIC_KEYCLOAK_CLIENT_ID: process.env.NUXT_PUBLIC_KEYCLOAK_CLIENT_ID ?? 'pickdiff-test',
+  NUXT_PUBLIC_KEYCLOAK_CLIENT_ID: process.env.NUXT_PUBLIC_KEYCLOAK_CLIENT_ID ?? 'peekdiff-test',
   NUXT_PUBLIC_KEYCLOAK_REALM: process.env.NUXT_PUBLIC_KEYCLOAK_REALM ?? 'test',
   PORT: String(PORT),
   NODE_ENV: 'production',

@@ -144,7 +144,7 @@ test.describe('resilience', () => {
 
     // Degrading to an error panel is fine; returning a 5xx because a dependency is down is not.
     expect(response?.status()).toBe(200)
-    await expect(page.getByRole('link', { name: 'PickDiff, accueil' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'PeekDiff, accueil' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'L\'API ne répond pas' })).toBeVisible()
   })
 })

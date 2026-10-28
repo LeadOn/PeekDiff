@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /*
- * PickDiff design tokens — "Protocol" v1.
+ * PeekDiff design tokens — "Protocol" v1.
  *
  * Same convention as JungleDiff: raw values live on `:root` (and `:root.light`), `@theme` maps them
  * to the names Tailwind exposes. Components write `bg-surface-base`, `text-brand-red`, never a hex.

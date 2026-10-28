@@ -1,6 +1,6 @@
-# PickDiff
+# PeekDiff
 
-PickDiff is a Valorant stats tracker for the crew — the Valorant counterpart of
+PeekDiff is a Valorant stats tracker for the crew — the Valorant counterpart of
 JungleDiff (League of Legends), built on the same strict Nuxt 4 architecture and
 the same server-side Keycloak OIDC authentication. It reads players and ranks from the GameOn API
 and renders game art from media.valorant-api.com.

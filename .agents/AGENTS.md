@@ -1,6 +1,6 @@
 <!-- Generated from .agents/instructions.base.md by `npm run sync:rules`. Do not edit by hand. -->
 
-# Project Guidelines: PickDiff
+# Project Guidelines: PeekDiff
 
 ## IMPORTANT META-RULE: Synchronization
 
@@ -12,7 +12,7 @@ At every major modification (adding a feature, technical change, etc.), you MUST
 2. Update `README.md` to reflect the project's architecture, its current state, and ongoing work.
 3. When the design changes, update `design-system/MASTER.md` first, then the code.
 
-You are assisting with PickDiff, a Valorant stats tracker for a closed group of players ("the
+You are assisting with PeekDiff, a Valorant stats tracker for a closed group of players ("the
 crew"). It is the Valorant counterpart of JungleDiff (League of Legends) and shares its architecture:
 it reads player and rank data from the GameOn API, renders game art from media.valorant-api.com, and
 presents the crew's ladder. The interface is French; there is no public sign-up — authentication
@@ -38,7 +38,7 @@ exists so a crew member is recognised ("Vous") and, later, can edit their own pr
 ## Features
 
 Only the home page exists so far. Profiles, match pages, records, settings and an admin space are
-JungleDiff features PickDiff does not have yet — and the GameOn API does not serve Valorant matches
+JungleDiff features PeekDiff does not have yet — and the GameOn API does not serve Valorant matches
 yet either (see Known Gaps).
 
 - `/` — crew dashboard, built from the "Protocol" design system. Top to bottom: status chips (the

@@ -37,7 +37,7 @@ USER node
 EXPOSE 3000
 
 # Hits the dependency-free liveness route. It deliberately does not probe the GameOn API: a probe
-# that failed whenever the backend had an incident would restart PickDiff during that incident and
+# that failed whenever the backend had an incident would restart PeekDiff during that incident and
 # make the outage worse.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
