@@ -1,0 +1,810 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PickDiff Protocol</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Big+Shoulders:wght@700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* Raw tokens: kept identical to tokens.css */
+:root {
+  --bg: #0B0C0F; --surface: #121418; --surface-high: #181B20; --surface-sunken: #07080A;
+  --surface-hover: #1C1F25; --surface-picked: #1F1416;
+  --border: rgba(236,232,225,.10); --border-strong: rgba(236,232,225,.22); --ascii: rgba(236,232,225,.28);
+  --text: #ECE8E1; --text-2: #A8A39B; --text-3: #85817A;
+  --red: #FF4655; --red-fill: #D62A3B; --red-fill-hover: #C02234; --red-soft: rgba(255,70,85,.12);
+  --win: #33D1B2; --win-soft: rgba(51,209,178,.12); --loss: #FF4655; --loss-soft: rgba(255,70,85,.12);
+  --ally: #33D1B2; --ally-soft: rgba(51,209,178,.10); --enemy: #FF4655; --enemy-soft: rgba(255,70,85,.10);
+  --mvp: #F2C14E; --mvp-team: #C3C9CC; --spike: #F5A623;
+  --inverse: #ECE8E1; --inverse-text: #0B0C0F;
+  --night: #0B0C0F; --on-night: #ECE8E1; --on-night-2: #A8A39B;
+  --glow-red: 0 0 0 1px rgba(255,70,85,.5), 0 0 24px -4px rgba(255,70,85,.45);
+  --float: 0 18px 40px -16px rgba(0,0,0,.8);
+  --scanlines: repeating-linear-gradient(0deg, rgba(236,232,225,.025) 0 1px, transparent 1px 3px);
+  --page-wash: radial-gradient(50% 60% at 85% 0%, rgba(255,70,85,.10), transparent 70%);
+  --header-bg: rgba(11,12,15,.82);
+  --notch: 12px;
+  --tier-iron:#868986; --tier-bronze:#A5855D; --tier-silver:#BBC2C2; --tier-gold:#ECCF56; --tier-platinum:#59A9B6;
+  --tier-diamond:#B489C4; --tier-ascendant:#6AE2AF; --tier-immortal:#DB4D72; --tier-radiant:#FFFFAA;
+  --role-duelist:#FF7A59; --role-initiator:#8FD14F; --role-controller:#7C8CFF; --role-sentinel:#4FC3F7;
+  --display: 'Big Shoulders', 'Arial Narrow', sans-serif;
+  --sans: 'Barlow', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  --snap: cubic-bezier(.25,1,.5,1);
+  color-scheme: dark;
+}
+:root.light {
+  --bg: #ECE8E1; --surface: #F6F3EE; --surface-high: #E3DED5; --surface-sunken: #DCD6CC;
+  --surface-hover: #FBF9F5; --surface-picked: #F5E3E1;
+  --border: rgba(15,17,20,.12); --border-strong: rgba(15,17,20,.26); --ascii: rgba(15,17,20,.32);
+  --text: #0F1114; --text-2: #4A4741; --text-3: #6A665F;
+  --red: #C8202F; --red-fill-hover: #C02234; --red-soft: rgba(214,42,59,.10);
+  --win: #0B7562; --win-soft: rgba(11,117,98,.10); --loss: #C8202F; --loss-soft: rgba(200,32,47,.10);
+  --ally: #0B7562; --ally-soft: rgba(11,117,98,.08); --enemy: #C8202F; --enemy-soft: rgba(200,32,47,.08);
+  --mvp: #7A570F; --mvp-team: #5E666A; --spike: #8A5100;
+  --inverse: #0F1114; --inverse-text: #ECE8E1;
+  --glow-red: 0 0 0 1px rgba(214,42,59,.45), 0 0 20px -6px rgba(214,42,59,.35);
+  --float: 0 18px 40px -18px rgba(15,17,20,.45);
+  --scanlines: repeating-linear-gradient(0deg, rgba(15,17,20,.03) 0 1px, transparent 1px 3px);
+  --page-wash: radial-gradient(50% 60% at 85% 0%, rgba(214,42,59,.08), transparent 70%);
+  --header-bg: rgba(236,232,225,.85);
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg) var(--page-wash) no-repeat; color: var(--text);
+  font: 400 16px/1.5 var(--sans); -webkit-font-smoothing: antialiased;
+  transition: background-color .2s var(--snap), color .2s var(--snap);
+}
+:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+button { font: inherit; color: inherit; cursor: pointer; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.ascii { font-family: var(--mono); font-variant-ligatures: none; font-variant-numeric: tabular-nums; white-space: pre; line-height: 1.15; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.dim { color: var(--ascii); }
+.label { font: 500 11px/1.2 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); }
+.wrap { max-width: 1280px; margin: 0 auto; padding: 0 16px; }
+@media (min-width: 768px) { .wrap { padding: 0 24px; } }
+
+/* Signature shapes */
+.notch { position: relative; clip-path: polygon(0 0, calc(100% - var(--notch)) 0, 100% var(--notch), 100% 100%, 0 100%); }
+.notch-edge::after {
+  content: ""; position: absolute; top: 0; right: 0; width: var(--notch); height: var(--notch); pointer-events: none;
+  background: linear-gradient(to bottom left, transparent calc(50% - 1px), var(--border-strong) calc(50% - .5px) calc(50% + .5px), transparent calc(50% + 1px));
+}
+.notch-2 { clip-path: polygon(0 0, calc(100% - var(--notch)) 0, 100% var(--notch), 100% 100%, var(--notch) 100%, 0 calc(100% - var(--notch))); }
+.ticks {
+  --t: 10px; --tc: var(--border-strong);
+  background-image:
+    linear-gradient(var(--tc),var(--tc)), linear-gradient(var(--tc),var(--tc)), linear-gradient(var(--tc),var(--tc)), linear-gradient(var(--tc),var(--tc)),
+    linear-gradient(var(--tc),var(--tc)), linear-gradient(var(--tc),var(--tc)), linear-gradient(var(--tc),var(--tc)), linear-gradient(var(--tc),var(--tc));
+  background-position: top left, top left, top right, top right, bottom left, bottom left, bottom right, bottom right;
+  background-size: var(--t) 1px, 1px var(--t), var(--t) 1px, 1px var(--t), var(--t) 1px, 1px var(--t), var(--t) 1px, 1px var(--t);
+  background-repeat: no-repeat;
+}
+
+/* Header */
+.header { position: sticky; top: 0; z-index: 20; background: var(--header-bg); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); }
+.header .wrap { display: flex; align-items: center; gap: 24px; height: 60px; }
+.wordmark { font: 900 26px/1 var(--display); letter-spacing: .02em; text-transform: uppercase; text-decoration: none; color: var(--text); }
+.wordmark b { color: var(--red); font-weight: 900; }
+.nav { display: none; gap: 20px; }
+.nav a { font: 500 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--text-2); text-decoration: none; padding: 22px 0 20px; border-bottom: 2px solid transparent; transition: color .12s var(--snap); }
+.nav a:hover { color: var(--text); }
+.nav a[aria-current] { color: var(--text); border-color: var(--red); }
+@media (min-width: 900px) { .nav { display: flex; } }
+.header-tools { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.prompt {
+  display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px; min-width: 0;
+  background: var(--surface-sunken); border: 1px solid var(--border); color: var(--text-3);
+  font: 400 13px/1 var(--mono); transition: border-color .12s var(--snap);
+}
+.prompt:hover { border-color: var(--border-strong); }
+.prompt .p { color: var(--red); }
+.prompt .kbd { border: 1px solid var(--border-strong); padding: 3px 5px; font-size: 10px; color: var(--text-2); }
+.prompt .txt { display: none; }
+@media (min-width: 640px) { .prompt .txt { display: inline; } }
+.cursor { display: inline-block; width: .6em; height: 1.05em; background: var(--red); vertical-align: -2px; animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.icon-btn { width: 40px; height: 40px; display: grid; place-items: center; background: transparent; border: 1px solid var(--border); color: var(--text-2); transition: color .12s var(--snap), border-color .12s var(--snap); }
+.icon-btn:hover { color: var(--text); border-color: var(--border-strong); }
+.icon-btn svg { width: 18px; height: 18px; }
+svg.i { fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Hero */
+.hero { position: relative; margin-top: 32px; padding: 40px 24px 32px; background: var(--night); color: var(--on-night); overflow: hidden; }
+@media (min-width: 768px) { .hero { padding: 56px 48px 40px; } }
+.hero::before { content: ""; position: absolute; inset: 0; background: var(--scanlines); pointer-events: none; }
+.dither { position: absolute; right: -10px; top: 0; bottom: 0; font: 400 14px/14px var(--mono); color: #FF4655; opacity: .14; white-space: pre; overflow: hidden; pointer-events: none; user-select: none; }
+.hero .kicker { font: 500 12px/1 var(--mono); letter-spacing: .12em; color: #FF4655; text-transform: uppercase; }
+.hero h1 { position: relative; margin: 14px 0 0; font: 900 clamp(56px, 11vw, 132px)/.86 var(--display); text-transform: uppercase; letter-spacing: .005em; }
+.hero h1 span { color: #FF4655; }
+.wipe { height: 2px; margin: 22px 0 18px; background: #FF4655; transform-origin: left; animation: wipe .5s .15s var(--snap) both; max-width: 420px; }
+@keyframes wipe { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.hero p { position: relative; max-width: 58ch; margin: 0; color: var(--on-night-2); font-size: 17px; }
+.hero-meta { position: relative; display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 28px; }
+.hero-meta .label { color: #A8A39B; }
+.hero-meta b { color: #ECE8E1; font-weight: 500; }
+
+/* Sections */
+section.block { padding-top: 72px; }
+.sec-index { display: flex; align-items: center; gap: 10px; font: 500 12px/1 var(--mono); letter-spacing: .08em; color: var(--text-3); text-transform: uppercase; }
+.sec-index .n { color: var(--red); }
+.sec-index::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+h2 { margin: 12px 0 8px; font: 800 clamp(34px, 5vw, 48px)/.95 var(--display); text-transform: uppercase; letter-spacing: .01em; }
+.lede { margin: 0 0 28px; max-width: 70ch; color: var(--text-2); }
+h3 { margin: 0 0 12px; font: 600 15px/1.3 var(--sans); letter-spacing: .02em; text-transform: uppercase; }
+
+.grid { display: grid; gap: 16px; }
+@media (min-width: 768px) { .g2 { grid-template-columns: 1fr 1fr; } .g3 { grid-template-columns: repeat(3, 1fr); } .g4 { grid-template-columns: repeat(4, 1fr); } }
+@media (min-width: 1100px) { .rail { grid-template-columns: minmax(0, 1fr) 360px; } }
+
+/* Cards */
+.card { background-color: var(--surface); border: 1px solid var(--border); padding: 18px; min-width: 0; }
+.frame-head { display: flex; align-items: center; gap: 1ch; margin-bottom: 16px; font: 500 12px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--text); }
+.frame-head .g { color: var(--ascii); }
+.frame-head::after { content: ""; flex: 1; height: 1px; background: var(--ascii); opacity: .7; }
+.frame-head .aside { order: 2; color: var(--text-3); letter-spacing: .04em; }
+
+/* Swatches */
+.swatches { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+@media (min-width: 640px) { .swatches { grid-template-columns: repeat(4, 1fr); } }
+.sw { border: 1px solid var(--border); background: var(--surface); }
+.sw i { display: block; height: 64px; border-bottom: 1px solid var(--border); }
+.sw div { padding: 10px; }
+.sw b { display: block; font: 600 14px/1.2 var(--sans); }
+.sw code { font: 400 11px/1.6 var(--mono); color: var(--text-3); }
+.tiers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+@media (min-width: 640px) { .tiers { grid-template-columns: repeat(9, 1fr); } }
+.tier { height: 44px; display: flex; align-items: flex-end; padding: 6px; font: 700 10px/1 var(--mono); color: #0B0C0F; letter-spacing: .04em; text-transform: uppercase; }
+
+/* Type */
+.spec { display: grid; gap: 4px; padding: 18px 0; border-bottom: 1px solid var(--border); }
+.spec:last-child { border-bottom: 0; }
+@media (min-width: 768px) { .spec { grid-template-columns: 200px 1fr; align-items: baseline; gap: 24px; } }
+.d1 { font: 900 clamp(64px, 10vw, 112px)/.85 var(--display); text-transform: uppercase; }
+.d2 { font: 800 48px/.95 var(--display); text-transform: uppercase; }
+.b1 { font: 400 16px/1.5 var(--sans); color: var(--text-2); max-width: 60ch; }
+.m1 { font: 400 14px/1.4 var(--mono); }
+
+/* Buttons */
+.row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; height: 44px; padding: 0 18px; border: 0; background: none; white-space: nowrap; transition: background-color .12s var(--snap), color .12s var(--snap), box-shadow .2s var(--snap), border-color .12s var(--snap); }
+.btn-primary { padding-right: 26px; background: var(--red-fill); color: #fff; font: 600 14px/1 var(--sans); letter-spacing: .08em; text-transform: uppercase; clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%); }
+.btn-primary:hover { background: var(--red-fill-hover); box-shadow: var(--glow-red); }
+.btn-primary:active { transform: translateY(1px); }
+.btn-primary:focus-visible { outline-offset: -5px; outline-color: #fff; }
+.btn-sec { border: 1px solid var(--border-strong); font: 500 13px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--text); }
+.btn-sec:hover { border-color: var(--text-2); background: var(--surface-hover); }
+.btn-ghost { font: 500 13px/1 var(--mono); letter-spacing: .06em; color: var(--text-2); padding: 0 8px; }
+.btn-ghost:hover { color: var(--text); }
+.btn .br { color: var(--text-3); display: inline-block; transition: transform .12s var(--snap); }
+.btn:hover .br:first-child { transform: translateX(3px); }
+.btn:hover .br:last-child { transform: translateX(-3px); }
+.btn[disabled] { opacity: .4; cursor: not-allowed; box-shadow: none; }
+.btn[disabled]:hover .br { transform: none; }
+
+/* Chips */
+.res { display: inline-grid; place-items: center; width: 24px; height: 24px; font: 700 12px/1 var(--mono); }
+.res.v { background: var(--win-soft); color: var(--win); }
+.res.d { background: var(--loss-soft); color: var(--loss); }
+.res.n { background: var(--surface-high); color: var(--text-2); }
+.rank { display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 2px; font: 700 10px/1 var(--mono); letter-spacing: .05em; color: #0B0C0F; text-transform: uppercase; }
+.rr { font: 500 13px/1 var(--mono); }
+.rr.up { color: var(--win); } .rr.down { color: var(--loss); } .rr.zero { color: var(--text-2); }
+.live { display: inline-flex; align-items: center; gap: 8px; font: 500 11px/1 var(--mono); letter-spacing: .08em; color: var(--red); text-transform: uppercase; }
+.dot { position: relative; width: 8px; height: 8px; background: var(--red); }
+.dot::after { content: ""; position: absolute; inset: 0; background: var(--red); animation: ping 1.6s cubic-bezier(0,0,.2,1) infinite; }
+@keyframes ping { 75%, 100% { transform: scale(2.4); opacity: 0; } }
+.role { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px; border: 1px solid; font: 500 11px/1 var(--mono); letter-spacing: .04em; text-transform: uppercase; }
+.role svg { width: 12px; height: 12px; }
+.mvp { font: 700 10px/1 var(--mono); letter-spacing: .08em; padding: 4px 6px; border: 1px solid currentColor; }
+
+/* ASCII motifs */
+.motifs { display: grid; gap: 1px; background: var(--border); border: 1px solid var(--border); }
+@media (min-width: 768px) { .motifs { grid-template-columns: 1fr 1fr; } }
+.motif { background: var(--surface); padding: 18px; display: grid; gap: 12px; align-content: start; min-width: 0; }
+.motif .ascii { font-size: 13px; overflow-x: auto; }
+.bar { letter-spacing: -.02em; }
+.bar .on { color: var(--text); } .bar .off { color: var(--ascii); }
+.spark { color: var(--win); letter-spacing: .05em; }
+
+/* Ladder */
+.lad { display: grid; grid-template-columns: 36px 32px minmax(0,1fr) auto; gap: 4px 14px; align-items: center; padding: 12px 14px 12px 12px; border-left: 2px solid var(--tc); background: var(--surface); transition: background-color .12s var(--snap); }
+.lad + .lad { margin-top: 1px; }
+.lad:hover { background: var(--surface-hover); }
+.lad.me { background: var(--surface-picked); }
+.lad .pos { font: 800 30px/1 var(--display); color: var(--text-3); }
+.lad .who b { display: block; font: 600 16px/1.2 var(--sans); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lad .who span { font: 400 12px/1.4 var(--mono); color: var(--text-3); }
+.lad .meta { display: flex; align-items: center; gap: 12px; justify-content: flex-end; }
+.lad .ext { display: none; }
+.lad .rrv { font: 800 26px/1 var(--display); text-align: right; min-width: 52px; }
+.lad .rrv small { font: 400 10px var(--mono); color: var(--text-3); margin-left: 3px; }
+@media (min-width: 640px) { .lad .ext { display: inline-flex; gap: 14px; align-items: center; } }
+
+/* Match card */
+.match { display: grid; grid-template-columns: 4px 52px minmax(0,1fr); gap: 0 14px; align-items: stretch; background: var(--surface); border: 1px solid var(--border); text-decoration: none; color: inherit; transition: background-color .12s var(--snap), border-color .12s var(--snap); }
+.match:hover { background: var(--surface-hover); border-color: var(--border-strong); }
+.match .side { background: var(--rc); }
+.match + .match { margin-top: 8px; }
+.agent { width: 52px; height: 52px; margin: 12px 0; display: grid; place-items: center; background: var(--surface-high); border-bottom: 2px solid var(--rc2); font: 800 20px/1 var(--display); color: var(--text-2); }
+.match .body { padding: 12px 14px 12px 0; display: grid; gap: 8px; min-width: 0; }
+.match .top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.match .map { font: 600 15px/1 var(--sans); text-transform: uppercase; letter-spacing: .04em; }
+.match .when { font: 400 11px/1 var(--mono); color: var(--text-3); margin-left: auto; }
+.match .score { font: 800 28px/1 var(--display); }
+.stats { display: flex; flex-wrap: wrap; gap: 6px 18px; font: 400 13px/1.3 var(--mono); color: var(--text-2); }
+.stats b { color: var(--text); font-weight: 500; }
+
+/* Round timeline */
+.rounds { display: flex; gap: 3px; flex-wrap: wrap; }
+.rd { width: 26px; height: 30px; display: grid; place-items: center; font: 400 13px/1 var(--mono); border-bottom: 2px solid; }
+.rd.a { color: var(--ally); background: var(--ally-soft); }
+.rd.e { color: var(--enemy); background: var(--enemy-soft); }
+.rd.half { width: 1px; background: var(--border-strong); margin: 0 6px; border: 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font: 400 12px/1 var(--mono); color: var(--text-3); margin-top: 12px; }
+
+/* Kill feed */
+.feed { font: 400 13px/1.9 var(--mono); overflow-x: auto; white-space: pre; }
+.feed .t { color: var(--text-3); }
+.feed .al { color: var(--ally); } .feed .en { color: var(--enemy); }
+.feed .ar { color: var(--ascii); } .feed .hs { color: var(--mvp); }
+.feed .sp { color: var(--spike); }
+
+/* KPI */
+.kpi { position: relative; padding: 20px; }
+.kpi .v { font: 900 64px/.9 var(--display); margin-top: 10px; }
+.kpi .v small { font: 500 12px var(--mono); color: var(--text-3); margin-left: 6px; letter-spacing: .06em; }
+.kpi .delta { font: 400 12px/1 var(--mono); margin-top: 10px; }
+
+/* Coach terminal */
+.term { position: relative; background: var(--surface-sunken); border: 1px solid var(--border); }
+.term::before { content: ""; position: absolute; inset: 0; background: var(--scanlines); pointer-events: none; }
+.term-head { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); font: 500 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--text-2); }
+.term-head .k { color: var(--red); font-weight: 700; }
+.term-head .st { margin-left: auto; color: var(--win); }
+.term-body { position: relative; padding: 16px 18px 18px; }
+.term-body .cmd { font: 400 13px/1.4 var(--mono); color: var(--text-3); margin-bottom: 12px; }
+.term-body .cmd b { color: var(--red); font-weight: 400; }
+.term-body ul { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
+.term-body li { display: grid; grid-template-columns: 1.2em 1fr; color: var(--text-2); }
+.term-body li::before { content: "▸"; color: var(--red); font-family: var(--mono); }
+.term-body p { margin: 0; max-width: 62ch; }
+
+/* Empty / loaders */
+.empty { padding: 28px 20px; text-align: center; display: grid; justify-items: center; gap: 10px; }
+.empty .ascii { color: var(--ascii); font-size: 13px; }
+.empty .ascii .c { color: var(--red); }
+.empty b { font: 800 26px/1 var(--display); text-transform: uppercase; }
+.empty p { margin: 0; color: var(--text-2); max-width: 36ch; }
+.loader { font: 400 13px/1.8 var(--mono); color: var(--text-2); }
+.loader .spin { color: var(--red); display: inline-block; width: 1ch; }
+.skel { position: relative; overflow: hidden; height: 12px; background: var(--surface-high); margin-top: 8px; }
+.skel::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255,70,85,.18), transparent); animation: sweep 1.4s linear infinite; transform: translateX(-100%); }
+@keyframes sweep { to { transform: translateX(100%); } }
+
+/* Game assets */
+.av { width: 32px; height: 32px; object-fit: cover; background: var(--surface-high); display: block; }
+.emb { width: 20px; height: 20px; display: block; }
+.rank.e { padding-left: 1px; gap: 3px; }
+.agent { overflow: hidden; }
+.agent img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.match { position: relative; isolation: isolate; overflow: hidden; }
+.mapbg { position: absolute; inset: 0; z-index: -1; background: center / cover no-repeat; filter: grayscale(.35) contrast(1.05); }
+.mapbg::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, var(--surface) 35%, color-mix(in srgb, var(--surface) 72%, transparent)); transition: background .12s var(--snap); }
+.match:hover .mapbg::after { background: linear-gradient(90deg, var(--surface-hover) 35%, color-mix(in srgb, var(--surface-hover) 64%, transparent)); }
+.kf { width: 32px; height: 16px; vertical-align: -3px; }
+.kf.victim { transform: scaleX(-1); }
+.banner { position: relative; height: 72px; margin: -18px -18px 16px; background: center / cover no-repeat; filter: grayscale(.35); }
+.banner::after { content: ""; position: absolute; inset: 0; background: linear-gradient(0deg, var(--surface), color-mix(in srgb, var(--surface) 30%, transparent)); }
+.ph { position: relative; overflow: hidden; isolation: isolate; min-height: 300px; padding: 28px 24px; background: var(--night); color: var(--on-night); display: grid; align-content: end; }
+.ph .bg { position: absolute; inset: 0; z-index: -2; background: center / cover no-repeat; filter: grayscale(.35) contrast(1.05); }
+.ph::before { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, rgba(11,12,15,.94) 30%, rgba(11,12,15,.55)), var(--scanlines); }
+.ph .portrait { position: absolute; right: -40px; bottom: -42%; height: 175%; z-index: -1; -webkit-mask-image: linear-gradient(90deg, transparent, #000 35%); mask-image: linear-gradient(90deg, transparent, #000 35%); pointer-events: none; }
+@media (min-width: 768px) { .ph { padding: 40px; } .ph .portrait { right: 4%; } }
+.ph .name { font: 900 clamp(56px, 9vw, 96px)/.85 var(--display); text-transform: uppercase; }
+.ph .rid { font: 400 13px/1 var(--mono); color: #A8A39B; margin-top: 8px; }
+.ph .peak { display: flex; align-items: center; gap: 12px; margin-top: 20px; }
+.ph .peak img { width: 56px; height: 56px; }
+.ph .peak b { display: block; font: 800 24px/1 var(--display); text-transform: uppercase; }
+.ph .peak span { font: 500 11px/1.4 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: #A8A39B; }
+.emblems { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px 8px; }
+@media (min-width: 768px) { .emblems { grid-template-columns: repeat(10, 1fr); } }
+.emblems figure { margin: 0; display: grid; justify-items: center; gap: 6px; }
+.emblems img { width: 44px; height: 44px; }
+.emblems figcaption { font: 500 10px/1.2 var(--mono); letter-spacing: .04em; text-transform: uppercase; color: var(--text-3); text-align: center; }
+.role-ic { width: 12px; height: 12px; background: currentColor; -webkit-mask: var(--src) center / contain no-repeat; mask: var(--src) center / contain no-repeat; }
+.maps { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.maptile { position: relative; height: 64px; overflow: hidden; isolation: isolate; display: flex; align-items: flex-end; padding: 8px 10px; background: var(--night); }
+.maptile img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; filter: grayscale(.35); }
+.maptile::before { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(0deg, rgba(11,12,15,.85), rgba(11,12,15,.15)); }
+.maptile b { font: 800 22px/1 var(--display); text-transform: uppercase; color: #ECE8E1; }
+.fb { display: grid; place-items: center; background: var(--surface-high); color: var(--text-2); font: 700 13px/1 var(--mono); }
+.fb-dither { color: var(--ascii); font: 400 10px/10px var(--mono); white-space: pre; overflow: hidden; }
+.legal { max-width: 1280px; margin: 0 auto; padding: 10px 24px 16px; font: 400 11px/1.5 var(--sans); color: #85817A; }
+
+/* Status bar */
+.statusbar { margin-top: 96px; background: var(--night); color: var(--on-night-2); border-top: 1px solid rgba(236,232,225,.1); }
+.statusbar .wrap { display: flex; flex-wrap: wrap; gap: 4px 0; align-items: center; min-height: 34px; padding-top: 6px; padding-bottom: 6px; font: 400 11px/1.4 var(--mono); letter-spacing: .06em; text-transform: uppercase; }
+.statusbar .wrap > span { padding-right: 12px; margin-right: 12px; border-right: 1px solid rgba(236,232,225,.16); }
+.statusbar .wrap > span:last-child { border: 0; }
+.statusbar .mode { background: #D62A3B; color: #fff; padding: 2px 8px !important; font-weight: 700; }
+.statusbar .lv { color: #FF4655; }
+
+/* Rules table */
+.rules { width: 100%; border-collapse: collapse; font-size: 14px; }
+.rules th { text-align: left; font: 500 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); padding: 10px 12px; background: var(--surface-high); }
+.rules td { padding: 12px; border-top: 1px solid var(--border); color: var(--text-2); vertical-align: top; }
+.rules td:first-child { color: var(--text); font-weight: 600; }
+.ok { color: var(--win); font-family: var(--mono); } .no { color: var(--loss); font-family: var(--mono); }
+
+.enter > * { animation: enter .32s var(--snap) backwards; }
+.enter > *:nth-child(2) { animation-delay: 40ms; } .enter > *:nth-child(3) { animation-delay: 80ms; }
+.enter > *:nth-child(4) { animation-delay: 120ms; } .enter > *:nth-child(5) { animation-delay: 160ms; }
+@keyframes enter { from { opacity: 0; transform: translateY(8px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="wrap">
+    <a class="wordmark" href="#">Pick<b>/</b>Diff</a>
+    <nav class="nav" aria-label="Navigation principale">
+      <a href="#" aria-current="page">Crew</a>
+      <a href="#">Parties</a>
+      <a href="#">Stats</a>
+      <a href="#">Agents</a>
+    </nav>
+    <div class="header-tools">
+      <button class="prompt" type="button" aria-label="Rechercher un joueur (⌘K)">
+        <span class="p" aria-hidden="true">&gt;_</span><span class="txt">chercher un joueur</span><span class="cursor" aria-hidden="true"></span><span class="kbd" aria-hidden="true">⌘K</span>
+      </button>
+      <button class="icon-btn" id="theme" type="button" aria-label="Passer en thème clair">
+        <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <div class="hero notch-2">
+    <div class="dither" id="dither" aria-hidden="true"></div>
+    <div class="kicker">PickDiff // Design system</div>
+    <h1>Protocol<span>.</span>v1</h1>
+    <div class="wipe" aria-hidden="true"></div>
+    <p>Un HUD tactique qui lit un terminal. Noir profond, rouge Valorant, blanc os&nbsp;; la structure vient du jeu, la texture vient de l'ASCII.</p>
+    <div class="hero-meta">
+      <span class="label">Thème <b>Night / Bone</b></span>
+      <span class="label">Polices <b>Big Shoulders · Barlow · JetBrains Mono</b></span>
+      <span class="label">Stack <b>Nuxt 4 · Tailwind v4</b></span>
+    </div>
+  </div>
+
+  <!-- 01 COLOURS -->
+  <section class="block" aria-labelledby="s1">
+    <div class="sec-index" aria-hidden="true"><span class="n">01</span> ── Couleurs</div>
+    <h2 id="s1">Noir, rouge, os</h2>
+    <p class="lede">Le rouge est rare et toujours chargé de sens&nbsp;: marque, action principale, défaite, adversaire, focus. Un seul CTA rouge plein par écran.</p>
+
+    <div class="swatches">
+      <div class="sw"><i style="background:var(--bg)"></i><div><b>Fond</b><code>bg-base</code></div></div>
+      <div class="sw"><i style="background:var(--surface)"></i><div><b>Carte</b><code>surface-base</code></div></div>
+      <div class="sw"><i style="background:var(--surface-sunken)"></i><div><b>Creux</b><code>surface-sunken</code></div></div>
+      <div class="sw"><i style="background:var(--text)"></i><div><b>Os</b><code>text-main</code></div></div>
+      <div class="sw"><i style="background:var(--red)"></i><div><b>Rouge marque</b><code>brand-red</code></div></div>
+      <div class="sw"><i style="background:var(--red-fill)"></i><div><b>Rouge plein</b><code>brand-red-fill · blanc 4.9:1</code></div></div>
+      <div class="sw"><i style="background:var(--win)"></i><div><b>Victoire · alliés</b><code>win · ally</code></div></div>
+      <div class="sw"><i style="background:var(--mvp)"></i><div><b>MVP du match</b><code>mvp</code></div></div>
+    </div>
+
+    <div class="grid g2" style="margin-top:16px">
+      <div class="card">
+        <div class="frame-head"><span class="g" aria-hidden="true">┌─[</span>Rangs<span class="g" aria-hidden="true">]</span></div>
+        <div class="tiers">
+          <div class="tier" style="background:var(--tier-iron)">Fer</div>
+          <div class="tier" style="background:var(--tier-bronze)">Bronze</div>
+          <div class="tier" style="background:var(--tier-silver)">Argent</div>
+          <div class="tier" style="background:var(--tier-gold)">Or</div>
+          <div class="tier" style="background:var(--tier-platinum)">Platine</div>
+          <div class="tier" style="background:var(--tier-diamond)">Diamant</div>
+          <div class="tier" style="background:var(--tier-ascendant)">Ascend.</div>
+          <div class="tier" style="background:var(--tier-immortal)">Immortel</div>
+          <div class="tier" style="background:var(--tier-radiant)">Radiant</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="frame-head"><span class="g" aria-hidden="true">┌─[</span>Rôles d'agent<span class="g" aria-hidden="true">]</span></div>
+        <div class="row">
+          <span class="role" style="color:var(--role-duelist)"><span class="role-ic" style="--src:url(https://media.valorant-api.com/agents/roles/dbe8757e-9e92-4ed4-b39f-9dfc589691d4/displayicon.png)" aria-hidden="true"></span>Duelliste</span>
+          <span class="role" style="color:var(--role-initiator)"><span class="role-ic" style="--src:url(https://media.valorant-api.com/agents/roles/1b47567f-8f7b-444b-aae3-b0c634622d10/displayicon.png)" aria-hidden="true"></span>Initiateur</span>
+          <span class="role" style="color:var(--role-controller)"><span class="role-ic" style="--src:url(https://media.valorant-api.com/agents/roles/4ee40330-ecdd-4f2f-98a8-eb1243428373/displayicon.png)" aria-hidden="true"></span>Contrôleur</span>
+          <span class="role" style="color:var(--role-sentinel)"><span class="role-ic" style="--src:url(https://media.valorant-api.com/agents/roles/5fc02f99-4091-4486-a531-98459a3e95e9/displayicon.png)" aria-hidden="true"></span>Sentinelle</span>
+        </div>
+        <p class="label" style="margin:14px 0 0">Toujours icône + nom&nbsp;: la couleur n'est jamais seule.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 02 TYPE -->
+  <section class="block" aria-labelledby="s2">
+    <div class="sec-index" aria-hidden="true"><span class="n">02</span> ── Typographie</div>
+    <h2 id="s2">Trois voix</h2>
+    <p class="lede">Le display pour frapper, la grotesque pour lire, le mono pour compter et dessiner.</p>
+    <div class="card">
+      <div class="spec"><span class="label">Display 900 · 112</span><span class="d1">342 <span style="color:var(--red)">ACS</span></span></div>
+      <div class="spec"><span class="label">Display 800 · 48</span><span class="d2">Classement du crew</span></div>
+      <div class="spec"><span class="label">Barlow 400 · 16</span><span class="b1">Vexo a gagné 7 de ses 9 dernières parties classées, porté par 31&nbsp;% de headshots sur Ascent et Lotus.</span></div>
+      <div class="spec"><span class="label">JetBrains Mono · 14</span><span class="m1">K/D 1.42 · ADR 158.3 · KAST 76% · <span style="color:var(--text-3)">Vexo#EUW</span></span></div>
+      <div class="spec"><span class="label">Label mono · 11</span><span class="label">// Ratio K/D · 20 dernières parties</span></div>
+    </div>
+  </section>
+
+  <!-- 03 ASCII -->
+  <section class="block" aria-labelledby="s3">
+    <div class="sec-index" aria-hidden="true"><span class="n">03</span> ── Langage ASCII</div>
+    <h2 id="s3">Huit motifs, pas un de plus</h2>
+    <p class="lede">L'ASCII est une couche d'accent&nbsp;: on doit pouvoir la retirer sans perdre d'information. Trois motifs maximum par vue, hors index de section.</p>
+    <div class="motifs">
+      <div class="motif"><span class="label">01 · Index de section</span><span class="ascii"><span style="color:var(--red)">// 04</span><span class="dim"> ── </span>DERNIÈRES PARTIES</span></div>
+      <div class="motif"><span class="label">02 · Cadre de carte</span><span class="ascii"><span class="dim">┌─[ </span>KILL FEED<span class="dim"> ]──────────────────┐</span></span></div>
+      <div class="motif"><span class="label">03 · Bouton crochet</span><div class="row"><button class="btn btn-sec" type="button"><span class="br" aria-hidden="true">[</span>Rafraîchir<span class="br" aria-hidden="true">]</span></button></div></div>
+      <div class="motif"><span class="label">04 · Barre glyphe</span><span class="ascii bar" role="img" aria-label="Headshots : 31 %"><span class="on">███████</span><span class="off">░░░░░░░░░░░░░░░</span>  31% HS</span></div>
+      <div class="motif"><span class="label">05 · Sparkline glyphe</span><span class="ascii" role="img" aria-label="RR en hausse sur 10 parties"><span class="spark">▂▃▂▄▅▄▆▅▇█</span>  <span style="color:var(--win)">+64 RR</span></span></div>
+      <div class="motif"><span class="label">06 · Journal</span><span class="ascii"><span class="dim">[07:42]</span> <span style="color:var(--ally)">JETT</span> <span class="dim">──▸</span> <span style="color:var(--enemy)">SAGE</span>  <span style="color:var(--mvp)">◎HS</span></span></div>
+      <div class="motif"><span class="label">07 · Prompt</span><span class="ascii"><span style="color:var(--red)">&gt;_</span> analyser la partie<span class="cursor" aria-hidden="true"></span></span></div>
+      <div class="motif"><span class="label">08 · Trame</span><span class="ascii" aria-hidden="true" style="color:var(--red)">█████▓▓▓▓▒▒▒▒░░░░  ░    ░</span></div>
+    </div>
+  </section>
+
+  <!-- 04 COMPONENTS -->
+  <section class="block" aria-labelledby="s4">
+    <div class="sec-index" aria-hidden="true"><span class="n">04</span> ── Composants</div>
+    <h2 id="s4">Boutons &amp; pastilles</h2>
+    <p class="lede">Angles vifs, coin coupé pour le primaire, crochets pour le reste. 44px de haut, focus rouge.</p>
+    <div class="grid g2">
+      <div class="card notch notch-edge">
+        <div class="frame-head"><span class="g" aria-hidden="true">┌─[</span>Boutons<span class="g" aria-hidden="true">]</span></div>
+        <div class="row">
+          <button class="btn btn-primary" type="button">Analyser <span aria-hidden="true">▸</span></button>
+          <button class="btn btn-sec" type="button"><span class="br" aria-hidden="true">[</span>Comparer<span class="br" aria-hidden="true">]</span></button>
+          <button class="btn btn-ghost" type="button"><span class="br" aria-hidden="true">[</span>tout voir<span class="br" aria-hidden="true">]</span></button>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn btn-sec" type="button" aria-busy="true" id="busy"><span class="ascii" style="color:var(--red)">[■■□□□□]</span> Synchro…</button>
+          <button class="btn btn-sec" type="button" disabled><span class="br" aria-hidden="true">[</span>Bientôt<span class="br" aria-hidden="true">]</span></button>
+          <button class="icon-btn" type="button" aria-label="Rafraîchir"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg></button>
+        </div>
+      </div>
+      <div class="card notch notch-edge">
+        <div class="frame-head"><span class="g" aria-hidden="true">┌─[</span>Pastilles<span class="g" aria-hidden="true">]</span></div>
+        <div class="row">
+          <span class="res v" aria-label="Victoire">V</span>
+          <span class="res d" aria-label="Défaite">D</span>
+          <span class="res n" aria-label="Nul">N</span>
+          <span class="rank" style="background:var(--tier-diamond)">Diamant 2</span>
+          <span class="rank" style="background:var(--tier-immortal)">Immortel 1</span>
+          <span class="rank" style="background:var(--tier-gold)">Or 3</span>
+        </div>
+        <div class="row" style="margin-top:14px">
+          <span class="rr up">+18 RR</span><span class="rr down">−21 RR</span><span class="rr zero">±0 RR</span>
+          <span class="live"><span class="dot" aria-hidden="true"></span>En partie</span>
+          <span class="mvp" style="color:var(--mvp)">MVP</span>
+          <span class="mvp" style="color:var(--mvp-team)">MVP équipe</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 PATTERNS -->
+  <section class="block" aria-labelledby="s5">
+    <div class="sec-index" aria-hidden="true"><span class="n">05</span> ── En situation</div>
+    <h2 id="s5">L'accueil du crew</h2>
+    <p class="lede">Classement, fil des parties, joueur de la semaine. Données de démonstration.</p>
+
+    <div class="grid g4 enter" style="margin-bottom:16px">
+      <div class="card kpi ticks"><span class="label">// Parties · 7 j</span><div class="v" data-decrypt="47">47</div><div class="delta" style="color:var(--win)">▲ +12 vs sem. dernière</div></div>
+      <div class="card kpi ticks"><span class="label">// Victoires</span><div class="v">55<small>%</small></div><div class="delta" style="color:var(--loss)">▼ −3 pts</div></div>
+      <div class="card kpi ticks"><span class="label">// RR net</span><div class="v" style="color:var(--win)">+142</div><div class="delta" style="color:var(--text-3)">6 joueurs actifs</div></div>
+      <div class="card kpi ticks"><span class="label">// HS moyen</span><div class="v">24<small>%</small></div><div class="delta ascii bar" aria-hidden="true"><span class="on">█████</span><span class="off">░░░░░░░░░░░░░░░</span></div></div>
+    </div>
+
+    <div class="grid rail">
+      <div class="grid" style="gap:16px">
+        <div class="card notch notch-edge" style="padding:18px 0 6px">
+          <div class="frame-head" style="padding:0 18px"><span class="g" aria-hidden="true">┌─[</span>Classement<span class="g" aria-hidden="true">]</span><span class="aside">Saison 11 · Acte II</span></div>
+          <div class="lad" style="--tc:var(--tier-immortal)"><span class="pos">01</span><img class="av" src="https://media.valorant-api.com/playercards/ab5a453a-f726-4e04-b277-f30d56a8b152/smallart.png" alt="" width="32" height="32" data-fb="VX"><span class="who"><b>Vexo</b><span>Vexo#EUW</span></span><span class="meta"><span class="ext"><span class="ascii spark" role="img" aria-label="RR en hausse">▂▃▄▃▅▆▇█</span><span class="rank e" style="background:var(--tier-immortal)"><img class="emb" src="https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/24/smallicon.png" alt="" width="20" height="20">Immortel 1</span></span><span class="rrv">74<small>RR</small></span></span></div>
+          <div class="lad me" style="--tc:var(--red)"><span class="pos" style="color:var(--red)">02</span><img class="av" src="https://media.valorant-api.com/playercards/504f38e4-4874-845c-ccb6-a3aec7a3a1eb/smallart.png" alt="" width="32" height="32" data-fb="KS"><span class="who"><b>Kestrel · vous</b><span>kstrl#0451</span></span><span class="meta"><span class="ext"><span class="ascii spark" style="color:var(--loss)" role="img" aria-label="RR en baisse">▇▆▇▅▄▅▃▂</span><span class="rank e" style="background:var(--tier-diamond)"><img class="emb" src="https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/20/smallicon.png" alt="" width="20" height="20">Diamant 3</span></span><span class="rrv">41<small>RR</small></span></span></div>
+          <div class="lad" style="--tc:var(--tier-diamond)"><span class="pos">03</span><img class="av" src="https://media.valorant-api.com/playercards/910ace70-4d3b-3c53-2c55-5f9fa179caa8/smallart.png" alt="" width="32" height="32" data-fb="MO"><span class="who"><b>Moira</b><span>moira#FR1</span></span><span class="meta"><span class="ext"><span class="ascii spark" role="img" aria-label="RR stable">▄▅▄▄▅▄▅▅</span><span class="rank e" style="background:var(--tier-diamond)"><img class="emb" src="https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/18/smallicon.png" alt="" width="20" height="20">Diamant 1</span></span><span class="rrv">88<small>RR</small></span></span></div>
+          <div class="lad" style="--tc:var(--tier-platinum)"><span class="pos">04</span><span class="av fb" aria-hidden="true">OZ</span><span class="who"><b>Ozzy</b><span>ozz#EUW</span></span><span class="meta"><span class="ext"><span class="ascii spark" role="img" aria-label="RR en hausse">▁▂▂▃▅▄▆▆</span><span class="rank e" style="background:var(--tier-platinum)"><img class="emb" src="https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/17/smallicon.png" alt="" width="20" height="20">Platine 3</span></span><span class="rrv">12<small>RR</small></span></span></div>
+        </div>
+
+        <div>
+          <div class="sec-index" aria-hidden="true" style="margin-bottom:12px"><span class="n">//</span> Aujourd'hui</div>
+          <a class="match" href="#" style="--rc:var(--win);--rc2:var(--role-duelist)">
+            <span class="mapbg" style="background-image:url(https://media.valorant-api.com/maps/7eaecc1b-4337-bbf6-6ab9-04b8f06b3319/listviewicon.png)" aria-hidden="true"></span>
+            <span class="side" aria-hidden="true"></span>
+            <span class="agent"><img src="https://media.valorant-api.com/agents/add6443a-41bd-e414-f6ad-e58d267f4e95/displayicon.png" alt="Jett" width="52" height="52" data-fb="JT"></span>
+            <span class="body">
+              <span class="top"><span class="res v" aria-label="Victoire">V</span><span class="score">13–9</span><span class="map">Ascent</span><span class="mvp" style="color:var(--mvp)">MVP</span><span class="when">Vexo · Jett · 21:14</span></span>
+              <span class="stats"><span>K/D/A <b>24/14/6</b></span><span>ACS <b>312</b></span><span>ADR <b>187</b></span><span class="ascii bar" role="img" aria-label="Headshots : 34 %"><span class="on">███▍</span><span class="off">░░░░░░</span> <b>34%</b></span><span class="rr up">+21 RR</span></span>
+            </span>
+          </a>
+          <a class="match" href="#" style="--rc:var(--loss);--rc2:var(--role-controller)">
+            <span class="mapbg" style="background-image:url(https://media.valorant-api.com/maps/2fe4ed3a-450a-948b-6d6b-e89a78e680a9/listviewicon.png)" aria-hidden="true"></span>
+            <span class="side" aria-hidden="true"></span>
+            <span class="agent"><img src="https://media.valorant-api.com/agents/8e253930-4c05-31dd-1b6c-968525494517/displayicon.png" alt="Omen" width="52" height="52" data-fb="OM"></span>
+            <span class="body">
+              <span class="top"><span class="res d" aria-label="Défaite">D</span><span class="score">10–13</span><span class="map">Lotus</span><span class="when">Kestrel · Omen · 19:52</span></span>
+              <span class="stats"><span>K/D/A <b>15/17/9</b></span><span>ACS <b>198</b></span><span>ADR <b>131</b></span><span class="ascii bar" role="img" aria-label="Headshots : 19 %"><span class="on">██</span><span class="off">░░░░░░░░</span> <b>19%</b></span><span class="rr down">−17 RR</span></span>
+            </span>
+          </a>
+        </div>
+      </div>
+
+      <aside class="grid" style="gap:16px;align-content:start">
+        <div class="card ticks" style="overflow:hidden">
+          <div class="banner" style="background-image:url(https://media.valorant-api.com/playercards/ab5a453a-f726-4e04-b277-f30d56a8b152/wideart.png)" aria-hidden="true"></div>
+          <span class="label">// Joueur de la semaine</span>
+          <div style="font:900 56px/.9 var(--display);text-transform:uppercase;margin:12px 0 4px">Vexo</div>
+          <div class="mono" style="font-size:12px;color:var(--text-3)">Vexo#EUW · Duelliste</div>
+          <div class="stats" style="margin-top:14px"><span>Parties <b>14</b></span><span>V <b>11</b></span><span>ACS <b>287</b></span></div>
+          <div class="ascii bar" style="margin-top:10px;font-size:13px" role="img" aria-label="Taux de victoire : 79 %"><span class="on">███████████████▊</span><span class="off">░░░░</span> 79%</div>
+        </div>
+        <div class="card">
+          <div class="frame-head"><span class="g" aria-hidden="true">┌─[</span>En partie<span class="g" aria-hidden="true">]</span></div>
+          <div class="live" style="margin-bottom:8px"><span class="dot" aria-hidden="true"></span>Moira · Haven · 8–5</div>
+          <div class="loader"><span class="spin" id="spin" aria-hidden="true">⠋</span> manche 14 · spike posé en B</div>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- 06 MATCH -->
+  <section class="block" aria-labelledby="s6">
+    <div class="sec-index" aria-hidden="true"><span class="n">06</span> ── Partie</div>
+    <h2 id="s6">Lire une partie</h2>
+    <p class="lede">Frise des manches, journal des éliminations et coach IA. Alliés en sarcelle, ennemis en rouge, chaque couleur doublée d'un glyphe ou d'un libellé.</p>
+
+    <div class="card notch notch-edge">
+      <div class="frame-head"><span class="g" aria-hidden="true">┌─[</span>Manches<span class="g" aria-hidden="true">]</span><span class="aside"><span style="color:var(--ally)">ALLIÉS 13</span> · <span style="color:var(--enemy)">9 ENNEMIS</span></span></div>
+      <div class="rounds" id="rounds" role="list" aria-label="Résultat des 22 manches"></div>
+      <div class="legend" aria-hidden="true"><span>✕ élimination</span><span>◆ désamorcé</span><span>✶ explosé</span><span>◷ temps écoulé</span></div>
+    </div>
+
+    <div class="grid g2" style="margin-top:16px">
+      <div class="card">
+        <div class="frame-head"><span class="g" aria-hidden="true">┌─[</span>Kill feed · manche 7<span class="g" aria-hidden="true">]</span></div>
+<div class="feed"><span class="t">[01:12]</span> <img class="kf" src="https://media.valorant-api.com/agents/add6443a-41bd-e414-f6ad-e58d267f4e95/killfeedportrait.png" alt=""> <span class="al">VEXO   </span> <span class="ar">──▸</span> <img class="kf victim" src="https://media.valorant-api.com/agents/a3bfb853-43b2-7238-a4f1-ad90e9e46bcc/killfeedportrait.png" alt=""> <span class="en">REYNA  </span> <span class="hs">◎ HS</span>
+<span class="t">[01:09]</span> <img class="kf" src="https://media.valorant-api.com/agents/22697a3d-45bf-8dd7-4fec-84a9e28c69d7/killfeedportrait.png" alt=""> <span class="en">CHAMBER</span> <span class="ar">──▸</span> <img class="kf victim" src="https://media.valorant-api.com/agents/320b2a48-4d9b-a075-30f1-1f93a9b638fa/killfeedportrait.png" alt=""> <span class="al">OZZY   </span>
+<span class="t">[00:58]</span> <img class="kf" src="https://media.valorant-api.com/agents/8e253930-4c05-31dd-1b6c-968525494517/killfeedportrait.png" alt=""> <span class="al">KESTREL</span> <span class="ar">──▸</span> <img class="kf victim" src="https://media.valorant-api.com/agents/22697a3d-45bf-8dd7-4fec-84a9e28c69d7/killfeedportrait.png" alt=""> <span class="en">CHAMBER</span> <span class="hs">◎ HS</span>
+<span class="t">[00:41]</span> <span class="sp">SPIKE POSÉ · SITE A</span>
+<span class="t">[00:22]</span> <img class="kf" src="https://media.valorant-api.com/agents/569fdd95-4d10-43ab-ca70-79becc718b46/killfeedportrait.png" alt=""> <span class="al">MOIRA  </span> <span class="ar">──▸</span> <img class="kf victim" src="https://media.valorant-api.com/agents/5f8d3a7f-467b-97f3-062c-13acf203c006/killfeedportrait.png" alt=""> <span class="en">BREACH </span>
+<span class="t">[00:03]</span> <span class="al">MANCHE ALLIÉE</span> <span class="ar">·</span> <span class="ar">✶ explosé</span></div>
+      </div>
+
+      <div class="term">
+        <div class="term-head"><span class="k">K.AI/O</span><span>── Analyse v1</span><span class="st">● Prêt</span></div>
+        <div class="term-body">
+          <div class="cmd"><b>&gt;_</b> analyse --joueur vexo --partie ascent-2114</div>
+          <p>Ouvertures très rentables en attaque (6 premiers kills sur 8 tentés), mais trois morts sans échange en défense sur B long.</p>
+          <ul>
+            <li>Garde ton Dash pour le retrait en défense plutôt qu'à l'entrée.</li>
+            <li>Ton ADR chute de 40&nbsp;% en eco&nbsp;: joue les angles proches.</li>
+            <li>Crosshair trop bas sur Ascent mid (HS 22&nbsp;% vs 34&nbsp;% ailleurs).</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid g2" style="margin-top:16px">
+      <div class="card ticks empty">
+<span class="ascii" aria-hidden="true">      │
+   ───<span class="c">┼</span>───
+      │</span>
+        <b>Aucune partie</b>
+        <p>Ce joueur n'a pas encore joué de classée cet acte.</p>
+        <button class="btn btn-sec" type="button"><span class="br" aria-hidden="true">[</span>Voir l'acte précédent<span class="br" aria-hidden="true">]</span></button>
+      </div>
+      <div class="card">
+        <div class="frame-head"><span class="g" aria-hidden="true">┌─[</span>Chargement<span class="g" aria-hidden="true">]</span></div>
+        <div class="loader" role="status"><span class="spin" id="spin2" aria-hidden="true">⠋</span> synchronisation avec Riot…<br><span class="dim">[■■■■■■□□□□□□]</span> 6/12 parties</div>
+        <div class="skel" style="width:80%"></div>
+        <div class="skel" style="width:55%"></div>
+        <div class="skel" style="width:68%"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 07 ASSETS -->
+  <section class="block" aria-labelledby="s7a">
+    <div class="sec-index" aria-hidden="true"><span class="n">07</span> ── Assets du jeu</div>
+    <h2 id="s7a">media.valorant-api.com</h2>
+    <p class="lede">Le CDN déjà utilisé par GameOn-API&nbsp;: emblèmes de rang, cartes de joueur, agents, rôles, cartes. Protocol les calme (voile, désaturation, scanlines) pour que le rouge reste le seul accent.</p>
+
+    <div class="ph notch-2">
+      <div class="bg" style="background-image:url(https://media.valorant-api.com/playercards/ab5a453a-f726-4e04-b277-f30d56a8b152/wideart.png)" aria-hidden="true"></div>
+      <img class="portrait" src="https://media.valorant-api.com/agents/add6443a-41bd-e414-f6ad-e58d267f4e95/fullportrait.png" alt="" loading="lazy">
+      <span class="label" style="color:#FF4655">// Profil · héros</span>
+      <div class="name" style="margin-top:10px">Vexo</div>
+      <div class="rid">Vexo#EUW · niveau 214 · EU</div>
+      <div class="peak"><img src="https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/26/largeicon.png" alt="Immortel 3" width="56" height="56"><div><span>Pic de rang · e9a3</span><b>Immortel 3 · 212 RR</b></div></div>
+    </div>
+
+    <div class="grid g2" style="margin-top:16px">
+      <div class="card">
+        <div class="frame-head"><span class="g" aria-hidden="true">┌─[</span>Emblèmes de rang<span class="g" aria-hidden="true">]</span><span class="aside">smallicon · 0, 3–27</span></div>
+        <div class="emblems">
+          <figure><img src="https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/0/smallicon.png" alt="" width="44" height="44" loading="lazy"><figcaption>Non classé</figcaption></figure>
+          <figure><img src="https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/5/smallicon.png" alt="" width="44" height="44" loading="lazy"><figcaption>Fer</figcaption></figure>
+          <figure><img src="https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/8/smallicon.png" alt="" width="44" height="44" loading="lazy"><figcaption>Bronze</figcaption></figure>
+          <figure><img src="https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/11/smallicon.png" alt="" width="44" height="44" loading="lazy"><figcaption>Argent</figcaption></figure>
+          <figure><img src="https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/14/smallicon.png" alt="" width="44" height="44" loading="lazy"><figcaption>Or</figcaption></figure>
+          <figure><img src="https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/17/smallicon.png" alt="" width="44" height="44" loading="lazy"><figcaption>Platine</figcaption></figure>
+          <figure><img src="https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/20/smallicon.png" alt="" width="44" height="44" loading="lazy"><figcaption>Diamant</figcaption></figure>
+          <figure><img src="https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/23/smallicon.png" alt="" width="44" height="44" loading="lazy"><figcaption>Ascendant</figcaption></figure>
+          <figure><img src="https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/26/smallicon.png" alt="" width="44" height="44" loading="lazy"><figcaption>Immortel</figcaption></figure>
+          <figure><img src="https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/27/smallicon.png" alt="" width="44" height="44" loading="lazy"><figcaption>Radiant</figcaption></figure>
+        </div>
+      </div>
+      <div class="card">
+        <div class="frame-head"><span class="g" aria-hidden="true">┌─[</span>Cartes<span class="g" aria-hidden="true">]</span><span class="aside">listviewicon · voile night</span></div>
+        <div class="maps">
+          <div class="maptile"><img src="https://media.valorant-api.com/maps/7eaecc1b-4337-bbf6-6ab9-04b8f06b3319/listviewicon.png" alt="" loading="lazy"><b>Ascent</b></div>
+          <div class="maptile"><img src="https://media.valorant-api.com/maps/2fe4ed3a-450a-948b-6d6b-e89a78e680a9/listviewicon.png" alt="" loading="lazy"><b>Lotus</b></div>
+          <div class="maptile"><img src="https://media.valorant-api.com/maps/2bee0dc9-4ffe-519b-1cbd-7fbe763a6047/listviewicon.png" alt="" loading="lazy"><b>Haven</b></div>
+          <div class="maptile"><img src="https://media.valorant-api.com/maps/2c9d57ec-4431-9c5e-2939-8f9ef6dd5cba/listviewicon.png" alt="" loading="lazy"><b>Bind</b></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="frame-head"><span class="g" aria-hidden="true">┌─[</span>Replis ASCII<span class="g" aria-hidden="true">]</span><span class="aside">URL nulle ou en erreur</span></div>
+      <div class="row" style="gap:20px">
+        <span class="row" style="gap:8px"><span class="fb" style="width:52px;height:52px" aria-hidden="true">JT</span><span class="label">Agent</span></span>
+        <span class="row" style="gap:8px"><span class="fb fb-dither" style="width:96px;height:52px" aria-hidden="true">░▒░▒░▒░▒░▒░▒
+▒░▒░▒░▒░▒░▒░
+░▒░▒░▒░▒░▒░▒
+▒░▒░▒░▒░▒░▒░
+░▒░▒░▒░▒░▒░▒
+▒░▒░▒░▒░▒░▒░</span><span class="label">Carte de joueur</span></span>
+        <span class="row" style="gap:8px"><span class="mono" style="color:var(--text-3)">[ — ]</span><span class="label">Rang inconnu</span></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 07 RULES -->
+  <section class="block" aria-labelledby="s7">
+    <div class="sec-index" aria-hidden="true"><span class="n">08</span> ── Règles</div>
+    <h2 id="s7">À faire, à éviter</h2>
+    <div class="card" style="padding:0;overflow-x:auto">
+      <table class="rules">
+        <thead><tr><th>Sujet</th><th>On veut</th><th>On évite</th></tr></thead>
+        <tbody>
+          <tr><td>Forme</td><td><span class="ok">✓</span> Rayon 0, coin coupé, filets 1px</td><td><span class="no">✕</span> Arrondis, pilules, ombres douces</td></tr>
+          <tr><td>Rouge</td><td><span class="ok">✓</span> Un CTA plein par écran</td><td><span class="no">✕</span> Rouge décoratif, dégradés néon</td></tr>
+          <tr><td>ASCII</td><td><span class="ok">✓</span> Cadres, crochets, barres, journaux</td><td><span class="no">✕</span> ASCII dans une phrase ou seul porteur d'info</td></tr>
+          <tr><td>Résultats</td><td><span class="ok">✓</span> V / D / N + couleur</td><td><span class="no">✕</span> Couleur seule</td></tr>
+          <tr><td>Mouvement</td><td><span class="ok">✓</span> 120–320ms, ease-snap, sans rebond</td><td><span class="no">✕</span> Glitch en boucle, ease-spring</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<footer class="statusbar">
+  <div class="wrap">
+    <span class="mode">Normal</span>
+    <span>PickDiff v1.0</span>
+    <span>Synchro 07:42</span>
+    <span>Patch 11.08</span>
+    <span class="lv">● 2 en partie</span>
+  </div>
+  <p class="legal">PickDiff n'est pas approuvé par Riot Games et ne reflète pas les opinions de Riot Games ni de quiconque officiellement impliqué dans la production ou la gestion des propriétés Riot Games. Riot Games et toutes les propriétés associées sont des marques commerciales ou des marques déposées de Riot Games, Inc.</p>
+</footer>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var btn = document.getElementById('theme');
+  var moon = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>';
+  var sun = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
+  function apply(light) {
+    root.classList.toggle('light', light);
+    btn.innerHTML = light ? sun : moon;
+    btn.setAttribute('aria-label', light ? 'Passer en thème sombre' : 'Passer en thème clair');
+  }
+  try { apply(localStorage.getItem('pd-theme') === 'light'); } catch (e) { apply(false); }
+  btn.addEventListener('click', function () {
+    var light = !root.classList.contains('light');
+    apply(light);
+    try { localStorage.setItem('pd-theme', light ? 'light' : 'dark'); } catch (e) {}
+  });
+
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Dither column for the hero: denser on the right edge.
+  var ramp = ' ░▒▓█';
+  var lines = [];
+  for (var y = 0; y < 40; y++) {
+    var line = '';
+    for (var x = 0; x < 34; x++) {
+      var d = x / 34 + (Math.sin(y * 0.6 + x * 0.3) * 0.12) + (Math.random() * 0.18 - 0.09);
+      line += ramp[Math.max(0, Math.min(4, Math.floor(d * 5)))];
+    }
+    lines.push(line);
+  }
+  document.getElementById('dither').textContent = lines.join('\n');
+
+  // Round timeline: a = ally round, e = enemy round; glyph = how it ended. "|" marks half time.
+  var rounds = 'a✕ a✕ e✕ a◆ a✕ e✶ a✶ a✕ e✕ a✕ e◷ a✕ | e✕ e✶ a◆ a✕ e✕ e✕ a✕ e◆ a✕ a✕'.split(' ');
+  var names = { '✕': 'élimination', '◆': 'spike désamorcé', '✶': 'spike explosé', '◷': 'temps écoulé' };
+  var host = document.getElementById('rounds');
+  var n = 0;
+  rounds.forEach(function (r) {
+    var el = document.createElement('span');
+    if (r === '|') { el.className = 'rd half'; el.setAttribute('aria-hidden', 'true'); host.appendChild(el); return; }
+    n++;
+    var side = r[0], g = r.slice(1);
+    el.className = 'rd ' + side;
+    el.setAttribute('role', 'listitem');
+    el.textContent = g;
+    var label = 'Manche ' + n + ' : ' + (side === 'a' ? 'alliés' : 'ennemis') + ', ' + names[g];
+    el.title = label; el.setAttribute('aria-label', label);
+    host.appendChild(el);
+  });
+
+  // A failed game asset becomes its ASCII fallback, never a broken image.
+  document.querySelectorAll('img').forEach(function (img) {
+    img.addEventListener('error', function () {
+      if (img.dataset.fb) {
+        var fb = document.createElement('span');
+        fb.className = img.className + ' fb';
+        fb.style.width = img.getAttribute('width') + 'px';
+        fb.style.height = img.getAttribute('height') + 'px';
+        fb.textContent = img.dataset.fb;
+        fb.setAttribute('aria-hidden', 'true');
+        img.replaceWith(fb);
+      } else {
+        img.style.visibility = 'hidden';
+      }
+    });
+  });
+
+  // Braille spinners.
+  var frames = '⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏';
+  var spins = [document.getElementById('spin'), document.getElementById('spin2')];
+  if (!reduced) {
+    var f = 0;
+    setInterval(function () { f = (f + 1) % frames.length; spins.forEach(function (s) { s.textContent = frames[f]; }); }, 80);
+  }
+
+  // Decrypt: hero figures scramble once, then settle.
+  if (!reduced) {
+    document.querySelectorAll('[data-decrypt]').forEach(function (el) {
+      var target = el.getAttribute('data-decrypt');
+      var pool = '#%&@$0123456789';
+      var t = 0;
+      var id = setInterval(function () {
+        t++;
+        el.textContent = target.split('').map(function (c, i) {
+          return t > 6 + i * 3 ? c : pool[Math.floor(Math.random() * pool.length)];
+        }).join('');
+        if (t > 6 + target.length * 3) { clearInterval(id); el.textContent = target; }
+      }, 40);
+    });
+  }
+})();
+</script>
+</body>
+</html>
