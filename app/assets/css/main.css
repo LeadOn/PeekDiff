@@ -1,0 +1,323 @@
+@import "tailwindcss";
+
+/*
+ * Design system "Protocol" v1 — the source of truth is `design-system/MASTER.md`.
+ *
+ * Raw values live on `:root` (and `:root.light`), `@theme` maps them to the names Tailwind exposes.
+ * Components write `bg-surface-base`, `text-brand-red`, never a hex.
+ *
+ * DARK is the default: `:root` is the night palette and the `.light` class on <html> switches to
+ * "Bone", the warm off-white variant. `public/theme-init.js` applies the stored choice before the
+ * first paint; read and write it through `app/utils/theme.ts`.
+ */
+@custom-variant light (&:is(.light *));
+@custom-variant dark (&:is(:root:not(.light) *));
+
+@theme {
+  /* Display: tall condensed caps for titles and hero figures. UI: DIN-like grotesque.
+     Mono: every figure, every technical label and every ASCII motif — box-drawing glyphs only
+     line up in a monospace face that ships them, and JetBrains Mono does. */
+  --font-display: 'Big Shoulders', 'Arial Narrow', sans-serif;
+  --font-sans: 'Barlow', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --breakpoint-rail: 68.75rem;
+
+  --color-bg-base: var(--color-bg);
+  --color-surface-base: var(--color-surface);
+  --color-surface-high: var(--color-surface-high);
+  --color-surface-sunken: var(--color-surface-sunken);
+  --color-surface-hover: var(--color-surface-hover);
+  --color-surface-selected: var(--color-surface-picked);
+
+  --color-border-base: var(--color-border);
+  --color-border-strong: var(--color-border-strong);
+  --color-border-ascii: var(--color-ascii);
+
+  --color-text-main: var(--color-text);
+  --color-text-sec: var(--color-text-secondary);
+  --color-text-ter: var(--color-text-tertiary);
+
+  /* Brand red: text, rules, glows (`brand-red`) vs solid fills carrying white text (`brand-red-fill`,
+     darker so white reaches 4.9:1). */
+  --color-brand-red: var(--color-red);
+  --color-brand-red-fill: var(--color-red-fill);
+  --color-brand-red-hover: var(--color-red-fill-hover);
+  --color-brand-red-soft: var(--color-red-tint);
+  --color-brand-bone: var(--color-bone);
+
+  /* Results. Loss shares the brand red, as in the game: a result is ALWAYS paired with its letter
+     (V / D / N) so colour is never the only signal. */
+  --color-win: var(--color-win-ink);
+  --color-win-soft: var(--color-win-tint);
+  --color-loss: var(--color-loss-ink);
+  --color-loss-soft: var(--color-loss-tint);
+  --color-draw: var(--color-text-secondary);
+
+  /* Sides of a match: the viewer's team is teal, the enemy red (the in-game convention). A side is
+     not a result: the enemy can lose. */
+  --color-ally: var(--color-ally-ink);
+  --color-ally-soft: var(--color-ally-tint);
+  --color-enemy: var(--color-enemy-ink);
+  --color-enemy-soft: var(--color-enemy-tint);
+
+  /* Match MVP (gold), team MVP (silver), spike / warnings (amber). */
+  --color-mvp: var(--color-mvp-ink);
+  --color-mvp-team: var(--color-mvp-team-ink);
+  --color-spike: var(--color-spike-ink);
+
+  /* Competitive tiers: the `color` of each tier in valorant-api.com's competitivetiers table, Immortal
+     lifted from #BB3D65 to reach 4.9:1 under `night` text. Fills for chips; text on top uses `night`.
+     The raw `--tier-*` values sit on `:root` so inline styles can reach them (see `tierColor`). */
+  --color-tier-iron: var(--tier-iron);
+  --color-tier-bronze: var(--tier-bronze);
+  --color-tier-silver: var(--tier-silver);
+  --color-tier-gold: var(--tier-gold);
+  --color-tier-platinum: var(--tier-platinum);
+  --color-tier-diamond: var(--tier-diamond);
+  --color-tier-ascendant: var(--tier-ascendant);
+  --color-tier-immortal: var(--tier-immortal);
+  --color-tier-radiant: var(--tier-radiant);
+
+  /* Agent roles. Always rendered with the role icon and its name. */
+  --color-role-duelist: #FF7A59;
+  --color-role-initiator: #8FD14F;
+  --color-role-controller: #7C8CFF;
+  --color-role-sentinel: #4FC3F7;
+
+  /* `inverse` flips with the theme; `night` stays dark in both (tooltips, status bar, agent-art
+     heroes). */
+  --color-inverse: var(--color-inverse-bg);
+  --color-inverse-text: var(--color-inverse-fg);
+  --color-night: #0B0C0F;
+  --color-on-night: #ECE8E1;
+  --color-on-night-2: #A8A39B;
+  /* Accents printed on `night` (heroes, tooltips): fixed in both themes, like the surface under them. */
+  --color-on-night-red: #FF4655;
+  --color-on-night-win: #33D1B2;
+  --color-on-night-loss: #FF6B77;
+
+  /* Tactical motion: fast, decisive, no overshoot. */
+  --ease-snap: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-in-snap: cubic-bezier(0.5, 0, 0.75, 0);
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+
+  --animate-enter: pd-enter 0.32s cubic-bezier(0.25, 1, 0.5, 1) backwards;
+  --animate-wipe: pd-wipe 0.4s cubic-bezier(0.25, 1, 0.5, 1) both;
+  --animate-blink: pd-blink 1s steps(1) infinite;
+  --animate-ping: pd-ping 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
+  --animate-scan: pd-scan 2.4s linear infinite;
+
+  @keyframes pd-enter {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+  }
+  /* A red rule sweeping in from the left, under a title or across a hero. */
+  @keyframes pd-wipe {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+  }
+  /* The terminal cursor. */
+  @keyframes pd-blink {
+    50% { opacity: 0; }
+  }
+  @keyframes pd-ping {
+    75%, 100% { transform: scale(2.4); opacity: 0; }
+  }
+  /* A scan line crossing a loading block. */
+  @keyframes pd-scan {
+    from { transform: translateY(-100%); }
+    to { transform: translateY(100%); }
+  }
+}
+
+:root {
+  /* Night (default) */
+  --color-bg: #0B0C0F;
+  --color-surface: #121418;
+  --color-surface-high: #181B20;
+  --color-surface-sunken: #07080A;
+  --color-surface-hover: #1C1F25;
+  --color-surface-picked: #1F1416;
+  --color-border: rgba(236, 232, 225, 0.10);
+  --color-border-strong: rgba(236, 232, 225, 0.22);
+  --color-ascii: rgba(236, 232, 225, 0.28);
+  --color-text: #ECE8E1;
+  --color-text-secondary: #A8A39B;
+  --color-text-tertiary: #85817A;
+  --color-bone: #ECE8E1;
+  --color-red: #FF4655;
+  --color-red-fill: #D62A3B;
+  --color-red-fill-hover: #C02234;
+  --color-red-tint: rgba(255, 70, 85, 0.12);
+  --color-win-ink: #33D1B2;
+  --color-win-tint: rgba(51, 209, 178, 0.12);
+  --color-loss-ink: #FF4655;
+  --color-loss-tint: rgba(255, 70, 85, 0.12);
+  --color-ally-ink: #33D1B2;
+  --color-ally-tint: rgba(51, 209, 178, 0.10);
+  --color-enemy-ink: #FF4655;
+  --color-enemy-tint: rgba(255, 70, 85, 0.10);
+  --color-mvp-ink: #F2C14E;
+  --color-mvp-team-ink: #C3C9CC;
+  --color-spike-ink: #F5A623;
+  --color-inverse-bg: #ECE8E1;
+  --color-inverse-fg: #0B0C0F;
+
+  /* No soft drop shadows: depth comes from surfaces and hairlines. Only red elements glow. */
+  --shadow-glow-red-value: 0 0 0 1px rgba(255, 70, 85, 0.5), 0 0 24px -4px rgba(255, 70, 85, 0.45);
+  --shadow-float-value: 0 18px 40px -16px rgba(0, 0, 0, 0.8);
+  --scanlines: repeating-linear-gradient(0deg, rgba(236, 232, 225, 0.025) 0 1px, transparent 1px 3px);
+  --page-wash: radial-gradient(50% 60% at 85% 0%, rgba(255, 70, 85, 0.10), transparent 70%);
+  --header-bg: rgba(11, 12, 15, 0.82);
+  --notch: 12px;
+
+  --tier-iron: #868986;
+  --tier-bronze: #A5855D;
+  --tier-silver: #BBC2C2;
+  --tier-gold: #ECCF56;
+  --tier-platinum: #59A9B6;
+  --tier-diamond: #B489C4;
+  --tier-ascendant: #6AE2AF;
+  --tier-immortal: #DB4D72;
+  --tier-radiant: #FFFFAA;
+
+  color-scheme: dark;
+}
+
+:root.light {
+  /* Bone: the warm off-white of the game's menus */
+  --color-bg: #ECE8E1;
+  --color-surface: #F6F3EE;
+  --color-surface-high: #E3DED5;
+  --color-surface-sunken: #DCD6CC;
+  --color-surface-hover: #FBF9F5;
+  --color-surface-picked: #F5E3E1;
+  --color-border: rgba(15, 17, 20, 0.12);
+  --color-border-strong: rgba(15, 17, 20, 0.26);
+  --color-ascii: rgba(15, 17, 20, 0.32);
+  --color-text: #0F1114;
+  --color-text-secondary: #4A4741;
+  --color-text-tertiary: #6A665F;
+  --color-bone: #ECE8E1;
+  --color-red: #C8202F;
+  --color-red-fill: #D62A3B;
+  --color-red-fill-hover: #C02234;
+  --color-red-tint: rgba(214, 42, 59, 0.10);
+  --color-win-ink: #0B7562;
+  --color-win-tint: rgba(11, 117, 98, 0.10);
+  --color-loss-ink: #C8202F;
+  --color-loss-tint: rgba(200, 32, 47, 0.10);
+  --color-ally-ink: #0B7562;
+  --color-ally-tint: rgba(11, 117, 98, 0.08);
+  --color-enemy-ink: #C8202F;
+  --color-enemy-tint: rgba(200, 32, 47, 0.08);
+  --color-mvp-ink: #7A570F;
+  --color-mvp-team-ink: #5E666A;
+  --color-spike-ink: #8A5100;
+  --color-inverse-bg: #0F1114;
+  --color-inverse-fg: #ECE8E1;
+
+  --shadow-glow-red-value: 0 0 0 1px rgba(214, 42, 59, 0.45), 0 0 20px -6px rgba(214, 42, 59, 0.35);
+  --shadow-float-value: 0 18px 40px -18px rgba(15, 17, 20, 0.45);
+  --scanlines: repeating-linear-gradient(0deg, rgba(15, 17, 20, 0.03) 0 1px, transparent 1px 3px);
+  --page-wash: radial-gradient(50% 60% at 85% 0%, rgba(214, 42, 59, 0.08), transparent 70%);
+  --header-bg: rgba(236, 232, 225, 0.85);
+
+  color-scheme: light;
+}
+
+@utility shadow-glow-red { box-shadow: var(--shadow-glow-red-value); }
+@utility shadow-float { box-shadow: var(--shadow-float-value); }
+
+/* The signature cut corner (top-right), and its doubled variant for heroes (top-right + bottom-left). */
+@utility notch {
+  clip-path: polygon(0 0, calc(100% - var(--notch)) 0, 100% var(--notch), 100% 100%, 0 100%);
+}
+/* `clip-path` cuts the border too: this redraws the diagonal on a bordered `notch` card. The card
+   needs `position: relative`. */
+@utility notch-edge {
+  &::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: var(--notch);
+    height: var(--notch);
+    pointer-events: none;
+    background: linear-gradient(to bottom left, transparent calc(50% - 1px), var(--color-border-strong) calc(50% - 0.5px) calc(50% + 0.5px), transparent calc(50% + 1px));
+  }
+}
+@utility notch-2 {
+  clip-path: polygon(0 0, calc(100% - var(--notch)) 0, 100% var(--notch), 100% 100%, var(--notch) 100%, 0 calc(100% - var(--notch)));
+}
+
+/* Corner ticks: four L-shaped viewfinder marks drawn by backgrounds, no extra markup. Longhands
+   only: the `background` shorthand would reset the colour a `bg-*` class sets on the same card. */
+@utility ticks {
+  --tick: 10px;
+  --tick-color: var(--color-border-strong);
+  background-image:
+    linear-gradient(var(--tick-color), var(--tick-color)), linear-gradient(var(--tick-color), var(--tick-color)),
+    linear-gradient(var(--tick-color), var(--tick-color)), linear-gradient(var(--tick-color), var(--tick-color)),
+    linear-gradient(var(--tick-color), var(--tick-color)), linear-gradient(var(--tick-color), var(--tick-color)),
+    linear-gradient(var(--tick-color), var(--tick-color)), linear-gradient(var(--tick-color), var(--tick-color));
+  background-position: top left, top left, top right, top right, bottom left, bottom left, bottom right, bottom right;
+  background-size:
+    var(--tick) 1px, 1px var(--tick), var(--tick) 1px, 1px var(--tick),
+    var(--tick) 1px, 1px var(--tick), var(--tick) 1px, 1px var(--tick);
+  background-repeat: no-repeat;
+}
+
+/* An official role glyph (white PNG) tinted with the current colour. The CDN answers CORS with `*`,
+   which a cross-origin mask requires. Usage: style="--src: url(<role icon url>)". */
+@utility role-icon {
+  background-color: currentColor;
+  mask: var(--src) center / contain no-repeat;
+}
+
+/* Any ASCII run: monospace, no ligatures, no wrapping, tabular figures. */
+@utility ascii {
+  font-family: var(--font-mono);
+  font-variant-ligatures: none;
+  font-variant-numeric: tabular-nums;
+  white-space: pre;
+  line-height: 1.15;
+  letter-spacing: 0;
+}
+
+@utility scanlines { background-image: var(--scanlines); }
+@utility bg-page-wash { background-image: var(--page-wash); }
+@utility bg-header { background-color: var(--header-bg); }
+
+/* The veil over game art in heroes (player cards, splashes): night, opaque on the text side. Fixed in
+   both themes — heroes stay `night` in Bone too. */
+@utility bg-scrim-night {
+  background-image: linear-gradient(90deg, rgba(11, 12, 15, 0.94) 30%, rgba(11, 12, 15, 0.55));
+}
+@utility bg-scrim-rise {
+  background-image: linear-gradient(0deg, rgba(11, 12, 15, 0.96) 35%, rgba(11, 12, 15, 0.45));
+}
+
+@layer base {
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-red);
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

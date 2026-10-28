@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="PickDiff">
+  <path d="M0 0h52l12 12v52H0z" fill="#0B0C0F"/>
+  <path d="M1 1h50.6L63 12.4V63H1z" fill="none" stroke="#FF4655" stroke-opacity=".55" stroke-width="2"/>
+  <path d="M15 14h13a10 10 0 0 1 0 20h-6v16h-7z M22 21v6h6a3 3 0 0 0 0-6z" fill="#ECE8E1" fill-rule="evenodd"/>
+  <path d="M38 50 50 14h6L44 50z" fill="#FF4655"/>
+</svg>
