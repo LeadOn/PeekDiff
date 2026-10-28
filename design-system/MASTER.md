@@ -220,7 +220,7 @@ en file (`[■■□□□] POSITION 3`), rapport, abandonné, erreur.
 
 ### Navigation
 
-- **Header** : wordmark `PICK/DIFF` (le `/` en rouge), liens en mono MAJ. 12px, actif souligné
+- **Header** : mascotte 40px + wordmark `PICK/DIFF` (le `/` en rouge), liens en mono MAJ. 12px, actif souligné
   rouge 2px, recherche `>_ ⌘K`, bascule thème.
 - **Barre d'état** (pied de page desktop, comme une statusline) : fond `night`, mono 11px —
   `PICKDIFF v1.0 │ SYNCHRO 07:42 │ PATCH 11.08 │ ● 2 EN PARTIE`.
@@ -234,7 +234,14 @@ Bloc `ticks`, petit viseur ASCII centré, titre clair, une action. Erreur : caus
 ## 8. Iconographie et assets du jeu
 
 **Icônes d'interface** : Lucide (`@nuxt/icon`, comme JungleDiff), trait 1.75px, tailles 16 / 20 /
-24. Pas d'emoji. Ne pas reproduire le logo Valorant : le wordmark PickDiff est le seul logo.
+24. Pas d'emoji. Ne pas reproduire le logo Valorant.
+
+**Logo** : la mascotte (Jett en chibi, geste « OK », détourée sur fond transparent) suivie du
+wordmark `PICK/DIFF`. Original 1024px dans [`logo/pickdiff-logo-1024.png`](logo/pickdiff-logo-1024.png),
+128px dans `app/assets/img/PickDiff_Logo.png` (rendu à 40px). Toujours posée telle quelle : ni
+recadrée, ni recolorée, ni sous un filtre. Les icônes d'application (`apple-touch-icon`, manifeste)
+la posent sur `night` avec une marge de sécurité ; le favicon la garde transparente. C'est une
+illustration de fan d'un personnage Riot : la mention légale du pied de page la couvre.
 
 **Assets du jeu** : tous servis par `media.valorant-api.com`, le CDN sur lequel GameOn-API construit
 déjà ses URLs. Les constructeurs d'URL sont dans [`valorant-assets.ts`](valorant-assets.ts) (à
