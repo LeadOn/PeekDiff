@@ -25,7 +25,7 @@ exists so a crew member is recognised ("Vous") and can edit their own profile.
 
 # Features
 
-Three pages so far: the crew dashboard, player profiles and settings. Match pages, records, a crew
+Four pages so far: the crew dashboard, player profiles, match pages and settings. Records, a crew
 search and an admin space are JungleDiff features PeekDiff does not have yet (see Known Gaps).
 
 - `/` — crew dashboard, built from the "Protocol" design system. Top to bottom: status chips (the
@@ -47,7 +47,18 @@ search and an admin space are JungleDiff features PeekDiff does not have yet (se
   rail: `ProfileRankProgress` (the elo curve of the period and the RR of each ranked game),
   `ProfileAgents`, `ProfileMaps`, `ProfileDuos`. Filters live in the query string (`?period=7j&queue=
   competitive`). The period does not restrict the history; the queue does. A crew member with no
-  `valorantPuuid` gets a notice instead of the stats.
+  `valorantPuuid` gets a notice instead of the stats. Each history row opens its match page.
+- `/match/[id]` — one game, told from one side: "Alliés" (teal) is the team of the player in
+  `?player=` (the profile's links set it), else the viewer's once mounted if they played it, else the
+  side with the most crew members. `MatchHero` (the map's splash under the night veil, the score from
+  the allies' side with V/D/N, the followed player's agent portrait and line), then "Tableau des
+  scores" (`MatchScoreboard`, one table per team sorted by ACS: ACS, K, D, A, +/−, ADR, HS, KAST,
+  PK, PM; the followed player on `surface-selected` with the red rule; crew members link to their
+  profile), then "Manche par manche" (`MatchTimeline`: the round frieze, glyph of the round's end in
+  the winning side's colour, a separator at half time and at overtime, a dot on rounds with a
+  ceremony; selecting a round shows its plant / defuse and its kill feed). The game is rendered on
+  the server; rounds and kills (`/rounds`) load after mount. A non-uuid id is a 404 without calling
+  the API.
 - `/settings` — `auth: true`. The signed-in user's name, nickname and Riot ID (`PATCH /player/me`),
   links to their profile and a sign-out. No profile picture upload: PeekDiff shows the Valorant player
   card, never `profilePictureUrl`.
@@ -68,6 +79,7 @@ search and an admin space are JungleDiff features PeekDiff does not have yet (se
   `SegmentSwitch`, `MockBadge`).
 - `app/components/home/` — the home page's business components.
 - `app/components/profile/` — the profile page's business components (`Profile*`).
+- `app/components/match/` — the match page's business components (`Match*`).
 - `app/components/val/` — components representing a Valorant entity (`ValRankEmblem`,
   `ValPlayerCard`, `ValAgentIcon`, `ValMatchRow`), reused across pages.
 - `app/composables/` — reusable logic and API client injection.
@@ -95,8 +107,8 @@ search and an admin space are JungleDiff features PeekDiff does not have yet (se
 - **Stores**: file `app/stores/<domain>.ts` exporting `use<Domain>Store` — `val.ts` → `useValStore`.
 - **Composables**: file named after the function — `useGameOnVal.ts` → `useGameOnVal`.
 - **Utils**: kebab-case filenames; Valorant-domain helpers carry a `val-` prefix (`val-tier.ts`,
-  `val-ladder.ts`, `val-assets.ts`, `val-smurf.ts`, `val-match.ts`, `val-period.ts`). Generic ones do
-  not (`theme.ts`, `date.ts`, `ascii.ts`).
+  `val-ladder.ts`, `val-assets.ts`, `val-smurf.ts`, `val-match.ts`, `val-game.ts`, `val-period.ts`).
+  Generic ones do not (`theme.ts`, `date.ts`, `ascii.ts`).
   Despite `app/utils/` being auto-imported, the codebase **imports these explicitly** — match that.
 - **Types**: Valorant domain types are prefixed `Val` and API payload shapes end in `Dto`
   (`ValPlayerDto`, `ValRankHistoryDto`, `ValGameDto`); a payload that is not Valorant-specific drops
@@ -174,9 +186,10 @@ search and an admin space are JungleDiff features PeekDiff does not have yet (se
   recap, smurfs and main agent), `refreshValPlayer` (`PATCH /val/player/{id}`, a Riot re-sync that also
   imports the last 10 games), `getValRankHistory` (`GET /val/player/{id}/rank`, raw or bucketed by
   `Day` / `Week` / `Month`), `getValPlayerMatches` (`GET /val/match/player/{id}`, paginated games with
-  their ten participants), `getCurrentPlayer` (`GET /player/me`) and `updateCurrentPlayer`
-  (`PATCH /player/me`). The API's `/val/home`, `/val/stats/global` and `/val/match/{id}` are not wired
-  yet.
+  their ten participants), `getValMatch` (`GET /val/match/{id}`), `getValMatchTimeline`
+  (`GET /val/match/{id}/rounds`, rounds and kills), `getCurrentPlayer` (`GET /player/me`) and
+  `updateCurrentPlayer` (`PATCH /player/me`). The API's `/val/home` and `/val/stats/global` are not
+  wired yet.
 - The `val` store caches the crew behind a 60 s window rather than for the whole SPA session, and
   `index.vue` passes `getCachedData: cacheOnlyDuringHydration` (`app/utils/async-data.ts`) so the
   handler is replayed on client navigation without breaking hydration. Both halves are required.
@@ -189,7 +202,9 @@ search and an admin space are JungleDiff features PeekDiff does not have yet (se
   crew list (its own controller) to name a smurf's main. A filter change re-reads the player and
   reassigns `data` — `useAsyncData` data is a shallow ref, so mutating a nested field is not seen.
   `buildGameLine(game, playerId)` in `app/utils/val-match.ts` turns a game into what the row shows,
-  seen from that player; `groupGamesByDay` groups the lines by Paris day.
+  seen from that player; `groupGamesByDay` groups the lines by Paris day. On the match page,
+  `app/utils/val-game.ts` does the same for the whole game: `resolvePerspective` picks the allies,
+  `buildScoreboard`, `buildRounds` and `buildRoundDetail` read everything off it.
 - `/` is served through Nitro's SWR cache (60 s); `/settings` and `/api/auth/**` are explicitly
   `no-store`. Profiles are not cached: their filters live in the query string and a sync must show at
   once.
@@ -288,6 +303,12 @@ Each of these is easy to reintroduce and hard to diagnose.
 - **`aceParticipantId` is the losing team's best rating, not a five-kill round.** The profile prints
   it "MVP équipe" (`mvp-team`); `mvpParticipantId` is the winning team's best ("MVP", `mvp`). Both are
   `null` on a draw or a remake. A remake (3 rounds or fewer) is result "R", counted in no stat.
+- **Rounds are numbered from 0 by the API.** `roundNumber` 0 is "Manche 1"; kills carry the same
+  0-based number. A round's `result` is empty when the timer ran out (◷). Half time is not hard-coded
+  at 12: `buildRounds` places it where the teams first swap sides, read off `winningTeam` and
+  `winningTeamRole`, so Swiftplay's 4-round halves come out right.
+- **Kills carry no headshot flag.** The design system's `◎` cannot be drawn in the kill feed; the
+  per-player HS % comes from the participant stats. A kill whose `weaponType` is "Bomb" is the spike.
 - **Rank history buckets can be too coarse to draw.** A month of history read by `Month` is a single
   point: `ProfileRankProgress` falls back to the raw entries when the buckets give fewer than three.
   The API's `days` only applies to buckets, so the profile filters raw entries to the period itself.
@@ -342,9 +363,12 @@ Each of these is easy to reintroduce and hard to diagnose.
   `/val/player/{id}?period=`, `/val/stats/global`, `/val/home`), tested against a local API only. The
   production API still serves players and rank history alone, so the profile's tiles and history stay
   empty there until it is deployed.
-- **No match page.** `ValMatchRow` is not a link; `/val/match/{id}` and `/val/match/{id}/rounds` (the
-  round timeline and kill feed of the design system) are not wired. The home page still reads ranks
-  only: `/val/home` (weekly activity, fact of the week) and `/val/stats/global` are not wired either.
+- **The home page still reads ranks only.** `/val/home` (weekly activity, fact of the week),
+  `/val/stats/global` (crew records) and `/val/match/last` (the crew's feed) are not wired.
+- **The match page has no economy and no per-kill headshots.** The API stores neither per round, so
+  the design system's economy view and `◎` marks wait for it. Matches that are not in the database
+  (older than a player's last synchronisations) cannot be opened: the rank history's `matchId` is
+  therefore never linked.
 - **No agent filter on the profile.** The API takes `agentName` on both the recap and the history; the
   page only filters by period and queue. Agent roles are not served at all, so agent icons carry a
   neutral rule instead of the role colour the design system asks for.

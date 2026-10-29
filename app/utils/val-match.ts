@@ -59,6 +59,8 @@ export interface GameMate {
 
 export interface GameLine {
   matchId: string
+  /** The match page, told from this player's side. */
+  href: string
   /** Paris calendar day, for grouping. */
   dayKey: string
   startedAt: string
@@ -116,6 +118,7 @@ export function buildGameLine(game: ValGameDto, playerId: number): GameLine | nu
 
   return {
     matchId: game.matchId,
+    href: `/match/${game.matchId}?player=${playerId}`,
     dayKey: parisDayKey(game.gameStart),
     startedAt: game.gameStart,
     durationSeconds: Math.round(game.gameLengthMs / 1000),

@@ -1,6 +1,6 @@
 import { BaseApiService, encodePathSegment as segment } from './BaseApiService'
 import type { RequestOptions } from './BaseApiService'
-import type { PlayerUpdateDto, ValGameDto, ValListResultDto, ValPlayerDto, ValRankHistoryDto, ValRankHistoryGranularity, ValStatsPeriod } from '../types'
+import type { PlayerUpdateDto, ValGameDto, ValGameTimelineDto, ValListResultDto, ValPlayerDto, ValRankHistoryDto, ValRankHistoryGranularity, ValStatsPeriod } from '../types'
 
 /** Filters of the profile's performance recap and match history. `queues` are API queue ids. */
 export interface ValPlayerFilters {
@@ -77,6 +77,16 @@ export class GameOnClient extends BaseApiService {
     if (options.limit !== undefined) params.set('limit', String(options.limit))
     const query = params.toString()
     return this.get<ValRankHistoryDto[]>(`/val/player/${segment(id)}/rank${query ? `?${query}` : ''}`, GameOnClient.opts(signal))
+  }
+
+  /** One game with its teams and ten participants (stats included). Unknown ids answer 404. */
+  public getValMatch(matchId: string, signal?: AbortSignal) {
+    return this.get<ValGameDto>(`/val/match/${segment(matchId)}`, GameOnClient.opts(signal))
+  }
+
+  /** A game's rounds and kills, in order. Unknown ids answer 404. */
+  public getValMatchTimeline(matchId: string, signal?: AbortSignal) {
+    return this.get<ValGameTimelineDto>(`/val/match/${segment(matchId)}/rounds`, GameOnClient.opts(signal))
   }
 
   /** The signed-in user's GameOn account (`GET /player/me`), for the header and the "Vous" badges. */

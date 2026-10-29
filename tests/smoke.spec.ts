@@ -239,6 +239,26 @@ test.describe('player profile', () => {
   })
 })
 
+test.describe('match page', () => {
+  test('an id that is not a Riot match uuid is a real 404 without calling the API', async ({ page }) => {
+    const response = await page.goto('/match/pas-une-partie')
+
+    expect(response?.status()).toBe(404)
+    await expect(page.getByRole('heading', { name: 'Page introuvable' })).toBeVisible()
+  })
+
+  test('an unreachable API degrades to a retry panel, not a 404 or a 5xx', async ({ page }) => {
+    test.skip(!!process.env.NUXT_PUBLIC_GAME_ON_API_URL, 'a real API is configured')
+
+    const response = await page.goto('/match/089e84c4-bb73-4207-91d5-8aa057ac010b?player=12')
+
+    expect(response?.status()).toBe(200)
+    await expect(page.getByRole('heading', { name: 'L\'API ne répond pas' })).toBeVisible()
+    // Without the game, the page cannot name the player: the way back falls to the ladder.
+    await expect(page.getByRole('link', { name: 'Classement du crew' })).toBeVisible()
+  })
+})
+
 test.describe('settings', () => {
   test('is never cached and renders no personal data on the server', async ({ request }) => {
     const response = await request.get('/settings')

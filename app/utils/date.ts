@@ -113,6 +113,11 @@ export function timeAgo(value: string | number | Date, now: number): string {
   return `il y a ${Math.floor(hours / 24)} j`
 }
 
+/** "28 octobre 2026": the Paris calendar day of an instant, with its year. */
+export function formatLongDate(value: string | number | Date): string {
+  return longDateFormat.format(keyToDate(parisDayKey(value)))
+}
+
 /** "37 min", "1 h 05": a game's length or an average one. */
 export function formatDuration(seconds: number): string {
   const minutes = Math.max(0, Math.round(seconds / 60))
