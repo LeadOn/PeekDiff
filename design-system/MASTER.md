@@ -203,7 +203,9 @@ icône 24px, nom en mono MAJ., `×` en `text-ter`, filet bas rouge 2px ; un clic
   `◈ DIAMANT 2`. Version compacte (ligne dense) : l'emblème seul, nom en `title` et `alt`.
 - **RR** : `+18 RR` en `win` / `−21 RR` en `loss` / `±0 RR` en `text-sec`, mono.
 - **Live** : point `brand-red` avec `animate-ping` + `EN PARTIE`.
-- **Rôle** : icône + nom, filet 1px de la couleur du rôle.
+- **Rôle** (`ValRoleChip`) : glyphe officiel teinté de la couleur du rôle (`role-icon`) + nom en
+  mono 10px MAJ. `text-sec`, filet 1px de la couleur du rôle. À côté du nom de l'agent dans les
+  listes d'agents (profil, records), dès `sm:`.
 
 ### Cartes
 
@@ -227,8 +229,8 @@ icône 24px, nom en mono MAJ., `×` en `text-ter`, filet bas rouge 2px ; un clic
   (`listviewicon`) en fond voilé, score `13–9` en display, K/D/A mono, ACS, HS % en barre glyphe,
   pastille RR. Ligne entière cliquable, survol `surface-hover` + filet gauche rouge. Le lien est
   étiré depuis le nom de la carte (`after:inset-0`) vers la page de match ; les coéquipiers du crew
-  (« En groupe avec … ») et les infobulles passent au-dessus (`z-[1]`). L'API ne sert pas les
-  rôles d'agent : le filet bas de l'icône reste `border-strong`. Regroupement par jour (heure de
+  (« En groupe avec … ») et les infobulles passent au-dessus (`z-[1]`). Le filet bas de l'icône
+  prend la couleur du rôle (`border-strong` pour un agent inconnu de la table des rôles). Regroupement par jour (heure de
   Paris) sous un index `// AUJOURD'HUI` avec le bilan `2V · 1D` et le RR net du jour.
 
 ### Données de match
@@ -353,7 +355,9 @@ accent.
 - **Portraits d'agent** : détourés, ancrés en bas, jamais rognés au-dessus des épaules. Un
   `mask-image` en dégradé les fond dans le voile du côté du texte.
 - **Icônes d'agent** : dans un carré `surface-high` sans arrondi, filet bas 2px de la couleur du
-  rôle. Pas de cercle.
+  rôle, le nom du rôle en infobulle. Pas de cercle. Sans filet pour les visages empilés de 20px
+  (fil du crew). L'API ne sert pas les rôles : le front les tient dans une table (`val-agents.ts`),
+  et un agent qu'elle ne connaît pas encore garde un filet `border-strong`.
 - **Icônes de rôle** : glyphes blancs ; on les teinte avec l'utilitaire `role-icon` (`mask` +
   `currentColor`), posé dans la pastille de rôle colorée. Le CDN répond `Access-Control-Allow-Origin: *`,
   ce qu'un masque cross-origin exige.

@@ -25,7 +25,7 @@ API and renders game art from media.valorant-api.com.
 - `app/components/` — split into `ui/` (generic: `AppHeader`, `AppBottomBar`, `SectionIndex`,
   `FrameHead`, `SegmentSwitch`, `MockBadge`), `home/` (the dashboard), `profile/` (the profile),
   `match/` (the match page) and `val/` (Valorant entities: `ValRankEmblem`, `ValPlayerCard`,
-  `ValAgentIcon`, `ValMatchRow`, `ValMapList`, `ValPlayerPalette`).
+  `ValAgentIcon`, `ValRoleChip`, `ValMatchRow`, `ValMapList`, `ValPlayerPalette`).
 - `app/composables/` — reusable logic, including API client injection (`useGameOnVal`).
 - `app/stores/` — Pinia stores: `val` (the crew, behind a 60 s freshness window), `auth` (session
   state, never a token), `player` (the signed-in player).
@@ -225,6 +225,10 @@ Toutes) and smurfs, kept in the URL. Linked from the header, the search palette 
 finds a member by Riot ID, nickname or full name, and a mobile bottom bar (Crew, Parties, Recherche,
 Profil).
 
+**Done — agent roles:** every agent icon carries the 2px rule of its role (duelliste, initiateur,
+contrôleur, sentinelle), the agent lists of the profile and the records show a role chip, and the
+profile hero names the main agent's role.
+
 **Not yet:** the admin space, economy on the match page.
 
 ## 🧩 Backend Gaps
@@ -236,8 +240,9 @@ Profil).
   configuration to see everything filled.
 - **Served but not wired:** the admin routes (`PATCH /val/player/{id}/admin`, `PATCH /val/player/ranks`,
   `POST /val/match/{id}/update`), waiting for the admin space.
-- **Not served:** live games (the "en partie" strip), agent roles (the role colour under agent icons),
-  economy per round, headshots per kill (the kill feed's `◎`).
+- **Not served:** live games (the "en partie" strip), economy per round, headshots per kill (the kill
+  feed's `◎`). Agent roles are not served either: the front keeps its own table
+  (`app/utils/val-agents.ts`), to extend when Riot ships an agent.
 
 Also: `rrChange7DaysValorant` is `null` until a player has rank snapshots 7 days apart — rank history
 was introduced on 2026-10-28, so the 7-day figures fill in over the first week.

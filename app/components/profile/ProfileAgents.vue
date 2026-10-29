@@ -2,8 +2,10 @@
 import { computed, ref } from 'vue'
 import type { ValAgentStatDto } from '~/lib/types'
 import { formatDecimal, formatPercent } from '~/utils/number'
+import { agentRole } from '~/utils/val-agents'
 import FrameHead from '~/components/ui/FrameHead.vue'
 import ValAgentIcon from '~/components/val/ValAgentIcon.vue'
+import ValRoleChip from '~/components/val/ValRoleChip.vue'
 
 /**
  * The agents of the performance recap, most played first. Also the profile's agent filter: picking a
@@ -25,12 +27,16 @@ const emit = defineEmits<{
 const expanded = ref(false)
 
 /** The first `limit` agents, plus the selected one when it sits further down the list. */
-const rows = computed(() => {
+const shown = computed(() => {
   if (expanded.value) return props.agents
   const head = props.agents.slice(0, props.limit)
   const selected = props.agents.find(agent => agent.agentName === props.selected)
   return selected && !head.includes(selected) ? [...head, selected] : head
 })
+const rows = computed(() => shown.value.map(agent => ({
+  ...agent,
+  role: agentRole({ id: agent.agentId, iconUrl: agent.agentIconUrl, name: agent.agentName }),
+})))
 const hiddenCount = computed(() => props.agents.length - rows.value.length)
 
 const toggle = (agentName: string) => emit('select', agentName === props.selected ? null : agentName)
@@ -51,7 +57,10 @@ const toggle = (agentName: string) => emit('select', agentName === props.selecte
         >
           <ValAgentIcon :src="agent.agentIconUrl" :name="agent.agentName" class="size-9" />
           <span class="flex min-w-0 flex-col">
-            <span class="truncate text-sm font-semibold">{{ agent.agentName }}</span>
+            <span class="flex min-w-0 items-center gap-2">
+              <span class="truncate text-sm font-semibold">{{ agent.agentName }}</span>
+              <ValRoleChip v-if="agent.role" :role="agent.role" class="hidden sm:inline-flex" />
+            </span>
             <span class="font-mono text-[11px] text-text-sec">{{ agent.gamesPlayed }} partie{{ agent.gamesPlayed > 1 ? 's' : '' }} · {{ agent.wins }}V</span>
           </span>
           <span class="flex flex-col items-end font-mono text-[11px] text-text-sec">

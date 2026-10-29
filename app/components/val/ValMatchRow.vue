@@ -53,7 +53,7 @@ const when = computed(() => `${props.line.queueLabel} · ${formatClock(props.lin
 
     <span aria-hidden="true" :class="sideClass" />
 
-    <ValAgentIcon :src="line.agentIconUrl" :name="line.agentName" :alt="line.agentName" class="my-3 size-11 border-b-2 border-border-strong sm:size-[52px]" />
+    <ValAgentIcon :src="line.agentIconUrl" :name="line.agentName" :alt="line.agentName" class="my-3 size-11 sm:size-[52px]" />
 
     <div class="flex min-w-0 flex-col gap-2 py-3 pr-3 sm:pr-3.5">
       <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1">
