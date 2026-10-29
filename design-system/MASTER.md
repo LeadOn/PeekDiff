@@ -214,20 +214,30 @@ libellés ne passent jamais à la ligne : sur mobile, le sélecteur défile hori
   32px, Riot ID + tag en mono `text-ter`, emblème + pastille rang, RR, sparkline glyphe.
 - **Partie (fil)** : pastille résultat, icône d'agent (`displayicon` 52px), bandeau de la carte
   (`listviewicon`) en fond voilé, score `13–9` en display, K/D/A mono, ACS, HS % en barre glyphe,
-  pastille RR. Ligne entière cliquable, survol `surface-hover` + filet gauche rouge. Tant qu'il n'y a
-  pas de page de match, la ligne n'est pas un lien : seul le filet se renforce au survol, et les
-  coéquipiers du crew (« En groupe avec … ») sont des liens vers leur profil. L'API ne sert pas les
+  pastille RR. Ligne entière cliquable, survol `surface-hover` + filet gauche rouge. Le lien est
+  étiré depuis le nom de la carte (`after:inset-0`) vers la page de match ; les coéquipiers du crew
+  (« En groupe avec … ») et les infobulles passent au-dessus (`z-[1]`). L'API ne sert pas les
   rôles d'agent : le filet bas de l'icône reste `border-strong`. Regroupement par jour (heure de
   Paris) sous un index `// AUJOURD'HUI` avec le bilan `2V · 1D` et le RR net du jour.
 
 ### Données de match
 
+- **Camp** : une page de match se lit depuis un camp, comme en jeu. « Alliés » (`ally`) est l'équipe
+  du joueur suivi, « Ennemis » (`enemy`) l'autre ; le score se lit alliés d'abord. Un camp n'est pas
+  un résultat : la pastille V/D/N l'accompagne toujours.
 - **Frise des manches** : 24+ cases carrées, glyphe du type de fin de manche, couleur du camp
-  gagnant, séparateur à la mi-temps et en prolongation.
+  gagnant, séparateur à la mi-temps et en prolongation. Cases de 32px sur fond `ally-soft` /
+  `enemy-soft`, filet 2px de la couleur du camp sur la manche sélectionnée, séparateurs libellés
+  `MT` et `PROL.`, petit carré `mvp` dans le coin d'une manche à cérémonie (ace, clutch, sans
+  faute…). Légende des glyphes au-dessus ; chaque case porte son libellé complet en `aria-label`.
 - **Kill feed** : motif Journal avec les `killfeedportrait` (32×16) des deux agents, nom en `ally`
-  ou `enemy`, `◎` pour headshot.
+  ou `enemy`, `◎` pour headshot — l'API ne fournit pas encore le headshot par kill, le `◎` attend.
+  Une manche à la fois (celle de la frise), avec pose et désamorçage du spike en tête ; le joueur
+  suivi est souligné.
 - **Tableau des scores** : en-tête `surface-high` mono MAJ. ; joueur connecté en
-  `surface-selected` + filet rouge ; colonnes ACS · K · D · A · +/− · ADR · HS% · KAST · FK · FD.
+  `surface-selected` + filet rouge ; colonnes ACS · K · D · A · +/− · ADR · HS% · KAST · FK · FD
+  (libellées PK / PM, premiers kills et premières morts). Un tableau par équipe, filet haut 2px de la
+  couleur du camp ; sur mobile il défile à l'horizontale sous une colonne joueur collante.
 - **Graphes** (chart.js) : grille `border-base`, axes mono 11px, allié `ally`, ennemi `enemy`,
   joueur sélectionné `brand-red`. Toujours un tooltip et une alternative tableau.
 

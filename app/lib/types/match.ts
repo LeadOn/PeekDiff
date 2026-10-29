@@ -51,6 +51,8 @@ export interface ValGameParticipantDto {
   matchId: string;
   /** The GameOn player behind this Riot account, `null` for anyone outside the database. */
   playerId: number | null;
+  /** The Riot account; what rounds and kills refer to players by. */
+  puuid: string;
   riotIdGameName: string | null;
   riotIdTagLine: string | null;
   teamId: string | null;
@@ -59,12 +61,15 @@ export interface ValGameParticipantDto {
   agentId: string | null;
   agentName: string | null;
   agentIconUrl: string | null;
+  playerCardId: string | null;
   /** The tier at the time of the game, 0 when unranked. */
   tierId: number;
+  tierIconUrl: string | null;
   score: number;
   kills: number;
   deaths: number;
   assists: number;
+  damageDealt: number;
   win: boolean;
   /** RR moved by this game, `null` outside competitive or when the rank history has no entry for it. */
   rrChange: number | null;
@@ -100,4 +105,55 @@ export interface ValGameDto {
   aceParticipantId: number | null;
   valorantGameTeams: ValGameTeamDto[];
   valorantGameParticipants: ValGameParticipantDto[];
+}
+
+/** One round of a game (`ValGameRound`). */
+export interface ValGameRoundDto {
+  id: number;
+  /** 0-based: the first round is 0. */
+  roundNumber: number;
+  /** How the round ended: "Elimination", "Defuse", "Detonate", or empty when the timer ran out. */
+  result: string | null;
+  /** "CeremonyAce", "CeremonyClutch", "CeremonyFlawless"… "CeremonyDefault" when nothing stood out. */
+  ceremony: string | null;
+  /** "Red" or "Blue". */
+  winningTeam: string | null;
+  /** "Attacker" or "Defender". */
+  winningTeamRole: string | null;
+  firstBloodPuuid: string | null;
+  firstBloodTeam: string | null;
+  ceremonyPlayerPuuid: string | null;
+  plantTimeMs: number | null;
+  /** "A", "B" or "C". */
+  plantSite: string | null;
+  plantPlayerPuuid: string | null;
+  defuseTimeMs: number | null;
+  defusePlayerPuuid: string | null;
+}
+
+/** One kill of a game (`ValGameKill`). There is no headshot flag per kill. */
+export interface ValGameKillDto {
+  id: number;
+  roundNumber: number;
+  timeInRoundMs: number;
+  timeInMatchMs: number;
+  killerPuuid: string | null;
+  killerTeam: string | null;
+  victimPuuid: string | null;
+  victimTeam: string | null;
+  assistantsCount: number;
+  /** Comma-separated puuids. */
+  assistantPuuids: string | null;
+  weaponId: string | null;
+  /** "Vandal", an ability's name ("Hot Hands"), or `null`. */
+  weaponName: string | null;
+  /** "Weapon", "Ability" or "Bomb" (the spike). */
+  weaponType: string | null;
+}
+
+/** `GET /val/match/{id}/rounds`: the round timeline and every kill, in order. */
+export interface ValGameTimelineDto {
+  matchId: string;
+  rounds: ValGameRoundDto[];
+  kills: ValGameKillDto[];
 }
