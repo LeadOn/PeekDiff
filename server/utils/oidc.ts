@@ -5,6 +5,7 @@ export interface OidcDiscovery {
   authorization_endpoint: string
   token_endpoint: string
   end_session_endpoint?: string
+  revocation_endpoint?: string
   userinfo_endpoint?: string
 }
 
@@ -50,18 +51,21 @@ export const getDiscovery = async (): Promise<OidcDiscovery> => {
   return value
 }
 
-const tokenRequest = async (body: URLSearchParams): Promise<OidcTokenSet> => {
+const withClientCredentials = (body: URLSearchParams): URLSearchParams => {
   const config = useRuntimeConfig()
-  const { token_endpoint } = await getDiscovery()
-
   body.set('client_id', config.public.keycloak.clientId)
   if (config.keycloak.clientSecret) {
     body.set('client_secret', config.keycloak.clientSecret)
   }
+  return body
+}
+
+const tokenRequest = async (body: URLSearchParams): Promise<OidcTokenSet> => {
+  const { token_endpoint } = await getDiscovery()
 
   return await $fetch<OidcTokenSet>(token_endpoint, {
     method: 'POST',
-    body,
+    body: withClientCredentials(body),
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
     timeout: 8000,
     retry: 1
@@ -81,6 +85,28 @@ export const refreshTokens = (refreshToken: string) =>
     grant_type: 'refresh_token',
     refresh_token: refreshToken
   }))
+
+/**
+ * Revokes a refresh token (RFC 7009). With `offline_access`, clearing our cookie is not enough: the
+ * offline session would survive in Keycloak for its full lifetime. Returns `false` when the realm
+ * advertises no revocation endpoint.
+ */
+export const revokeRefreshToken = async (refreshToken: string): Promise<boolean> => {
+  const { revocation_endpoint } = await getDiscovery()
+  if (!revocation_endpoint) return false
+
+  await $fetch(revocation_endpoint, {
+    method: 'POST',
+    body: withClientCredentials(new URLSearchParams({
+      token: refreshToken,
+      token_type_hint: 'refresh_token'
+    })),
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    timeout: 5000,
+    retry: 0
+  })
+  return true
+}
 
 /** Decodes a JWT payload without verifying its signature. */
 const decodeJwtPayload = (token: string): Record<string, unknown> | null => {

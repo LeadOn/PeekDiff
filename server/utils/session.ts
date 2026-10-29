@@ -1,21 +1,33 @@
 import type { H3Event } from 'h3'
 import { deleteCookie, getCookie, setCookie } from 'h3'
+import { SSO_PROBE_TTL_MS } from '#shared/utils/sso-probe'
 
 /**
  * Session cookies.
  *
- * Both are `httpOnly`, so no script on the page can read a token — including through an XSS. The
+ * All are `httpOnly`, so no script on the page can read a token — including through an XSS. The
  * browser never handles credentials at all: `/api/gameon` reads these cookies server-side and
  * attaches the bearer itself, and the refresh token (the genuinely sensitive secret, valid for
  * weeks) never leaves the server.
+ *
+ * The `pd_` prefix is not cosmetic: cookies ignore ports, so in development PeekDiff and JungleDiff
+ * (`jd_*`) share `localhost` and would overwrite each other's session under the same names.
  */
-export const REFRESH_COOKIE = 'jd_rt'
-export const ACCESS_COOKIE = 'jd_at'
-export const ACCESS_EXPIRY_COOKIE = 'jd_at_exp'
-export const PKCE_COOKIE = 'jd_pkce'
+export const REFRESH_COOKIE = 'pd_rt'
+export const ACCESS_COOKIE = 'pd_at'
+export const ACCESS_EXPIRY_COOKIE = 'pd_at_exp'
+export const ID_TOKEN_COOKIE = 'pd_idt'
+export const PKCE_COOKIE = 'pd_pkce'
+export const SSO_PROBE_COOKIE = 'pd_sso_probe'
 
 /** 30 days: the "don't ask me to sign in again" session, notably on mobile. */
 const REFRESH_MAX_AGE_S = 30 * 24 * 60 * 60
+
+/**
+ * The id token is only ever read by `/api/auth/logout` (as `id_token_hint`), so it is scoped to
+ * `/api/auth` rather than riding along on every page and asset request.
+ */
+const ID_TOKEN_PATH = '/api/auth'
 
 const isSecureRequest = (event: H3Event): boolean => {
   const proto = getRequestHeader(event, 'x-forwarded-proto')
@@ -45,6 +57,16 @@ export const setAccessCookie = (event: H3Event, accessToken: string, expiresAt: 
   setCookie(event, ACCESS_EXPIRY_COOKIE, String(expiresAt), { ...baseCookieOptions(event), maxAge })
 }
 
+export const setIdTokenCookie = (event: H3Event, idToken: string): void => {
+  setCookie(event, ID_TOKEN_COOKIE, idToken, {
+    ...baseCookieOptions(event),
+    path: ID_TOKEN_PATH,
+    maxAge: REFRESH_MAX_AGE_S
+  })
+}
+
+export const getIdToken = (event: H3Event): string | undefined => getCookie(event, ID_TOKEN_COOKIE)
+
 export const getRefreshToken = (event: H3Event): string | undefined => getCookie(event, REFRESH_COOKIE)
 
 /** Returns the cookie-held access token while it is still valid, `undefined` otherwise. */
@@ -70,10 +92,22 @@ export const takePkceCookie = (event: H3Event): string | undefined => {
   return value
 }
 
+/**
+ * Records that a silent sign-in was attempted (or that the user signed out), so the client does not
+ * send an anonymous visitor through Keycloak again on every page load. httpOnly like the rest: the
+ * client learns the state from `GET /api/auth/session`.
+ */
+export const setSsoProbeCookie = (event: H3Event): void => {
+  setCookie(event, SSO_PROBE_COOKIE, '1', { ...baseCookieOptions(event), maxAge: SSO_PROBE_TTL_MS / 1000 })
+}
+
+export const hasSsoProbeCookie = (event: H3Event): boolean => getCookie(event, SSO_PROBE_COOKIE) === '1'
+
 export const clearSessionCookies = (event: H3Event): void => {
   const options = baseCookieOptions(event)
   deleteCookie(event, REFRESH_COOKIE, options)
   deleteCookie(event, ACCESS_COOKIE, options)
   deleteCookie(event, ACCESS_EXPIRY_COOKIE, options)
+  deleteCookie(event, ID_TOKEN_COOKIE, { ...options, path: ID_TOKEN_PATH })
   deleteCookie(event, PKCE_COOKIE, options)
 }
