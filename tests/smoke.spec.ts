@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import type { APIResponse } from '@playwright/test'
+import type { APIResponse, Page } from '@playwright/test'
 
 /**
  * Guards the production-hardening work. Every assertion here holds with **no upstream at all** —
@@ -264,6 +264,62 @@ test.describe('match page', () => {
     await expect(page.getByRole('heading', { name: 'L\'API ne répond pas' })).toBeVisible()
     // Without the game, the page cannot name the player: the way back falls to the ladder.
     await expect(page.getByRole('link', { name: 'Classement du crew' })).toBeVisible()
+  })
+})
+
+/**
+ * The sign-in button is client-only (`<ClientOnly>` in the header): once it shows, the app is mounted
+ * and its click handlers and keyboard shortcuts are live.
+ */
+const hydrated = async (page: Page) => {
+  await expect(page.getByRole('button', { name: /^(Se connecter|Connexion)$/ }).first()).toBeVisible()
+}
+
+test.describe('navigation', () => {
+  // The silent sign-in probe would otherwise bounce the page through `/api/auth/login` right after
+  // mount; the marker says it already ran.
+  test.beforeEach(async ({ context, baseURL }) => {
+    await context.addCookies([{ name: 'pd_sso_probe', value: '1', url: baseURL! }])
+  })
+
+  test('the search palette opens on "/" and ⌘K, and closes on Escape', async ({ page }) => {
+    await page.goto('/')
+    await hydrated(page)
+
+    await page.keyboard.press('/')
+    const dialog = page.getByRole('dialog', { name: 'Chercher un joueur du crew' })
+    await expect(dialog).toBeVisible()
+    await expect(dialog.getByRole('combobox')).toBeFocused()
+
+    await page.keyboard.press('Escape')
+    await expect(dialog).toBeHidden()
+
+    await page.keyboard.press('ControlOrMeta+k')
+    await expect(dialog).toBeVisible()
+  })
+
+  test('the palette says so when the crew cannot be loaded', async ({ page }) => {
+    test.skip(!!process.env.NUXT_PUBLIC_GAME_ON_API_URL, 'a real API is configured')
+
+    await page.goto('/')
+    await hydrated(page)
+    await page.getByRole('button', { name: 'Chercher un joueur du crew' }).click()
+    await expect(page.getByText('Impossible de charger la liste du crew.')).toBeVisible()
+  })
+
+  test('phones get the bottom bar instead of the header search', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 })
+    await page.goto('/')
+    await hydrated(page)
+
+    const bar = page.getByRole('navigation', { name: 'Navigation mobile' })
+    await expect(bar).toBeVisible()
+    await expect(bar.getByRole('link', { name: 'Crew' })).toHaveAttribute('href', '/')
+    await expect(bar.getByRole('link', { name: 'Parties' })).toHaveAttribute('href', '/#parties')
+    await expect(page.getByRole('button', { name: 'Chercher un joueur du crew' })).toBeHidden()
+
+    await bar.getByRole('button', { name: 'Recherche' }).click()
+    await expect(page.getByRole('dialog', { name: 'Chercher un joueur du crew' })).toBeVisible()
   })
 })
 

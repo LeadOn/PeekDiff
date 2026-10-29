@@ -259,10 +259,23 @@ en file (`[■■□□□] POSITION 3`), rapport, abandonné, erreur.
 ### Navigation
 
 - **Header** : mascotte 40px + wordmark `PEEK/DIFF` (le `/` en rouge), liens en mono MAJ. 12px, actif souligné
-  rouge 2px, recherche `>_ ⌘K`, bascule thème.
+  rouge 2px, recherche `>_ ⌘K`, bascule thème. La recherche est un bouton à l'allure de champ
+  (`surface-sunken`, filet `border-base`, mono 12px `text-ter`) : `>_ chercher un joueur` puis la
+  touche `⌘K` (ou `Ctrl K` hors Apple, lue après montage) ; libellé masqué entre `md:` et `lg:`, bouton
+  absent sur mobile.
+- **Palette de recherche** (⌘K, Ctrl K, « / ») : voile `night` à 70 %, boîte `surface` 480px,
+  filet `border-strong`, `shadow-float`, entrée `animate-enter`. Champ en mono sur `surface-sunken`,
+  préfixé du prompt `>_`, curseur rouge. Lignes : carte de joueur `smallart` 32px, nom, tag mono,
+  pastilles « Vous » / « Smurf », rang (nom dès `sm:`, emblème toujours) ; ligne active filet gauche
+  rouge 2px sur `surface-hover`. Actions sous un filet pointillé, préfixées `▸`. Pied mono :
+  `↑↓ naviguer · ↵ ouvrir · Échap fermer` et le nombre de joueurs.
 - **Barre d'état** (pied de page desktop, comme une statusline) : fond `night`, mono 11px —
   `PEEKDIFF v1.0 │ SYNCHRO 07:42 │ PATCH 11.08 │ ● 2 EN PARTIE`.
 - **Mobile** : bottom bar `night` 4 entrées (Crew, Parties, Recherche, Profil), icône + libellé.
+  Barre pleine largeur de 64px (plus la zone sûre), icône Lucide 20px au-dessus d'un libellé mono
+  10px MAJ. en `on-night-2` ; l'entrée active passe en `on-night` avec un filet haut `on-night-red`
+  2px. « Parties » mène au fil des parties de l'accueil (`/#parties`) ; « Profil » devient
+  « Connexion » pour un visiteur anonyme.
 
 ### États vides et erreurs
 

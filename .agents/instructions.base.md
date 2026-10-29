@@ -72,6 +72,18 @@ crew search and an admin space are JungleDiff features PeekDiff does not have ye
 - **Smurf toggle** — page state in `index.vue`, off by default. It filters the ladder (and the rank
   fallbacks) in place — the store always keeps every account — and re-queries `/val/home` and
   `/val/match/last` with `includeSmurfs`.
+- **Crew search** — `ValPlayerPalette`, mounted once by the layout and opened from the header's
+  `>_ chercher un joueur ⌘K` button (from `md:`), the mobile bar, ⌘K / Ctrl K or "/". It matches
+  Riot ID, nickname and full name locally (`filterPlayersByName` in `app/utils/val-search.ts`: the API
+  has no search by name) against the crew list, smurfs included, in ladder order, then offers "Classement
+  du crew", "Mon profil" and "Paramètres". A combobox: arrows move, Enter opens, Escape and any
+  navigation close it, Tab stays in the input, focus returns to the opener. Its open state is
+  `useSearchPalette` (`useState`), shared by the three openers.
+- **Mobile bar** — `AppBottomBar`, below `md` only: Crew (`/`), Parties (`/#parties`, the home page's
+  crew feed — or its rank-only fallback — which carries that id), Recherche (the palette) and Profil
+  (the viewer's profile, `/settings` until `/player/me` answers, "Connexion" when anonymous; resolved
+  after mount). The footer pads its bottom on phones to clear it. The header's search button is hidden
+  on phones.
 - **Theme** — dark by default, "Bone" (light) through the header toggle.
 - **Sign-in** — the header's "Se connecter" starts the OIDC flow; signed in, the header shows the
   player's card (a link to their profile, or to `/settings` until `/player/me` answers), a settings
@@ -83,13 +95,14 @@ crew search and an admin space are JungleDiff features PeekDiff does not have ye
 # Directory Layout
 
 - `app/pages/` — orchestrate data loading with `useAsyncData` and own the page layout.
-- `app/components/ui/` — generic, domain-free UI (`AppHeader`, `SectionIndex`, `FrameHead`,
-  `SegmentSwitch`, `MockBadge`).
+- `app/components/ui/` — generic, domain-free UI (`AppHeader`, `AppBottomBar`, `SectionIndex`,
+  `FrameHead`, `SegmentSwitch`, `MockBadge`).
 - `app/components/home/` — the home page's business components.
 - `app/components/profile/` — the profile page's business components (`Profile*`).
 - `app/components/match/` — the match page's business components (`Match*`).
 - `app/components/val/` — components representing a Valorant entity (`ValRankEmblem`,
-  `ValPlayerCard`, `ValAgentIcon`, `ValMatchRow`), reused across pages.
+  `ValPlayerCard`, `ValAgentIcon`, `ValMatchRow`, `ValMapList`, `ValPlayerPalette`), reused across
+  pages.
 - `app/composables/` — reusable logic and API client injection.
 - `app/stores/` — Pinia setup stores.
 - `app/lib/api/` — typed HTTP clients built on `BaseApiService`.
@@ -115,7 +128,8 @@ crew search and an admin space are JungleDiff features PeekDiff does not have ye
 - **Stores**: file `app/stores/<domain>.ts` exporting `use<Domain>Store` — `val.ts` → `useValStore`.
 - **Composables**: file named after the function — `useGameOnVal.ts` → `useGameOnVal`.
 - **Utils**: kebab-case filenames; Valorant-domain helpers carry a `val-` prefix (`val-tier.ts`,
-  `val-ladder.ts`, `val-assets.ts`, `val-smurf.ts`, `val-match.ts`, `val-game.ts`, `val-period.ts`).
+  `val-ladder.ts`, `val-assets.ts`, `val-smurf.ts`, `val-match.ts`, `val-game.ts`, `val-period.ts`,
+  `val-search.ts`).
   Generic ones do not (`theme.ts`, `date.ts`, `ascii.ts`).
   Despite `app/utils/` being auto-imported, the codebase **imports these explicitly** — match that.
 - **Types**: Valorant domain types are prefixed `Val` and API payload shapes end in `Dto`
@@ -391,8 +405,6 @@ Each of these is easy to reintroduce and hard to diagnose.
 - **No agent filter on the profile.** The API takes `agentName` on both the recap and the history; the
   page only filters by period and queue. Agent roles are not served at all, so agent icons carry a
   neutral rule instead of the role colour the design system asks for.
-- **No crew search.** The search palette (⌘K) and the mobile bottom bar are still to build; profiles
-  are reached from the ladder, the rail and the header.
 - **No `/stats` or admin space yet.**
 - **No CI pipeline.** Lint, types, audit, build and the e2e suite only run when someone runs them.
 - **No error tracking.** Failures are reported through `console.error` only.

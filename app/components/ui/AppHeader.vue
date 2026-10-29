@@ -2,12 +2,17 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useAuthStore } from '~/stores/auth'
 import { usePlayerStore } from '~/stores/player'
+import { useSearchPalette } from '~/composables/useSearchPalette'
 import { applyTheme, isLightTheme } from '~/utils/theme'
 import ValPlayerCard from '~/components/val/ValPlayerCard.vue'
 
 const authStore = useAuthStore()
 const playerStore = usePlayerStore()
+const palette = useSearchPalette()
 const isLight = ref(false)
+
+/** "⌘K" on Apple platforms, "Ctrl K" elsewhere; read after mount, the server cannot know. */
+const shortcutLabel = ref('⌘K')
 
 // The current player only feeds the header pill and the ladder's "Vous": abort the request if the
 // header goes away before the response, rather than leaving a pending state write behind.
@@ -17,6 +22,7 @@ onMounted(() => {
   // `public/theme-init.js` already set the class before render; here we only mirror the document's
   // actual state into the component.
   isLight.value = isLightTheme()
+  if (!/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent)) shortcutLabel.value = 'Ctrl K'
 
   if (authStore.isAuthenticated) {
     playerStore.fetchCurrentPlayer(false, profileRequest.signal)
@@ -63,6 +69,19 @@ const toggleTheme = () => {
 
       <span class="flex-1" />
 
+      <!-- Phones search from the bottom bar. -->
+      <button
+        type="button"
+        aria-label="Chercher un joueur du crew"
+        aria-keyshortcuts="Meta+K Control+K /"
+        class="hidden h-10 cursor-pointer items-center gap-2 border border-border-base bg-surface-sunken px-3 font-mono text-xs text-text-ter transition-colors duration-150 ease-snap hover:border-border-strong hover:text-text-sec md:flex lg:w-60"
+        @click="palette.open()"
+      >
+        <span aria-hidden="true">&gt;_</span>
+        <span class="hidden flex-1 text-left lg:inline">chercher un joueur</span>
+        <kbd class="border border-border-base px-1.5 py-0.5 font-mono text-[10px] text-text-sec">{{ shortcutLabel }}</kbd>
+      </button>
+
       <div class="flex items-center gap-2">
         <button
           type="button"
@@ -79,10 +98,10 @@ const toggleTheme = () => {
             <NuxtLink
               :to="profileLink"
               :aria-label="`${profileLabel}, ${playerStore.currentPlayer ? 'mon profil' : 'paramètres'}`"
-              class="flex h-10 items-center gap-2 border border-border-base p-1 transition-colors duration-150 ease-snap hover:border-border-strong md:pr-3"
+              class="flex h-10 items-center gap-2 border border-border-base p-1 transition-colors duration-150 ease-snap hover:border-border-strong lg:pr-3"
             >
               <ValPlayerCard :src="playerStore.currentPlayer?.valorantPlayerCardSmallUrl" :name="profileLabel" class="size-8" />
-              <span class="hidden max-w-[150px] truncate text-sm font-semibold md:block">{{ profileLabel }}</span>
+              <span class="hidden max-w-[150px] truncate text-sm font-semibold lg:block">{{ profileLabel }}</span>
             </NuxtLink>
             <NuxtLink
               to="/settings"
