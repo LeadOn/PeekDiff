@@ -90,6 +90,24 @@ export interface ValPlayerDto {
   valorantPerformanceStats?: ValPerformanceStatsDto | null;
 }
 
+/**
+ * A GameOn account as `GET /player` returns it: the raw entity, every account of one `archived` value
+ * (crew or not, smurfs included, with or without a Riot ID). Only the fields the admin space reads.
+ */
+export interface PlayerAccountDto {
+  id: number;
+  nickname: string;
+  fullName: string | null;
+  riotGamesNickname: string | null;
+  riotGamesTagLine: string | null;
+  riotGamesPUUID: string | null;
+  valorantPuuid: string | null;
+  valorantRefreshedOn: string | null;
+  inCrew: boolean;
+  primaryPlayerId: number | null;
+  archived: boolean;
+}
+
 /** Same enum as the LoL rank history on the API. */
 export type ValRankHistoryGranularity = 'Day' | 'Week' | 'Month';
 

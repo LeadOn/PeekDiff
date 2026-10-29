@@ -28,3 +28,13 @@ export interface SessionState {
    */
   ssoProbed: boolean
 }
+
+declare module 'h3' {
+  interface H3EventContext {
+    /**
+     * The signed-in user of an admin page request, `null` when anonymous. Only ever set by
+     * `server/middleware/admin-session.ts`, and only on admin paths: `undefined` anywhere else.
+     */
+    sessionUser?: SessionUser | null
+  }
+}

@@ -279,7 +279,7 @@ en file (`[■■□□□] POSITION 3`), rapport, abandonné, erreur.
 
 ### Navigation
 
-- **Header** : mascotte 40px + wordmark `PEEK/DIFF` (le `/` en rouge), liens en mono MAJ. 12px (`CREW · RECORDS`), actif souligné
+- **Header** : mascotte 40px + wordmark `PEEK/DIFF` (le `/` en rouge), liens en mono MAJ. 12px (`CREW · RECORDS`, plus `ADMIN` pour un administrateur), actif souligné
   rouge 2px, recherche `>_ ⌘K`, bascule thème. La recherche est un bouton à l'allure de champ
   (`surface-sunken`, filet `border-base`, mono 12px `text-ter`) : `>_ chercher un joueur` puis la
   touche `⌘K` (ou `Ctrl K` hors Apple, lue après montage) ; libellé masqué entre `md:` et `lg:`, bouton
@@ -297,6 +297,26 @@ en file (`[■■□□□] POSITION 3`), rapport, abandonné, erreur.
   10px MAJ. en `on-night-2` ; l'entrée active passe en `on-night` avec un filet haut `on-night-red`
   2px. « Parties » mène au fil des parties de l'accueil (`/#parties`) ; « Profil » devient
   « Connexion » pour un visiteur anonyme.
+
+### Administration
+
+Espace `/admin`, réservé au rôle `gameon_admin`. Même grammaire que le reste, en plus sobre : **aucun
+CTA rouge plein**, toutes les actions en boutons secondaires `[ LIBELLÉ ]` (chargement
+`[■■■□□] SYNCHRO…`).
+
+- **En-tête** : `// 01 ── ADMINISTRATION`, titre display, sous-titre mono « Connecté en tant que …
+  · gameon_admin · vX.Y.Z ».
+- **Actions** : deux cartes de données côte à côte dès `md:` (« Rangs du crew », « Importer une
+  partie »), cadre ASCII avec la route en aparté. Le résultat s'écrit sous le bouton en mono 12px,
+  `win` pour un succès, `brand-red` pour un échec.
+- **Comptes** : `// 02 ── COMPTES`, sélecteur segmenté `CREW · N` / `HORS CREW · N` / `ARCHIVÉS · N`.
+  Une ligne par compte : carte `smallart` 32px, pseudo, nom complet en `text-ter`, pastilles à filet
+  (`HORS CREW`, `ARCHIVÉ`, `SMURF DE …`), Riot ID en mono — ou `// sans Riot ID` en `brand-red`, ces
+  comptes en tête —, emblème et rang, « Synchro il y a … », puis les actions ghost
+  `[ SYNCHRONISER ] [ RIOT ID ] [ PROFIL ]`. Le formulaire de Riot ID s'ouvre sous la ligne, dans un
+  cadre pointillé `border-strong`. Les lignes archivées à 70 % d'opacité.
+- **Retour** : chaque action réussie s'annonce dans une ligne `[ok] …` en mono (`role="status"`) au-dessus
+  de la liste, cinq secondes.
 
 ### États vides et erreurs
 

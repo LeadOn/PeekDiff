@@ -136,6 +136,13 @@ const save = async () => {
           >
             <span aria-hidden="true" class="text-text-ter">[</span>Mon profil<span aria-hidden="true" class="text-text-ter">]</span>
           </NuxtLink>
+          <NuxtLink
+            v-if="authStore.isAdmin"
+            to="/admin"
+            class="inline-flex h-10 items-center gap-1.5 border border-border-strong px-3.5 font-mono text-xs font-medium uppercase tracking-[0.06em] transition-colors duration-150 ease-snap hover:bg-surface-hover"
+          >
+            <span aria-hidden="true" class="text-text-ter">[</span>Administration<span aria-hidden="true" class="text-text-ter">]</span>
+          </NuxtLink>
           <button
             type="button"
             class="inline-flex h-10 cursor-pointer items-center gap-1.5 px-2 font-mono text-xs font-medium uppercase tracking-[0.06em] text-text-sec transition-colors duration-150 ease-snap hover:text-text-main"
