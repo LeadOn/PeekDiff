@@ -20,9 +20,11 @@ API and renders game art from media.valorant-api.com.
 ### Application (`app/`)
 
 - `app/pages/` — page components and data orchestration via `useAsyncData`: `index.vue` (the crew
-  dashboard), `player/[id].vue` (a player's profile) and `settings.vue`.
+  dashboard), `player/[id].vue` (a player's profile), `match/[id].vue` (one game) and
+  `settings.vue`.
 - `app/components/` — split into `ui/` (generic: `AppHeader`, `SectionIndex`, `FrameHead`,
-  `SegmentSwitch`, `MockBadge`), `home/` (the dashboard), `profile/` (the profile) and `val/`
+  `SegmentSwitch`, `MockBadge`), `home/` (the dashboard), `profile/` (the profile), `match/` (the
+  match page) and `val/`
   (Valorant entities: `ValRankEmblem`, `ValPlayerCard`, `ValAgentIcon`, `ValMatchRow`).
 - `app/composables/` — reusable logic, including API client injection (`useGameOnVal`).
 - `app/stores/` — Pinia stores: `val` (the crew, behind a 60 s freshness window), `auth` (session
@@ -33,7 +35,8 @@ API and renders game art from media.valorant-api.com.
 - `app/utils/` — pure helpers. `val-ladder.ts` builds the ladder (elo order, gaps, peaks) from the
   player list; `val-tier.ts` holds the tier table, French labels and the elo axis; `val-assets.ts`
   builds media.valorant-api.com URLs; `val-smurf.ts` is the only smurf predicate; `val-match.ts`
-  turns a game into a history row seen from one player and groups rows by Paris day; `val-period.ts`
+  turns a game into a history row seen from one player and groups rows by Paris day; `val-game.ts`
+  builds the match page (sides, scoreboard, round frieze, kill feed); `val-period.ts`
   maps the profile's period switch onto the API's period and rank buckets; `ascii.ts` draws glyph
   bars; `theme.ts` is the single entry point for the theme.
 
@@ -198,10 +201,17 @@ The Keycloak client must allow `<origin>/api/auth/callback` as a redirect URI.
 - the last games grouped by day with the day's record and net RR, 10 at a time;
 - a rail: the elo curve over the period with the RR of each ranked game, agents, maps, duos.
 
+**Done — match pages (`/match/[id]`)**, opened from any row of a profile's history:
+
+- a hero over the map's splash with the score from the followed player's side and their line;
+- both scoreboards (ACS, K, D, A, +/−, ADR, HS, KAST, first kills and deaths), crew members linked;
+- the round frieze (how each round ended, who won it, half time, overtime, ceremonies) and, for the
+  selected round, the plant / defuse and the kill feed.
+
 **Done — settings (`/settings`)**, signed-in only: name, nickname and Riot ID.
 
-**Not yet:** match pages, records, the admin space, the crew search palette, the mobile bottom bar,
-an agent filter on the profile. The home page still reads ranks only (see below).
+**Not yet:** records, the admin space, the crew search palette, the mobile bottom bar, an agent
+filter on the profile, economy on the match page. The home page still reads ranks only (see below).
 
 ## 🧩 Backend Gaps
 
@@ -209,11 +219,10 @@ an agent filter on the profile. The home page still reads ranks only (see below)
   a home aggregate on 2026-10-29. Production still serves players and rank history only, so the
   profile's tiles and history stay empty there until it ships; the front tolerates the older build.
   Run a local API and the `peekdiff-prod-local-api` launch configuration to see the profile filled.
-- **Served but not wired:** the match page routes (`/val/match/{id}`, `/rounds`), `/val/home` and
-  `/val/stats/global`. The home tiles stick to ranks and the player of the week is still derived from
+- **Served but not wired:** `/val/home`, `/val/stats/global` and `/val/match/last`. The home tiles stick to ranks and the player of the week is still derived from
   `rrChange7DaysValorant`.
 - **Not served:** live games (the "en partie" strip), agent roles (the role colour under agent icons),
-  economy per round.
+  economy per round, headshots per kill (the kill feed's `◎`).
 
 Also: `rrChange7DaysValorant` is `null` until a player has rank snapshots 7 days apart — rank history
 was introduced on 2026-10-28, so the 7-day figures fill in over the first week.

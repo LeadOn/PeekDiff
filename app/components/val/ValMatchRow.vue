@@ -9,8 +9,8 @@ import ValAgentIcon from '~/components/val/ValAgentIcon.vue'
 
 /**
  * "Partie (fil)" of the design system (§7): a game seen from one player — result, agent, score, map
- * banner under the surface veil, K/D/A, ACS, ADR, headshots and the RR it moved. Not a link yet:
- * there is no match page.
+ * banner under the surface veil, K/D/A, ACS, ADR, headshots and the RR it moved. The whole row opens
+ * the match page through a stretched link on the map name; the crew mates' links sit above it.
  */
 const props = defineProps<{
   line: GameLine
@@ -57,15 +57,15 @@ const when = computed(() => `${props.line.queueLabel} · ${formatClock(props.lin
 
     <div class="flex min-w-0 flex-col gap-2 py-3 pr-3 sm:pr-3.5">
       <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-        <span :title="RESULT_LABELS[line.result]" class="grid size-6 shrink-0 place-items-center font-mono text-xs font-bold" :class="resultClass">
+        <span :title="RESULT_LABELS[line.result]" class="relative z-[1] grid size-6 shrink-0 place-items-center font-mono text-xs font-bold" :class="resultClass">
           <span aria-hidden="true">{{ line.result }}</span><span class="sr-only">{{ RESULT_LABELS[line.result] }}</span>
         </span>
         <span class="font-display text-[28px] font-extrabold leading-none">
           {{ line.roundsFor }}<span aria-hidden="true">–</span><span class="sr-only"> à </span>{{ line.roundsAgainst }}
         </span>
-        <span class="text-[15px] font-semibold uppercase tracking-[0.04em]">{{ line.mapName }}</span>
-        <span v-if="line.isMvp" title="Meilleure note de la partie" class="font-mono text-[11px] font-bold uppercase text-mvp">MVP</span>
-        <span v-else-if="line.isTeamMvp" title="Meilleure note de l'équipe perdante" class="font-mono text-[11px] font-bold uppercase text-mvp-team">MVP équipe</span>
+        <NuxtLink :to="line.href" class="text-[15px] font-semibold uppercase tracking-[0.04em] after:absolute after:inset-0 after:content-[''] group-hover:text-brand-red">{{ line.mapName }}<span class="sr-only">, détail de la partie</span></NuxtLink>
+        <span v-if="line.isMvp" title="Meilleure note de la partie" class="relative z-[1] font-mono text-[11px] font-bold uppercase text-mvp">MVP</span>
+        <span v-else-if="line.isTeamMvp" title="Meilleure note de l'équipe perdante" class="relative z-[1] font-mono text-[11px] font-bold uppercase text-mvp-team">MVP équipe</span>
         <span class="w-full font-mono text-[11px] text-text-ter sm:ml-auto sm:w-auto">{{ when }}</span>
       </div>
 
@@ -77,12 +77,12 @@ const when = computed(() => `${props.line.queueLabel} · ${formatClock(props.lin
           <span aria-hidden="true"><span class="text-text-main">{{ hsBar.on }}</span><span class="text-border-ascii">{{ hsBar.off }}</span> </span><b class="font-medium text-text-main">{{ formatPercent(line.headshotPercent) }}</b>
         </span>
         <span v-if="line.rating !== null" class="hidden md:inline" title="Note de la partie, sur 10">Note <b class="font-medium text-text-main">{{ formatDecimal(line.rating) }}</b></span>
-        <span v-if="line.rrChange !== null" class="font-medium" :class="rrClass" :title="line.postGameTier ? `Après la partie : ${line.postGameTier}` : undefined">
+        <span v-if="line.rrChange !== null" class="relative z-[1] font-medium" :class="rrClass" :title="line.postGameTier ? `Après la partie : ${line.postGameTier}` : undefined">
           {{ line.rrChange === 0 ? '±0' : formatSigned(line.rrChange) }} RR
         </span>
       </div>
 
-      <p v-if="line.mates.length" class="flex flex-wrap items-center gap-x-1.5 text-xs text-text-sec">
+      <p v-if="line.mates.length" class="relative z-[1] flex w-fit flex-wrap items-center gap-x-1.5 text-xs text-text-sec">
         <span>{{ line.premade ? 'En groupe avec' : 'Avec' }}</span>
         <template v-for="(mate, index) in line.mates" :key="mate.id">
           <NuxtLink :to="`/player/${mate.id}`" class="font-semibold text-text-main underline decoration-border-strong underline-offset-4 transition-colors hover:decoration-brand-red">{{ mate.name }}</NuxtLink><span v-if="index < line.mates.length - 1" aria-hidden="true">·</span>

@@ -96,6 +96,8 @@
   --color-on-night-red: #FF4655;
   --color-on-night-win: #33D1B2;
   --color-on-night-loss: #FF6B77;
+  --color-on-night-mvp: #F2C14E;
+  --color-on-night-mvp-team: #C3C9CC;
 
   /* Tactical motion: fast, decisive, no overshoot. */
   --ease-snap: cubic-bezier(0.25, 1, 0.5, 1);
