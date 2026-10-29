@@ -183,6 +183,17 @@ libellés ne passent jamais à la ligne : sur mobile, le sélecteur défile hori
 `aria-pressed` sur chaque option, `aria-label` sur le groupe (« Période »). Composant :
 `ui/SegmentSwitch.vue`.
 
+### Filtre par liste
+
+Quand les options sont trop nombreuses pour un sélecteur segmenté (les agents d'un joueur), la liste
+qui les montre déjà sert de filtre : chaque ligne est un bouton `aria-pressed`, survol
+`surface-hover`, ligne choisie en `surface-high` avec le **filet gauche rouge 2px** ; la choisir à
+nouveau retire le filtre. Six lignes, puis `[ N AGENTS DE PLUS ]` ; la ligne choisie reste visible
+même au-delà. Le filtre actif s'affiche aussi à côté des sélecteurs, en puce de 36px au même cadre :
+icône 24px, nom en mono MAJ., `×` en `text-ter`, filet bas rouge 2px ; un clic le retire
+(`aria-label` « Retirer le filtre d'agent Jett »). Les cartes et phrases filtrées le disent : « sur
+30 jours avec Jett ».
+
 ### Pastilles
 
 - **Résultat** : carré 24px, lettre V/D/N en mono 700, fond teinté (`win-soft` / `loss-soft`).

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useAsyncData, useRoute, useRouter } from '#app'
-import type { ValGameDto, ValRankHistoryDto } from '~/lib/types'
+import type { ValAgentStatDto, ValGameDto, ValRankHistoryDto } from '~/lib/types'
 import { AppError, errorStatusCode, isAbortError } from '~/lib/types/error'
 import { useGameOnVal } from '~/composables/useGameOnVal'
 import { useNow } from '~/composables/useNow'
@@ -23,6 +23,7 @@ import ProfileRankProgress from '~/components/profile/ProfileRankProgress.vue'
 import ProfileAgents from '~/components/profile/ProfileAgents.vue'
 import ValMapList from '~/components/val/ValMapList.vue'
 import ProfileDuos from '~/components/profile/ProfileDuos.vue'
+import ValAgentIcon from '~/components/val/ValAgentIcon.vue'
 import ValMatchRow from '~/components/val/ValMatchRow.vue'
 
 const route = useRoute()
@@ -42,12 +43,21 @@ const isValidPlayerId = /^\d+$/.test(playerId)
 const HISTORY_PAGE_SIZE = 10
 const RANK_CHANGES_LIMIT = 50
 
+/** An agent name as the API stores it ("Jett", "KAY/O"); anything else in `?agent=` is ignored. */
+const AGENT_NAME = /^[\p{L}\p{N} /'.-]{1,32}$/u
+const parseAgent = (value: unknown) => (typeof value === 'string' && AGENT_NAME.test(value) ? value : null)
+
 /** Kept in the query string, so a filtered profile can be shared and survives a reload. */
 const period = ref<ProfilePeriod>(parseProfilePeriod(route.query.period))
 const queue = ref<string | null>(QUEUE_FILTERS.some(option => option.value === route.query.queue) ? route.query.queue as string : null)
+const agent = ref<string | null>(parseAgent(route.query.agent))
 
 const periodOption = computed(() => profilePeriod(period.value))
 const queueList = computed(() => (queue.value ? [queue.value] : undefined))
+/** The recap's filters. The agent restricts the recap and the history, never the rank progression. */
+const recapFilters = computed(() => ({ period: periodOption.value.api, queues: queueList.value, agentName: agent.value ?? undefined }))
+/** For sentences and card asides: "sur 30 jours avec Jett". */
+const filterPhrase = computed(() => (agent.value ? `${periodOption.value.phrase} avec ${agent.value}` : periodOption.value.phrase))
 
 /**
  * Secondary requests (stats on a filter change, rank history, games) are cancelled when the page is
@@ -80,7 +90,7 @@ const { data: player, error, refresh: reloadPlayer } = await useAsyncData(
   `val-player-${playerId}`,
   () => {
     if (!isValidPlayerId) throw new AppError('Joueur introuvable', 404)
-    return client.getValPlayerById(playerId, { period: periodOption.value.api, queues: queueList.value })
+    return client.getValPlayerById(playerId, recapFilters.value)
   },
   { getCachedData: cacheOnlyDuringHydration }
 )
@@ -127,12 +137,34 @@ async function reloadStats(signal: AbortSignal) {
   statsLoading.value = true
   try {
     // `useAsyncData` data is a shallow ref: reassigning it is what Vue tracks.
-    player.value = await client.getValPlayerById(playerId, { period: periodOption.value.api, queues: queueList.value }, signal)
+    player.value = await client.getValPlayerById(playerId, recapFilters.value, signal)
+    // Unfiltered, the recap lists every agent again: the snapshot kept for the filter is no longer needed.
+    if (!agent.value) agentOptions.value = null
   } catch (e) {
     if (isAbortError(e)) return
     console.error('[player] Performances indisponibles :', e)
   } finally {
     if (!signal.aborted) statsLoading.value = false
+  }
+}
+
+// --- Agent filter ---
+/**
+ * The agents to pick from. Filtered on one agent, the recap only lists that agent, so the unfiltered
+ * list (same period and queue) is kept here while a filter is on: snapshotted from the recap when an
+ * agent is picked, read from the API when the page opens filtered or the period or queue changes.
+ */
+const agentOptions = ref<ValAgentStatDto[] | null>(null)
+const agentList = computed(() => agentOptions.value ?? stats.value?.agentStats ?? [])
+const agentIconUrl = computed(() => agentList.value.find(entry => entry.agentName === agent.value)?.agentIconUrl ?? null)
+
+async function loadAgentOptions(signal: AbortSignal) {
+  if (!agent.value) return
+  try {
+    const unfiltered = await client.getValPlayerById(playerId, { period: periodOption.value.api, queues: queueList.value }, signal)
+    agentOptions.value = unfiltered.valorantPerformanceStats?.agentStats ?? []
+  } catch (e) {
+    if (!isAbortError(e)) console.error('[player] Liste des agents indisponible :', e)
   }
 }
 
@@ -172,7 +204,7 @@ async function loadGames(signal: AbortSignal, append = false) {
   if (append) loadingMore.value = true
   else historyLoading.value = true
   try {
-    const result = await client.getValPlayerMatches(playerId, { page, size: HISTORY_PAGE_SIZE, queues: queueList.value }, signal)
+    const result = await client.getValPlayerMatches(playerId, { page, size: HISTORY_PAGE_SIZE, queues: queueList.value, agentName: agent.value ?? undefined }, signal)
     games.value = append ? [...games.value, ...result.results] : result.results
     historyPage.value = page
     historyTotal.value = result.total
@@ -209,7 +241,8 @@ const hasMoreGames = computed(() => games.value.length < historyTotal.value)
 const historySubtitle = computed(() => {
   if (historyLoading.value) return 'Chargement des parties…'
   if (historyTotal.value === 0) return 'Aucune partie'
-  return `${games.value.length} partie${games.value.length > 1 ? 's' : ''} sur ${historyTotal.value} · toutes périodes`
+  const agentPart = agent.value ? ` · avec ${agent.value}` : ''
+  return `${games.value.length} partie${games.value.length > 1 ? 's' : ''} sur ${historyTotal.value}${agentPart} · toutes périodes`
 })
 
 async function loadCrew() {
@@ -220,13 +253,14 @@ async function loadCrew() {
   }
 }
 
-/** Rank history, games and the crew list: loaded after render, cancellable. */
+/** Rank history, games, the crew list and, filtered, the agents to pick from: loaded after render, cancellable. */
 function loadSecondaryData() {
   if (!player.value || !hasValorant.value) return
   const signal = restartRequests()
   loadCrew()
   loadRank(signal)
   loadGames(signal)
+  loadAgentOptions(signal)
 }
 
 function updateQuery() {
@@ -235,6 +269,8 @@ function updateQuery() {
   else delete query.period
   if (queue.value) query.queue = queue.value
   else delete query.queue
+  if (agent.value) query.agent = agent.value
+  else delete query.agent
   router.replace({ query })
 }
 
@@ -245,6 +281,7 @@ function onPeriodChange(next: ProfilePeriod) {
   const signal = restartRequests()
   reloadStats(signal)
   loadRank(signal)
+  loadAgentOptions(signal)
   // The history is not restricted to the period, but a restart aborted its pending page.
   if (historyLoading.value || loadingMore.value) loadGames(signal)
 }
@@ -252,6 +289,19 @@ function onPeriodChange(next: ProfilePeriod) {
 function onQueueChange(next: string | null) {
   if (next === queue.value) return
   queue.value = next
+  updateQuery()
+  const signal = restartRequests()
+  reloadStats(signal)
+  loadGames(signal)
+  loadAgentOptions(signal)
+  if (rankLoading.value) loadRank(signal)
+}
+
+function onAgentChange(next: string | null) {
+  if (next === agent.value) return
+  // Picked from an unfiltered recap: its agent list is the one to keep while the filter is on.
+  if (next && !agent.value) agentOptions.value = stats.value?.agentStats ?? null
+  agent.value = next
   updateQuery()
   const signal = restartRequests()
   reloadStats(signal)
@@ -371,9 +421,20 @@ async function sync() {
             <div class="flex flex-wrap gap-2">
               <SegmentSwitch :model-value="period" :options="PROFILE_PERIODS" label="Période" @update:model-value="onPeriodChange" />
               <SegmentSwitch :model-value="queue" :options="QUEUE_FILTERS" label="File de jeu" @update:model-value="onQueueChange" />
+              <button
+                v-if="agent"
+                type="button"
+                :aria-label="`Retirer le filtre d'agent ${agent}`"
+                class="inline-flex h-9 cursor-pointer items-center gap-2 border border-b-2 border-border-base border-b-brand-red bg-surface-high pl-1.5 pr-2.5 font-mono text-xs font-medium uppercase tracking-[0.06em] transition-colors duration-150 ease-snap hover:bg-surface-hover focus-visible:outline-offset-[-4px]"
+                @click="onAgentChange(null)"
+              >
+                <ValAgentIcon :src="agentIconUrl" :name="agent" class="size-6" />
+                <span>{{ agent }}</span>
+                <span aria-hidden="true" class="text-text-ter">×</span>
+              </button>
             </div>
           </div>
-          <ProfileKpis :stats="stats" :loading="statsLoading" :period-phrase="periodOption.phrase" />
+          <ProfileKpis :stats="stats" :loading="statsLoading" :period-phrase="filterPhrase" />
         </section>
 
         <div class="mt-12 grid items-start gap-10 rail:grid-cols-[minmax(0,1fr)_340px]">
@@ -388,7 +449,7 @@ async function sync() {
             </div>
 
             <p v-else-if="lines.length === 0" class="ticks mt-6 border border-border-base bg-surface-base p-6 text-sm text-text-sec">
-              Aucune partie enregistrée<template v-if="queue"> dans cette file</template>. Une synchronisation récupère les 10 dernières.
+              Aucune partie enregistrée<template v-if="queue"> dans cette file</template><template v-if="agent"> avec {{ agent }}</template>. Une synchronisation récupère les 10 dernières.
             </p>
 
             <div v-else class="transition-opacity duration-200" :class="historyLoading ? 'opacity-60' : ''">
@@ -432,9 +493,9 @@ async function sync() {
                 :period-phrase="periodOption.phrase"
                 class="md:max-rail:col-span-2"
               />
-              <ProfileAgents :agents="stats?.agentStats ?? []" :period-phrase="periodOption.phrase" />
-              <ValMapList :maps="stats?.mapStats ?? []" :period-phrase="periodOption.phrase" />
-              <ProfileDuos :duos="stats?.duoStats ?? []" :period-phrase="periodOption.phrase" />
+              <ProfileAgents :agents="agentList" :period-phrase="periodOption.phrase" :selected="agent" @select="onAgentChange" />
+              <ValMapList :maps="stats?.mapStats ?? []" :period-phrase="filterPhrase" />
+              <ProfileDuos :duos="stats?.duoStats ?? []" :period-phrase="filterPhrase" />
             </div>
           </aside>
         </div>

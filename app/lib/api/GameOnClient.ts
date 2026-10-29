@@ -2,10 +2,14 @@ import { BaseApiService, encodePathSegment as segment } from './BaseApiService'
 import type { RequestOptions } from './BaseApiService'
 import type { PlayerUpdateDto, ValGameDto, ValGameTimelineDto, ValHomeStatsDto, ValHomeWindow, ValListResultDto, ValPlayerDto, ValRankHistoryDto, ValRankHistoryGranularity, ValStatsPeriod } from '../types'
 
-/** Filters of the profile's performance recap and match history. `queues` are API queue ids. */
+/**
+ * Filters of the profile's performance recap and match history. `queues` are API queue ids;
+ * `agentName` is the agent's English name as the API stores it ("Jett", "KAY/O").
+ */
 export interface ValPlayerFilters {
   period?: ValStatsPeriod
   queues?: string[]
+  agentName?: string
 }
 
 /**
@@ -34,13 +38,14 @@ export class GameOnClient extends BaseApiService {
   }
 
   /**
-   * One account with its performance recap (`valorantPerformanceStats`) over `period` and `queues`,
-   * its smurfs and its main agent. Unknown ids answer 404.
+   * One account with its performance recap (`valorantPerformanceStats`) over `period`, `queues` and
+   * `agentName`, its smurfs and its main agent. Unknown ids answer 404.
    */
   public getValPlayerById(id: string | number, filters: ValPlayerFilters = {}, signal?: AbortSignal) {
     const params = new URLSearchParams()
     if (filters.period) params.set('period', filters.period)
     if (filters.queues?.length) params.set('queues', filters.queues.join(','))
+    if (filters.agentName) params.set('agentName', filters.agentName)
     const query = params.toString()
     return this.get<ValPlayerDto>(`/val/player/${segment(id)}${query ? `?${query}` : ''}`, GameOnClient.opts(signal))
   }
@@ -54,15 +59,17 @@ export class GameOnClient extends BaseApiService {
   }
 
   /**
-   * A player's games, newest first, each with its ten participants. 404 when the account has no
+   * A player's games, newest first, each with its ten participants; with `agentName`, only those where
+   * the player played that agent. 404 when the account has no
    * Valorant PUUID. The first call for an account with no stored game synchronises its last 10 games
    * from HenrikDev before answering, so it can be slow.
    */
-  public getValPlayerMatches(id: string | number, options: { page?: number, size?: number, queues?: string[] } = {}, signal?: AbortSignal) {
+  public getValPlayerMatches(id: string | number, options: { page?: number, size?: number, queues?: string[], agentName?: string } = {}, signal?: AbortSignal) {
     const params = new URLSearchParams()
     params.set('page', String(options.page ?? 1))
     params.set('size', String(options.size ?? 10))
     if (options.queues?.length) params.set('queues', options.queues.join(','))
+    if (options.agentName) params.set('agentName', options.agentName)
     return this.get<ValListResultDto<ValGameDto>>(`/val/match/player/${segment(id)}?${params.toString()}`, GameOnClient.opts(signal))
   }
 
