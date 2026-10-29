@@ -36,8 +36,8 @@ and renders game art from media.valorant-api.com.
 
 ### Server (`server/`)
 
-- `server/api/auth/*` — the complete OIDC Authorization Code + PKCE flow: `login`, `callback`,
-  `session`, `logout`.
+- `server/api/auth/*` — the complete OIDC Authorization Code + PKCE flow: `login` (also the silent
+  `?silent=1` probe), `callback`, `session`, `logout`. Cookies are prefixed `pd_`.
 - `server/api/gameon/[...path].ts` — authenticating proxy to the GameOn API. Reads the session
   cookies, attaches the bearer, and only lets `val/` and `player/` through. Every `DELETE` is a `405`.
   An upstream that never answers yields `502`, one that blows the 120 s ceiling `504`.
@@ -48,7 +48,8 @@ and renders game art from media.valorant-api.com.
 ### Shared (`shared/`)
 
 Contracts used by both Nitro and the app (`SessionState`), imported via `#shared`, and
-`shared/utils/admin-access.ts` (the `gameon_admin` role).
+`shared/utils/admin-access.ts` (the `gameon_admin` role) and `shared/utils/sso-probe.ts` (how long
+the silent sign-in waits between attempts).
 
 ### Design system (`design-system/`)
 
@@ -96,6 +97,66 @@ session, and is safe because the refresh token stays server-side.
 Data calls go to `/api/gameon/...` and the proxy authenticates them. Pages are public; a page can ask
 for a session with `definePageMeta({ auth: true })`, checked in the browser. No page needs it yet.
 
+Session cookies are prefixed `pd_` (JungleDiff uses `jd_`): cookies ignore ports, so in development
+the two apps share `localhost` and would otherwise overwrite each other's session. Renaming them from
+`jd_*` signed every existing PeekDiff user out once.
+
+### Silent single sign-on with JungleDiff
+
+PeekDiff and JungleDiff use the same Keycloak realm (`gameon`) and the same client, so a user signed
+in to one is signed in to the other without clicking:
+
+1. Once the app is mounted, an anonymous visitor who has not been probed recently is sent — a
+   top-level navigation — to `/api/auth/login?silent=1&redirect=<current path>`.
+2. That route sets the httpOnly marker `pd_sso_probe` (6 h) first, then redirects to Keycloak with
+   `prompt=none`.
+3. Keycloak either signs the user in from its SSO session (they come back signed in, on the same
+   page) or answers `login_required` / `consent_required` / `interaction_required`. The callback
+   treats those — and any other failure of a silent flow, Keycloak being down included — as "stay
+   anonymous": back to the same page, no `?auth_error=`.
+4. `GET /api/auth/session` reports `ssoProbed`, so the client does not try again until the marker
+   expires. Signing out sets the marker too, revokes the refresh token at Keycloak (RFC 7009) and
+   passes `id_token_hint` so Keycloak skips its "do you want to sign out?" page.
+
+Why not the alternatives: a hidden-iframe `check-sso` is defeated by Safari's ITP and third-party
+cookie blocking; a cookie shared on the parent domain would hand the refresh token to every
+subdomain and race on refresh-token rotation. The probe never runs server-side: `/` is served from a
+shared SWR cache, and crawlers keep no cookies, so a server redirect would loop.
+
+**Realm settings it depends on.** The probe rides on Keycloak's own SSO session, not on the apps'
+30-day offline sessions — refreshing an offline token does not keep the SSO session alive. With the
+defaults (SSO Session Idle 30 min, Max 10 h) it only helps within one sitting. So:
+
+- turn **Consent Required off** on the client, or every probe returns `consent_required`;
+- raise **SSO Session Idle / SSO Session Max** (Realm settings → Sessions) to the gap you want to
+  cover, or enable **Remember Me** (Realm settings → Login) and set **SSO Session Idle / Max
+  Remember Me**;
+- list both apps' origins in the client's redirect URIs and post-logout redirect URIs.
+
+#### Porting it to JungleDiff
+
+JungleDiff's auth code is identical to PeekDiff's before this change, so the port is a copy of these
+files with `jd_` in place of `pd_`:
+
+- [ ] `shared/utils/sso-probe.ts` — copy as is (`SSO_PROBE_TTL_MS`).
+- [ ] `shared/types/auth.ts` — add `ssoProbed: boolean` to `SessionState`.
+- [ ] `server/utils/session.ts` — keep the `jd_*` names; add `ID_TOKEN_COOKIE = 'jd_idt'` (path
+  `/api/auth`), `SSO_PROBE_COOKIE = 'jd_sso_probe'`, `setIdTokenCookie` / `getIdToken`,
+  `setSsoProbeCookie` / `hasSsoProbeCookie`, and the id-token deletion in `clearSessionCookies`.
+- [ ] `server/utils/oidc.ts` — `revocation_endpoint` in `OidcDiscovery`, `withClientCredentials`,
+  `revokeRefreshToken`.
+- [ ] `server/utils/access-token.ts` — persist `id_token` on refresh.
+- [ ] `server/api/auth/login.get.ts`, `callback.get.ts`, `logout.post.ts`, `session.get.ts` — copy,
+  then put "JungleDiff" back in the sign-out comment.
+- [ ] `app/stores/auth.ts` — `ssoProbed`, `trySilentSignIn` (rename the `sessionStorage` key to
+  `jd_sso_probe_at`), `ssoProbed: true` in the two fallback `applySession` calls.
+- [ ] `app/plugins/auth.client.ts` — call `trySilentSignIn` on `app:mounted`.
+- [ ] `tests/smoke.spec.ts` — copy the "silent single sign-on" block with `jd_` cookies, and add
+  `ssoProbed: false` to the anonymous-session assertion.
+- [ ] Check JungleDiff's pages that set `definePageMeta({ auth: true })` (admin, settings): they
+  still redirect interactively, which is right — the probe only matters on public pages.
+- [ ] Update JungleDiff's `.agents/instructions.base.md` and README, then `npm run sync:rules`.
+
 ## ⚙️ Configuration
 
 Copy `.env.example` to `.env`.
@@ -121,7 +182,8 @@ The Keycloak client must allow `<origin>/api/auth/callback` as a redirect URI.
   with a 7-day trail, then every other player with rank, peak, gap and 7-day move; a smurf toggle;
 - the rail: player of the week (best 7-day RR swing), the latest ranked game of each player, the
   all-time peaks;
-- dark and light themes, sign-in / sign-out, "Vous" on the viewer's row.
+- dark and light themes, sign-in / sign-out, "Vous" on the viewer's row, silent single sign-on with
+  JungleDiff.
 
 **Not yet:** player profiles, match pages, records, settings, the admin space, the crew search
 palette, the mobile bottom bar.

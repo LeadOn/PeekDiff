@@ -1,6 +1,6 @@
 import type { H3Event } from 'h3'
 import { expiresAtFrom, refreshTokens } from './oidc'
-import { clearSessionCookies, getRefreshToken, getValidAccessToken, setAccessCookie, setRefreshCookie } from './session'
+import { clearSessionCookies, getRefreshToken, getValidAccessToken, setAccessCookie, setIdTokenCookie, setRefreshCookie } from './session'
 
 /**
  * Returns a valid access token for the current request, or `null` when the user has no usable
@@ -21,6 +21,7 @@ export const resolveAccessToken = async (event: H3Event): Promise<string | null>
     // Keycloak may rotate refresh tokens, so always persist the one it returns — otherwise
     // rotation would invalidate the session on the next cycle.
     if (tokens.refresh_token) setRefreshCookie(event, tokens.refresh_token)
+    if (tokens.id_token) setIdTokenCookie(event, tokens.id_token)
     setAccessCookie(event, tokens.access_token, expiresAtFrom(tokens))
     return tokens.access_token
   } catch (error) {

@@ -40,6 +40,8 @@ yet either (see Known Gaps).
 - **Theme** — dark by default, "Bone" (light) through the header toggle.
 - **Sign-in** — the header's "Se connecter" starts the OIDC flow; signed in, the header shows the
   player's card and a sign-out button, and the ladder marks the viewer's row "Vous".
+- **Silent single sign-on** — a visitor already signed in to JungleDiff (same realm, same client) is
+  signed in here without a click, through one `prompt=none` round trip to Keycloak after mount.
 
 # Directory Layout
 
@@ -56,7 +58,7 @@ yet either (see Known Gaps).
 - `app/utils/` — pure helpers.
 - `shared/types/` — contracts used by both Nitro and the app, imported via `#shared`.
 - `shared/utils/` — logic both sides run, imported explicitly via `#shared/utils/...`
-  (`admin-access.ts`: `ADMIN_ROLE`).
+  (`admin-access.ts`: `ADMIN_ROLE`; `sso-probe.ts`: `SSO_PROBE_TTL_MS`).
 - `server/api/`, `server/routes/`, `server/middleware/`, `server/plugins/`, `server/utils/` — Nitro.
 - `design-system/` — the design system's source of truth: `MASTER.md` (the spec), `tokens.css`
   (reference tokens, mirrored by `app/assets/css/main.css`), `valorant-assets.ts` (reference asset
@@ -111,6 +113,31 @@ yet either (see Known Gaps).
   the client only (`app/middleware/auth.global.ts`). No page sets it yet. JungleDiff's SSR guard for
   an admin space (`server/middleware/admin-session.ts`) was not carried over: bring it back with the
   admin space.
+- Session cookies are prefixed `pd_` (`server/utils/session.ts`); JungleDiff's are `jd_`. Cookies
+  ignore ports, so both apps share `localhost` in development: identical names would make each
+  overwrite the other's session. The id token (`pd_idt`) is scoped to `/api/auth` — only the
+  sign-out reads it.
+- **Silent single sign-on.** Once the app is mounted (`app/plugins/auth.client.ts`), an anonymous
+  visitor is sent once to `/api/auth/login?silent=1&redirect=<path>` (`authStore.trySilentSignIn`).
+  The login route sets the httpOnly marker `pd_sso_probe` (6 h, `SSO_PROBE_TTL_MS` in
+  `shared/utils/sso-probe.ts`) **before** anything can fail, then redirects to Keycloak with
+  `prompt=none`. Keycloak either signs the user in from its SSO session (opened by JungleDiff) or
+  answers `login_required` / `consent_required` / `interaction_required`, which the callback treats
+  as "stay anonymous": back to the original path, no `?auth_error=`. Any failure of a silent flow —
+  Keycloak unreachable included — ends the same way. The client learns the marker from
+  `GET /api/auth/session` (`ssoProbed`), never by reading the cookie. A `sessionStorage` timestamp
+  breaks the loop for browsers that drop cookies; crawlers and cookie-less browsers are skipped.
+- It is a top-level redirect on purpose, not an iframe `check-sso`: Safari's ITP and third-party
+  cookie blocking keep Keycloak's session cookie out of a cross-site iframe. A shared parent-domain
+  cookie was rejected too: it would expose the refresh token to every subdomain and race on
+  refresh-token rotation.
+- Sign-out (`logout.post.ts`) clears the cookies, sets the probe marker (otherwise the next page load
+  could sign the user straight back in), revokes the refresh token at the realm's
+  `revocation_endpoint` (RFC 7009 — the offline session would otherwise outlive the cookie), and
+  passes `id_token_hint` to the end-session URL so Keycloak does not ask for confirmation.
+- Silent SSO only works while Keycloak's **own SSO session** lives, not the apps' 30-day offline
+  sessions: refreshing an offline token does not keep the SSO session alive. The realm settings it
+  depends on are listed under Environment.
 
 # Data Flow
 
@@ -243,6 +270,10 @@ Each of these is easy to reintroduce and hard to diagnose.
 - **The smurf predicate lives in `app/utils/val-smurf.ts` and is the only copy.** The API returns
   `primaryPlayerId` pointing at the account itself, or `0`, for some main accounts — the short
   `!!primaryPlayerId` form crowns real mains as smurfs.
+- **The silent sign-in probe runs on the client, after mount — never in a Nitro or route
+  middleware.** `/` is served from a shared SWR cache, and crawlers keep no cookies: a server-side
+  redirect would bounce them through Keycloak forever. Do not make `pd_sso_probe` readable from
+  script either; `ssoProbed` on the session endpoint is how the client learns it.
 - **Anything that depends on the viewer renders after mount on `/`.** The page is served from a shared
   SWR cache: "Vous", relative times ("il y a 2 h") and the theme icon are resolved client-side only.
 - **Entrance animations start from the server's state.** `useEntered` is `false` on the server and on
@@ -276,6 +307,13 @@ Required: `NUXT_PUBLIC_GAME_ON_API_URL`, `NUXT_PUBLIC_KEYCLOAK_AUTHORITY`,
 Optional: `NUXT_GAME_ON_API_URL` (overrides the proxy target server-side),
 `NUXT_KEYCLOAK_CLIENT_SECRET` (only for a confidential Keycloak client; empty means public + PKCE).
 The Keycloak client must allow `<origin>/api/auth/callback` as a redirect URI.
+
+Silent single sign-on depends on the realm (`gameon`) and on the client shared with JungleDiff:
+- **Consent Required off** on the client, or every probe comes back `consent_required`.
+- **SSO Session Idle / Max** (Realm settings → Sessions) long enough to cover the gap between visits
+  to the two apps — the defaults (30 min idle, 10 h max) only help within one sitting. Alternatively
+  enable **Remember Me** (Realm settings → Login) and set **SSO Session Idle / Max Remember Me**.
+- Both apps' origins in the client's redirect URIs and post-logout redirect URIs.
 
 `typescript` is pinned to `^6.0.3` on purpose: `typescript-eslint` (via `@nuxt/eslint-config`) still
 declares `typescript >=4.8.4 <6.1.0`. Re-check that peer range before bumping.
