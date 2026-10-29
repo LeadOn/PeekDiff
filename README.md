@@ -22,10 +22,10 @@ API and renders game art from media.valorant-api.com.
 - `app/pages/` — page components and data orchestration via `useAsyncData`: `index.vue` (the crew
   dashboard), `player/[id].vue` (a player's profile), `match/[id].vue` (one game) and
   `settings.vue`.
-- `app/components/` — split into `ui/` (generic: `AppHeader`, `SectionIndex`, `FrameHead`,
-  `SegmentSwitch`, `MockBadge`), `home/` (the dashboard), `profile/` (the profile), `match/` (the
-  match page) and `val/`
-  (Valorant entities: `ValRankEmblem`, `ValPlayerCard`, `ValAgentIcon`, `ValMatchRow`).
+- `app/components/` — split into `ui/` (generic: `AppHeader`, `AppBottomBar`, `SectionIndex`,
+  `FrameHead`, `SegmentSwitch`, `MockBadge`), `home/` (the dashboard), `profile/` (the profile),
+  `match/` (the match page) and `val/` (Valorant entities: `ValRankEmblem`, `ValPlayerCard`,
+  `ValAgentIcon`, `ValMatchRow`, `ValMapList`, `ValPlayerPalette`).
 - `app/composables/` — reusable logic, including API client injection (`useGameOnVal`).
 - `app/stores/` — Pinia stores: `val` (the crew, behind a 60 s freshness window), `auth` (session
   state, never a token), `player` (the signed-in player).
@@ -215,8 +215,12 @@ The Keycloak client must allow `<origin>/api/auth/callback` as a redirect URI.
 
 **Done — settings (`/settings`)**, signed-in only: name, nickname and Riot ID.
 
-**Not yet:** a `/stats` page, the admin space, the crew search palette, the mobile bottom bar, an
-agent filter on the profile, economy on the match page.
+**Done — navigation:** the crew search palette (⌘K / Ctrl K, "/", or the header's `>_` button) that
+finds a member by Riot ID, nickname or full name, and a mobile bottom bar (Crew, Parties, Recherche,
+Profil).
+
+**Not yet:** a `/stats` page, the admin space, an agent filter on the profile, economy on the match
+page.
 
 ## 🧩 Backend Gaps
 

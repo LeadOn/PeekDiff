@@ -177,8 +177,9 @@ useSeoMeta({
         <SectionIndex index="02" label="Cette semaine" class="mb-4" />
         <div class="grid items-start gap-4 md:max-rail:grid-cols-2">
           <PlayerOfTheWeek v-if="playerOfTheWeek" :entry="playerOfTheWeek" :fact="playerOfTheWeekFact" class="md:max-rail:col-span-2" />
-          <CrewFeed v-if="hasFeed" :games="store.lastMatches" />
-          <LastRankedGames v-else :players="visiblePlayers" />
+          <!-- `#parties` is the mobile bar's "Parties" target; the margin clears the sticky header. -->
+          <CrewFeed v-if="hasFeed" id="parties" :games="store.lastMatches" class="scroll-mt-20" />
+          <LastRankedGames v-else id="parties" :players="visiblePlayers" class="scroll-mt-20" />
           <PeakRecords :entries="[...ladder.ranked, ...ladder.unranked]" />
         </div>
       </aside>

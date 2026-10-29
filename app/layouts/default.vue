@@ -8,7 +8,8 @@
       <slot />
     </main>
 
-    <footer class="relative z-[1] mt-24 bg-night text-on-night-2">
+    <!-- On phones the bottom padding clears the fixed bottom bar. -->
+    <footer class="relative z-[1] mt-24 bg-night pb-[calc(64px+env(safe-area-inset-bottom,0px))] text-on-night-2 md:pb-0">
       <div class="mx-auto flex max-w-[1280px] flex-wrap items-center gap-y-1 px-4 py-2 font-mono text-[11px] uppercase tracking-[0.06em] md:px-6">
         <span class="mr-3 bg-brand-red-fill px-2 py-0.5 font-bold text-white">PeekDiff</span>
         <span class="status-cell">v{{ config.public.appVersion }}</span>
@@ -21,11 +22,16 @@
         PeekDiff n'est pas approuvé par Riot Games et ne reflète pas les opinions de Riot Games ni de quiconque officiellement impliqué dans la production ou la gestion des propriétés Riot Games. Riot Games et toutes les propriétés associées sont des marques commerciales ou des marques déposées de Riot Games, Inc.
       </p>
     </footer>
+
+    <AppBottomBar />
+    <ValPlayerPalette />
   </div>
 </template>
 
 <script setup lang="ts">
 import AppHeader from '~/components/ui/AppHeader.vue'
+import AppBottomBar from '~/components/ui/AppBottomBar.vue'
+import ValPlayerPalette from '~/components/val/ValPlayerPalette.vue'
 import { useRuntimeConfig } from '#app'
 
 const config = useRuntimeConfig()
