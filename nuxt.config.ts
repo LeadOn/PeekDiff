@@ -49,6 +49,9 @@ export default defineNuxtConfig({
     // Listing pages are identical for every visitor: serve them from the Nitro cache and
     // revalidate in the background instead of replaying the API calls on each visit.
     '/': { swr: 60 },
+    // Profiles are rendered on every visit: their filters live in the query string, and a sync must
+    // show at once. Settings are personal and must never be cached.
+    '/settings': { swr: false, headers: { 'cache-control': 'no-store' } },
     '/api/auth/**': { headers: { 'cache-control': 'no-store' } }
   },
 

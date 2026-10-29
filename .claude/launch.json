@@ -4,8 +4,20 @@
     {
       "name": "peekdiff-prod",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["--env-file-if-exists=.env", ".output/server/index.mjs"],
+      "runtimeArgs": [
+        "--env-file-if-exists=.env",
+        ".output/server/index.mjs"
+      ],
       "port": 3000
+    },
+    {
+      "name": "peekdiff-prod-local-api",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "NUXT_GAME_ON_API_URL=http://localhost:5184 PORT=3002 node --env-file-if-exists=.env .output/server/index.mjs"
+      ],
+      "port": 3002
     }
   ]
 }

@@ -61,14 +61,14 @@ const changeClass = (change: number) => (change > 0 ? 'text-win' : change < 0 ? 
         />
         <div aria-hidden="true" class="absolute inset-0 -z-10 bg-linear-to-r from-surface-base from-40% to-surface-base/70" />
         <span class="flex min-w-0 flex-1 flex-col">
-          <span class="truncate text-sm font-semibold">{{ game.name }}</span>
+          <NuxtLink :to="`/player/${game.id}`" class="truncate text-sm font-semibold after:absolute after:inset-0 after:content-[''] hover:text-brand-red">{{ game.name }}</NuxtLink>
           <span class="truncate font-mono text-[11px] uppercase tracking-[0.04em] text-text-sec">
             {{ game.map }}<ClientOnly><template v-if="now"> · {{ timeAgo(game.at, now) }}</template></ClientOnly>
           </span>
         </span>
         <span class="flex shrink-0 flex-col items-end">
           <span class="font-mono text-sm font-medium" :class="changeClass(game.change)">{{ formatSigned(game.change) }} RR</span>
-          <span class="font-mono text-[10px] text-text-ter" :title="game.shielded ? 'Protection de rang activée' : undefined">{{ game.shielded ? '◈ protégé' : game.tierLabel }}</span>
+          <span class="relative z-[1] font-mono text-[10px] text-text-ter" :title="game.shielded ? 'Protection de rang activée' : undefined">{{ game.shielded ? '◈ protégé' : game.tierLabel }}</span>
         </span>
       </li>
     </ul>

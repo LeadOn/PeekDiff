@@ -23,12 +23,12 @@ const peaks = computed(() => props.entries
       <li
         v-for="(entry, index) in peaks"
         :key="entry.id"
-        class="grid grid-cols-[24px_32px_minmax(0,1fr)_auto] items-center gap-2.5 border-t border-border-base py-2 first:border-t-0"
+        class="relative grid grid-cols-[24px_32px_minmax(0,1fr)_auto] items-center gap-2.5 border-t border-border-base py-2 first:border-t-0"
       >
         <span class="font-mono text-xs text-text-ter">{{ String(index + 1).padStart(2, '0') }}</span>
         <ValRankEmblem :tier-id="entry.peak!.tierId" :src="entry.peak!.iconUrl" size="large" alt="" class="size-8" />
         <span class="flex min-w-0 flex-col">
-          <span class="truncate text-sm font-semibold">{{ entry.name }}</span>
+          <NuxtLink :to="`/player/${entry.id}`" class="truncate text-sm font-semibold after:absolute after:inset-0 after:content-[''] hover:text-brand-red">{{ entry.name }}</NuxtLink>
           <span class="font-mono text-[11px] text-text-sec">{{ entry.peak!.label }}<template v-if="entry.peak!.rr !== null"> · {{ entry.peak!.rr }} RR</template></span>
         </span>
         <span class="font-mono text-[11px] uppercase text-text-ter">{{ entry.peak!.season ?? '' }}</span>

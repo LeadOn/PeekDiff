@@ -62,12 +62,14 @@ const gapText = computed(() => (props.entry.gap === null
     <ValPlayerCard :src="entry.cardSmall" :name="entry.name" class="relative -mt-6 size-12 border-2 border-surface-base" />
 
     <div class="mt-3 flex min-w-0 items-center gap-1.5">
-      <h3 class="truncate text-xl font-semibold">{{ entry.name }}</h3>
+      <h3 class="truncate text-xl font-semibold">
+        <NuxtLink :to="`/player/${entry.id}`" class="after:absolute after:inset-0 after:content-[''] hover:text-brand-red">{{ entry.name }}</NuxtLink>
+      </h3>
       <span v-if="isMe" class="shrink-0 bg-brand-red-fill px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase text-white">Vous</span>
       <span
         v-if="entry.smurf"
         :title="entry.mainName ? `Compte secondaire de ${entry.mainName}` : 'Compte secondaire'"
-        class="shrink-0 cursor-help border border-border-strong px-1.5 font-mono text-[10px] uppercase"
+        class="relative z-[1] shrink-0 cursor-help border border-border-strong px-1.5 font-mono text-[10px] uppercase"
       >Smurf</span>
     </div>
     <p class="font-mono text-xs text-text-ter">{{ entry.tag }}</p>

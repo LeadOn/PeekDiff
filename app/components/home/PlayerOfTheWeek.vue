@@ -21,7 +21,9 @@ const backdropStyle = computed(() => (props.entry.cardLarge ? { backgroundImage:
     <div aria-hidden="true" class="scanlines bg-scrim-night absolute inset-0 -z-10" />
 
     <h2 id="player-of-the-week" class="font-mono text-[11px] uppercase tracking-[0.08em] text-on-night-red">// Joueur de la semaine</h2>
-    <p class="mt-10 font-display text-[52px] font-black uppercase leading-[0.85]">{{ entry.name }}</p>
+    <p class="mt-10 font-display text-[52px] font-black uppercase leading-[0.85]">
+      <NuxtLink :to="`/player/${entry.id}`" class="after:absolute after:inset-0 after:content-[''] hover:text-on-night-red">{{ entry.name }}</NuxtLink>
+    </p>
     <p class="mt-1.5 font-mono text-xs text-on-night-2">{{ entry.tag }}</p>
     <p class="mt-3 flex items-center gap-2 text-sm font-semibold">
       <ValRankEmblem :tier-id="entry.rank?.tierId" :src="entry.emblemUrl" alt="" class="size-6" />
