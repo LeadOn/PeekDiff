@@ -187,11 +187,19 @@ useSeoMeta({
 
     <section v-if="!hasApiError && home" aria-labelledby="crew-records-title" class="mt-12">
       <SectionIndex index="03" label="Records" />
-      <div class="mb-5 mt-3">
-        <h2 id="crew-records-title" class="font-display text-[40px] font-extrabold uppercase leading-[0.95] tracking-[0.01em] md:text-5xl">Records du mois</h2>
-        <p class="mt-2 font-mono text-[13px] text-text-sec">{{ recordsSubtitle }}</p>
+      <div class="mb-5 mt-3 flex flex-wrap items-end justify-between gap-x-5 gap-y-3.5">
+        <div class="min-w-0">
+          <h2 id="crew-records-title" class="font-display text-[40px] font-extrabold uppercase leading-[0.95] tracking-[0.01em] md:text-5xl">Records du mois</h2>
+          <p class="mt-2 font-mono text-[13px] text-text-sec">{{ recordsSubtitle }}</p>
+        </div>
+        <NuxtLink
+          to="/stats"
+          class="group inline-flex h-11 items-center gap-1.5 border border-border-strong px-4 font-mono text-[13px] font-medium uppercase tracking-[0.06em] transition-colors duration-150 ease-snap hover:bg-surface-hover"
+        >
+          <span aria-hidden="true" class="text-text-ter">[</span>Tous les records<Icon name="lucide:arrow-right" class="size-3.5 transition-transform duration-150 ease-snap group-hover:translate-x-0.5" /><span aria-hidden="true" class="text-text-ter">]</span>
+        </NuxtLink>
       </div>
-      <CrewRecords :records="home.crewRecords" />
+      <CrewRecords :records="home.crewRecords" period-phrase="sur 30 jours" ranked-only />
       <div class="mt-4 grid items-start gap-4 md:grid-cols-2">
         <CrewAgents :agents="home.crewRecords.topAgents" period-phrase="sur 30 jours" />
         <ValMapList :maps="home.crewRecords.topMaps" period-phrase="sur 30 jours" as="h3" />

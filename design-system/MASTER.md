@@ -253,10 +253,18 @@ icône 24px, nom en mono MAJ., `×` en `text-ter`, filet bas rouge 2px ; un clic
   (`win`) sur défaites (`loss`) proportionnelle au nombre de parties, le compte au-dessus, le RR net
   du jour en dessous (`—` sans classée), l'initiale du jour au pied, le jour courant en gras. Une
   légende sous la carte ; chaque colonne porte son résumé en `aria-label`.
-- **Records** (accueil) : une carte par distinction, label `// TITRE`, valeur en display 44px et son
+- **Records** (accueil, page Records) : une carte par distinction, label `// TITRE`, valeur en display 44px et son
   unité en mono, ce qui a été compté en une ligne, puis sous un filet pointillé le joueur (lien vers
   son profil), la date et `[ LA PARTIE ]` quand le record tient en une partie. Les plus flatteuses
-  d'abord. Pas de rouge : un record n'est ni une défaite ni une action.
+  d'abord. Pas de rouge : un record n'est ni une défaite ni une action. Ce qui se compte sur toute la
+  période (headshots) se dit avec elle : « de headshots sur 3 mois ».
+- **Page Records** (`/stats`) : `// 01 ── RECORDS`, titre « Records du crew », sous-titre mono
+  `COMPÉTITION · 30 DERNIERS JOURS · N PARTIES ANALYSÉES · N JOUEURS`, l'interrupteur `[x] SMURFS` à
+  droite comme sur le classement. Dessous, deux sélecteurs segmentés : période (`7 J · 30 J · 3 MOIS ·
+  6 MOIS · TOUT`) et file (`COMPÉTITION · TOUTES`). La grille des records, puis
+  `// 02 ── AGENTS ET CARTES` avec les deux cartes côte à côte dès `md:`. Pendant qu'un filtre
+  recharge, la réponse précédente reste à 50 % d'opacité. L'accueil y mène par `[ TOUS LES RECORDS → ]`
+  au-dessus de ses records du mois.
 - **Graphes** (chart.js) : grille `border-base`, axes mono 11px, allié `ally`, ennemi `enemy`,
   joueur sélectionné `brand-red`. Toujours un tooltip et une alternative tableau.
 
@@ -269,7 +277,7 @@ en file (`[■■□□□] POSITION 3`), rapport, abandonné, erreur.
 
 ### Navigation
 
-- **Header** : mascotte 40px + wordmark `PEEK/DIFF` (le `/` en rouge), liens en mono MAJ. 12px, actif souligné
+- **Header** : mascotte 40px + wordmark `PEEK/DIFF` (le `/` en rouge), liens en mono MAJ. 12px (`CREW · RECORDS`), actif souligné
   rouge 2px, recherche `>_ ⌘K`, bascule thème. La recherche est un bouton à l'allure de champ
   (`surface-sunken`, filet `border-base`, mono 12px `text-ter`) : `>_ chercher un joueur` puis la
   touche `⌘K` (ou `Ctrl K` hors Apple, lue après montage) ; libellé masqué entre `md:` et `lg:`, bouton

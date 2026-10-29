@@ -60,7 +60,10 @@ const matchingEntries = computed(() => {
 })
 
 const matchingActions = computed(() => {
-  const actions: { key: string, label: string, href: string }[] = [{ key: 'crew', label: 'Classement du crew', href: '/' }]
+  const actions: { key: string, label: string, href: string }[] = [
+    { key: 'crew', label: 'Classement du crew', href: '/' },
+    { key: 'records', label: 'Records du crew', href: '/stats' },
+  ]
   if (playerStore.currentPlayer) actions.push({ key: 'me', label: 'Mon profil', href: `/player/${playerStore.currentPlayer.id}` })
   if (authStore.isAuthenticated) actions.push({ key: 'settings', label: 'Paramètres du compte', href: '/settings' })
   const needle = normalizeSearchText(query.value)

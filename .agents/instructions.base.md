@@ -23,8 +23,8 @@ exists so a crew member is recognised ("Vous") and can edit their own profile.
 
 # Features
 
-Four pages so far: the crew dashboard, player profiles, match pages and settings. A `/stats` page and
-an admin space are JungleDiff features PeekDiff does not have yet (see Known Gaps).
+Five pages so far: the crew dashboard, the crew records, player profiles, match pages and settings.
+An admin space is a JungleDiff feature PeekDiff does not have yet (see Known Gaps).
 
 - `/` — crew dashboard, built from the "Protocol" design system. Top to bottom: status chips (the
   reload chip with "Synchro il y a X min", "7 derniers jours", the current act), the week
@@ -37,8 +37,8 @@ an admin space are JungleDiff features PeekDiff does not have yet (see Known Gap
   from `GET /val/match/last`, each told from the side with the most crew members and opening its
   match page) and `PeakRecords` (all-time peaks). Last, "Records du mois" (`CrewRecords`: the crew's
   awards over 30 days of competitive, each linking to its player and, for a single-game record, its
-  match; then `CrewAgents` and `ValMapList` for the most played agents and maps). Every player name
-  links to their profile.
+  match; then `CrewAgents` and `ValMapList` for the most played agents and maps), with a
+  `[ Tous les records ]` link to `/stats`. Every player name links to their profile.
 - **Rank-only fallback** — when `/val/home` or `/val/match/last` fails (an API build older than the
   match history, which is production today), the page keeps the rank tiles (`WeekBento`: ranked
   players, net RR over 7 days from `rrChange7DaysValorant`, best current rank, best peak), a player of
@@ -69,6 +69,15 @@ an admin space are JungleDiff features PeekDiff does not have yet (see Known Gap
   ceremony; selecting a round shows its plant / defuse and its kill feed). The game is rendered on
   the server; rounds and kills (`/rounds`) load after mount. A non-uuid id is a 404 without calling
   the API.
+- `/stats` — "Records du crew", the home page's records with filters, from `GET /val/stats/global`:
+  period (7 j · 30 j · 3 mois · 6 mois · Tout, `RECORDS_PERIODS` in `val-period.ts`), queue
+  (Compétition · Toutes, the API's `rankedOnly`) and a smurf switch, off by default. The defaults are
+  the home page's (competitive, 30 days, no smurfs) and only a departure reaches the query string
+  (`?period=3m&queue=all&smurfs=1`). `CrewRecords` (worded from the period's phrase), then "Agents et
+  cartes" (`CrewAgents`, `ValMapList`). Rendered on the server; a filter change re-runs the
+  `useAsyncData` handler, the previous answer dimmed meanwhile. An API answering 404 (a build older
+  than 2026-10-29) shows "Records indisponibles", not an outage. Linked from the header ("Records"),
+  the palette and the home page; not from the mobile bar, which keeps its four entries.
 - `/settings` — `auth: true`. The signed-in user's name, nickname and Riot ID (`PATCH /player/me`),
   links to their profile and a sign-out. No profile picture upload: PeekDiff shows the Valorant player
   card, never `profilePictureUrl`.
@@ -79,7 +88,7 @@ an admin space are JungleDiff features PeekDiff does not have yet (see Known Gap
   `>_ chercher un joueur ⌘K` button (from `md:`), the mobile bar, ⌘K / Ctrl K or "/". It matches
   Riot ID, nickname and full name locally (`filterPlayersByName` in `app/utils/val-search.ts`: the API
   has no search by name) against the crew list, smurfs included, in ladder order, then offers "Classement
-  du crew", "Mon profil" and "Paramètres". A combobox: arrows move, Enter opens, Escape and any
+  du crew", "Records du crew", "Mon profil" and "Paramètres". A combobox: arrows move, Enter opens, Escape and any
   navigation close it, Tab stays in the input, focus returns to the opener. Its open state is
   `useSearchPalette` (`useState`), shared by the three openers.
 - **Mobile bar** — `AppBottomBar`, below `md` only: Crew (`/`), Parties (`/#parties`, the home page's
@@ -214,8 +223,9 @@ an admin space are JungleDiff features PeekDiff does not have yet (see Known Gap
   their ten participants), `getValMatch` (`GET /val/match/{id}`), `getValMatchTimeline`
   (`GET /val/match/{id}/rounds`, rounds and kills), `getCurrentPlayer` (`GET /player/me`) and
   `updateCurrentPlayer` (`PATCH /player/me`), plus `getValHome` (`GET /val/home`) and
-  `getValLastMatches` (`GET /val/match/last`) for the home page. `/val/stats/global` itself is not
-  called: `/val/home` embeds the same records as `crewRecords`.
+  `getValLastMatches` (`GET /val/match/last`) for the home page, and `getValGlobalStats`
+  (`GET /val/stats/global?period=&rankedOnly=&includeSmurfs=`) for `/stats`. The home page does not
+  call the latter: `/val/home` embeds its 30-day competitive answer as `crewRecords`.
 - The `val` store caches the crew, the home recap and the crew feed behind a 60 s window rather than
   for the whole SPA session, and `index.vue` passes `getCachedData: cacheOnlyDuringHydration`
   (`app/utils/async-data.ts`) so the handlers are replayed on client navigation without breaking
@@ -241,7 +251,8 @@ an admin space are JungleDiff features PeekDiff does not have yet (see Known Gap
   seen from that player; `groupGamesByDay` groups the lines by Paris day. On the match page,
   `app/utils/val-game.ts` does the same for the whole game: `resolvePerspective` picks the allies,
   `buildScoreboard`, `buildRounds` and `buildRoundDetail` read everything off it.
-- `/` is served through Nitro's SWR cache (60 s); `/settings` and `/api/auth/**` are explicitly
+- `/` and `/stats` are served through Nitro's SWR cache (60 s; each `/stats` query string is its own
+  entry); `/settings` and `/api/auth/**` are explicitly
   `no-store`. Profiles are not cached: their filters live in the query string and a sync must show at
   once.
 - **Authenticated reads run after mount.** Nuxt's global `$fetch` does not forward the browser's
@@ -414,7 +425,7 @@ Each of these is easy to reintroduce and hard to diagnose.
   therefore never linked.
 - **No agent roles.** The API does not serve them, so agent icons carry a neutral rule instead of the
   role colour the design system asks for, and the profile filters by agent, not by role.
-- **No `/stats` or admin space yet.**
+- **No admin space yet.**
 - **No CI pipeline.** Lint, types, audit, build and the e2e suite only run when someone runs them.
 - **No error tracking.** Failures are reported through `console.error` only.
 - **No rate limiting on `/api/gameon`.** The allowlist bounds paths, not request volume.

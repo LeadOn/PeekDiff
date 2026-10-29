@@ -100,6 +100,7 @@ test.describe('GameOn proxy guards', () => {
     // 502 (dead upstream) rather than 403 proves the path was allowed and actually forwarded.
     expect((await request.get('/api/gameon/val/home?includeSmurfs=false&window=Last7Days')).status()).toBe(502)
     expect((await request.get('/api/gameon/val/match/last?page=1&size=6')).status()).toBe(502)
+    expect((await request.get('/api/gameon/val/stats/global?period=Month&rankedOnly=true&includeSmurfs=false')).status()).toBe(502)
   })
 
   test('reports an unreachable upstream as 502, not 500', async ({ request }) => {
@@ -267,6 +268,29 @@ test.describe('match page', () => {
   })
 })
 
+test.describe('records page', () => {
+  test('an unreachable API degrades to a retry panel under the filters, not a 5xx', async ({ page }) => {
+    test.skip(!!process.env.NUXT_PUBLIC_GAME_ON_API_URL, 'a real API is configured')
+
+    const response = await page.goto('/stats?period=3m&queue=all')
+
+    expect(response?.status()).toBe(200)
+    await expect(page.getByRole('heading', { name: 'Records du crew', level: 1 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'L\'API ne répond pas' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Réessayer' })).toBeVisible()
+    // The filters come back from the query string, so a shared link opens the same view.
+    await expect(page.getByRole('group', { name: 'Période' }).getByRole('button', { name: '3 mois' })).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.getByRole('group', { name: 'File de jeu' }).getByRole('button', { name: 'Toutes' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  test('is served from the SWR cache like the home page', async ({ request }) => {
+    const response = await request.get('/stats')
+
+    expect(response.status()).toBe(200)
+    expect(response.headers()['cache-control'] ?? '').not.toContain('no-store')
+  })
+})
+
 /**
  * The sign-in button is client-only (`<ClientOnly>` in the header): once it shows, the app is mounted
  * and its click handlers and keyboard shortcuts are live.
@@ -296,6 +320,15 @@ test.describe('navigation', () => {
 
     await page.keyboard.press('ControlOrMeta+k')
     await expect(dialog).toBeVisible()
+  })
+
+  test('the header links to the records page', async ({ page }) => {
+    await page.goto('/')
+    await hydrated(page)
+
+    await page.getByRole('navigation', { name: 'Navigation principale' }).getByRole('link', { name: 'Records' }).click()
+    await expect(page).toHaveURL(/\/stats$/)
+    await expect(page.getByRole('heading', { name: 'Records du crew', level: 1 })).toBeVisible()
   })
 
   test('the palette says so when the crew cannot be loaded', async ({ page }) => {
