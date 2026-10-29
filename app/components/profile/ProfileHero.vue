@@ -2,7 +2,8 @@
 import { computed } from 'vue'
 import type { ValPlayerDto } from '~/lib/types'
 import { playerDisplayName, playerPeak } from '~/utils/val-ladder'
-import { agentIdFromUrl, agentImageUrl, rankIconUrl } from '~/utils/val-assets'
+import { AGENT_ROLES, agentIdFromUrl, agentImageUrl, rankIconUrl } from '~/utils/val-assets'
+import { agentRole } from '~/utils/val-agents'
 import { isRankedTier, tierInfo } from '~/utils/val-tier'
 import { timeAgo } from '~/utils/date'
 import { formatSigned } from '~/utils/number'
@@ -49,6 +50,14 @@ const bannerStyle = computed(() => (props.player.valorantPlayerCardWideUrl
 /** The main agent's full body, derived from the icon URL the API sends for it. */
 const portraitUrl = computed(() => agentImageUrl(agentIdFromUrl(props.player.mainAgentIconUrl), 'portrait'))
 
+/** "Jett · Duelliste": the main agent, with its role when the role table knows it. */
+const mainAgentLabel = computed(() => {
+  const name = props.player.mainAgentName
+  if (!name) return null
+  const role = agentRole({ iconUrl: props.player.mainAgentIconUrl, name })
+  return role ? `${name} · ${AGENT_ROLES[role].label}` : name
+})
+
 const current = computed(() => {
   const rank = props.player.valorantCurrentRank
   if (!rank || !isRankedTier(rank.tierId)) return null
@@ -94,7 +103,7 @@ const syncedLabel = computed(() => {
     >
 
     <p class="font-mono text-[11px] uppercase tracking-[0.08em] text-on-night-red">
-      // Profil<template v-if="player.mainAgentName"> · {{ player.mainAgentName }}</template>
+      // Profil<template v-if="mainAgentLabel"> · {{ mainAgentLabel }}</template>
     </p>
 
     <div class="mt-3 flex flex-wrap items-end gap-x-3 gap-y-2">

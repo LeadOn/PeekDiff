@@ -3,8 +3,10 @@ import { computed } from 'vue'
 import type { ValCrewAgentStatDto } from '~/lib/types'
 import { formatPercent } from '~/utils/number'
 import { playerDisplayName } from '~/utils/val-ladder'
+import { agentRole } from '~/utils/val-agents'
 import FrameHead from '~/components/ui/FrameHead.vue'
 import ValAgentIcon from '~/components/val/ValAgentIcon.vue'
+import ValRoleChip from '~/components/val/ValRoleChip.vue'
 
 /** The crew's most played agents over the records' window, each with the member who played it most. */
 const props = defineProps<{
@@ -15,6 +17,7 @@ const props = defineProps<{
 const rows = computed(() => props.agents.map(agent => ({
   ...agent,
   topName: playerDisplayName(agent.topPlayer.player),
+  role: agentRole({ id: agent.agentId, iconUrl: agent.agentIconUrl, name: agent.agentName }),
 })))
 </script>
 
@@ -29,7 +32,10 @@ const rows = computed(() => props.agents.map(agent => ({
       >
         <ValAgentIcon :src="agent.agentIconUrl" :name="agent.agentName" class="size-9" />
         <span class="flex min-w-0 flex-col">
-          <span class="truncate text-sm font-semibold">{{ agent.agentName }}</span>
+          <span class="flex min-w-0 items-center gap-2">
+            <span class="truncate text-sm font-semibold">{{ agent.agentName }}</span>
+            <ValRoleChip v-if="agent.role" :role="agent.role" class="hidden sm:inline-flex" />
+          </span>
           <span class="truncate font-mono text-[11px] text-text-sec">
             {{ agent.gamesPlayed }} partie{{ agent.gamesPlayed > 1 ? 's' : '' }} · surtout
             <NuxtLink :to="`/player/${agent.topPlayer.player.id}`" class="text-text-main hover:text-brand-red">{{ agent.topName }}</NuxtLink>

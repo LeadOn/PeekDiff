@@ -81,7 +81,7 @@ const resultClass = (result: GameResult) => ({
         </div>
         <div class="mt-1.5 flex items-center gap-2">
           <span class="flex shrink-0 -space-x-1">
-            <ValAgentIcon v-for="member in line.crew" :key="member.id" :src="member.iconUrl" :name="member.agent" class="size-5 border border-surface-base" />
+            <ValAgentIcon v-for="member in line.crew" :key="member.id" :src="member.iconUrl" :name="member.agent" :rule="false" class="size-5 border border-surface-base" />
           </span>
           <span class="min-w-0 truncate text-xs text-text-sec">{{ line.crewNames }}</span>
         </div>

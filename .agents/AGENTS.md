@@ -127,8 +127,8 @@ An admin space is a JungleDiff feature PeekDiff does not have yet (see Known Gap
 - `app/components/profile/` — the profile page's business components (`Profile*`).
 - `app/components/match/` — the match page's business components (`Match*`).
 - `app/components/val/` — components representing a Valorant entity (`ValRankEmblem`,
-  `ValPlayerCard`, `ValAgentIcon`, `ValMatchRow`, `ValMapList`, `ValPlayerPalette`), reused across
-  pages.
+  `ValPlayerCard`, `ValAgentIcon`, `ValRoleChip`, `ValMatchRow`, `ValMapList`, `ValPlayerPalette`),
+  reused across pages.
 - `app/composables/` — reusable logic and API client injection.
 - `app/stores/` — Pinia setup stores.
 - `app/lib/api/` — typed HTTP clients built on `BaseApiService`.
@@ -155,7 +155,7 @@ An admin space is a JungleDiff feature PeekDiff does not have yet (see Known Gap
 - **Composables**: file named after the function — `useGameOnVal.ts` → `useGameOnVal`.
 - **Utils**: kebab-case filenames; Valorant-domain helpers carry a `val-` prefix (`val-tier.ts`,
   `val-ladder.ts`, `val-assets.ts`, `val-smurf.ts`, `val-match.ts`, `val-game.ts`, `val-period.ts`,
-  `val-search.ts`).
+  `val-search.ts`, `val-agents.ts`).
   Generic ones do not (`theme.ts`, `date.ts`, `ascii.ts`).
   Despite `app/utils/` being auto-imported, the codebase **imports these explicitly** — match that.
 - **Types**: Valorant domain types are prefixed `Val` and API payload shapes end in `Dto`
@@ -402,6 +402,12 @@ Each of these is easy to reintroduce and hard to diagnose.
 - **Elo is the ladder's axis, not RR.** RR is relative to the tier; `elo` is continuous (100 per
   division from Iron 1 at 0). `rankElo` rebuilds it from tier and RR when a snapshot carries `elo` 0.
   Immortal and Radiant RR can exceed 100.
+- **An agent's role comes from `agentRole` (`val-agents.ts`), never from the API.** It reads the uuid
+  first (given, or found in the icon URL by `agentIdFromUrl`), then the name compared without case or
+  punctuation. `ValAgentIcon` draws the 2px role rule itself from its `src` and `name` — do not add a
+  `border-b-*` class at the call site, it would fight the role colour; pass `:rule="false"` where the
+  icon is too small for one. The role's name rides in the icon's `title` and in `ValRoleChip`: colour
+  never carries it alone.
 - **Tier names are French and come from `tierInfo`.** The API's `tierName` is English ("Gold 1") and
   is never printed.
 - **`mapId` may be a uuid or a game path.** `resolveMap` (`val-assets.ts`) accepts both; the live API
@@ -437,8 +443,10 @@ Each of these is easy to reintroduce and hard to diagnose.
   the design system's economy view and `◎` marks wait for it. Matches that are not in the database
   (older than a player's last synchronisations) cannot be opened: the rank history's `matchId` is
   therefore never linked.
-- **No agent roles.** The API does not serve them, so agent icons carry a neutral rule instead of the
-  role colour the design system asks for, and the profile filters by agent, not by role.
+- **Agent roles are a front-end table.** The API does not serve them: `app/utils/val-agents.ts` maps
+  every playable agent (uuid and English name, from valorant-api.com) to its role, and Riot's next
+  agent needs a row there. Until it gets one it is drawn with the neutral `border-strong` rule and no
+  chip. The profile filters by agent, not by role: the API's `agentName` takes a single agent.
 - **No admin space yet.**
 - **No CI pipeline.** Lint, types, audit, build and the e2e suite only run when someone runs them.
 - **No error tracking.** Failures are reported through `console.error` only.
