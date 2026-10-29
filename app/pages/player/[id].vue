@@ -21,7 +21,7 @@ import ProfileHero from '~/components/profile/ProfileHero.vue'
 import ProfileKpis from '~/components/profile/ProfileKpis.vue'
 import ProfileRankProgress from '~/components/profile/ProfileRankProgress.vue'
 import ProfileAgents from '~/components/profile/ProfileAgents.vue'
-import ProfileMaps from '~/components/profile/ProfileMaps.vue'
+import ValMapList from '~/components/val/ValMapList.vue'
 import ProfileDuos from '~/components/profile/ProfileDuos.vue'
 import ValMatchRow from '~/components/val/ValMatchRow.vue'
 
@@ -433,7 +433,7 @@ async function sync() {
                 class="md:max-rail:col-span-2"
               />
               <ProfileAgents :agents="stats?.agentStats ?? []" :period-phrase="periodOption.phrase" />
-              <ProfileMaps :maps="stats?.mapStats ?? []" :period-phrase="periodOption.phrase" />
+              <ValMapList :maps="stats?.mapStats ?? []" :period-phrase="periodOption.phrase" />
               <ProfileDuos :duos="stats?.duoStats ?? []" :period-phrase="periodOption.phrase" />
             </div>
           </aside>

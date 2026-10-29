@@ -1,16 +1,32 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import type { ValFactOfTheWeekDto } from '~/lib/types'
 import type { LadderEntry } from '~/utils/val-ladder'
 import { formatSigned } from '~/utils/number'
 import ValRankEmblem from '~/components/val/ValRankEmblem.vue'
 
 /**
  * The best 7-day RR swing of the visible crew, told as a hero card over the player's `largeart`.
- * Derived on the front end from `rrChange7DaysValorant`: the API has no Valorant "fact of the week".
+ *
+ * With `fact` (`GET /val/home`), the swing is the sum of the RR each ranked game moved, and the card
+ * adds the week's games and longest win streak. Without it (an API older than the match history), the
+ * page derives the swing from `rrChange7DaysValorant` and passes the entry alone.
  */
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   entry: LadderEntry
-}>()
+  fact?: ValFactOfTheWeekDto | null
+}>(), { fact: null })
+
+const delta = computed(() => props.fact?.rrChange ?? props.entry.delta ?? 0)
+const deltaClass = computed(() => (delta.value > 0 ? 'text-on-night-win' : delta.value < 0 ? 'text-on-night-loss' : 'text-on-night'))
+
+const factLine = computed(() => {
+  const fact = props.fact
+  if (!fact) return null
+  const parts = [`${fact.gamesThisWeek} classée${fact.gamesThisWeek > 1 ? 's' : ''}`, `${fact.winsThisWeek} V`]
+  if (fact.longestWinStreakThisWeek > 1) parts.push(`série de ${fact.longestWinStreakThisWeek}`)
+  return parts.join(' · ')
+})
 
 const backdropStyle = computed(() => (props.entry.cardLarge ? { backgroundImage: `url('${props.entry.cardLarge}')` } : {}))
 </script>
@@ -31,8 +47,9 @@ const backdropStyle = computed(() => (props.entry.cardLarge ? { backgroundImage:
     </p>
     <div aria-hidden="true" class="mt-4 h-0.5 max-w-40 origin-left animate-wipe bg-on-night-red" />
     <p class="mt-4 flex items-baseline gap-2">
-      <span class="font-display text-[64px] font-black leading-[0.85] text-on-night-win">{{ formatSigned(entry.delta ?? 0) }}</span>
+      <span class="font-display text-[64px] font-black leading-[0.85]" :class="deltaClass">{{ formatSigned(delta) }}</span>
       <span class="font-mono text-xs uppercase tracking-[0.06em] text-on-night-2">RR en 7 jours</span>
     </p>
+    <p v-if="factLine" class="mt-2 font-mono text-xs text-on-night-2">{{ factLine }}</p>
   </section>
 </template>

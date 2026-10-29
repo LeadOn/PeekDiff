@@ -37,18 +37,27 @@ exists so a crew member is recognised ("Vous") and can edit their own profile.
 
 ## Features
 
-Four pages so far: the crew dashboard, player profiles, match pages and settings. Records, a crew
-search and an admin space are JungleDiff features PeekDiff does not have yet (see Known Gaps).
+Four pages so far: the crew dashboard, player profiles, match pages and settings. A `/stats` page, a
+crew search and an admin space are JungleDiff features PeekDiff does not have yet (see Known Gaps).
 
 - `/` — crew dashboard, built from the "Protocol" design system. Top to bottom: status chips (the
-  reload chip with "Synchro il y a X min", "7 derniers jours", the current act), four crew tiles
-  (`WeekBento`: ranked players with an ASCII bar, net RR over 7 days, the best current rank, the
-  crew's best all-time peak), then two columns — `CrewLadder` (a podium of three over each player's
-  `wideart` card, "L'échelle des rangs" (`RankTrack`) on the elo axis with a 7-day trail, the remaining
-  rows) beside a rail: `PlayerOfTheWeek` (best positive 7-day RR swing, over the player's `largeart`),
-  `LastRankedGames` (the latest competitive game of each player, read off `valorantCurrentRank`) and
-  `PeakRecords` (all-time peaks). Everything on it is live data from `GET /val/player`. Every player
-  name on it (rows, podium, scale dots, rail) links to their profile.
+  reload chip with "Synchro il y a X min", "7 derniers jours", the current act), the week
+  (`WeekActivity`, from `GET /val/home?window=Last7Days`: ranked games against the 7 days before, win
+  rate with an ASCII bar, net RR and active players, playtime, then "Jour par jour", a stacked
+  win / loss bar and the net RR of each day), then two columns — `CrewLadder` (a podium of three over
+  each player's `wideart` card, "L'échelle des rangs" (`RankTrack`) on the elo axis with a 7-day
+  trail, the remaining rows) beside a rail: `PlayerOfTheWeek` (the API's fact of the week, over the
+  player's `largeart`, with their games and longest win streak), `CrewFeed` (the crew's last 6 games
+  from `GET /val/match/last`, each told from the side with the most crew members and opening its
+  match page) and `PeakRecords` (all-time peaks). Last, "Records du mois" (`CrewRecords`: the crew's
+  awards over 30 days of competitive, each linking to its player and, for a single-game record, its
+  match; then `CrewAgents` and `ValMapList` for the most played agents and maps). Every player name
+  links to their profile.
+- **Rank-only fallback** — when `/val/home` or `/val/match/last` fails (an API build older than the
+  match history, which is production today), the page keeps the rank tiles (`WeekBento`: ranked
+  players, net RR over 7 days from `rrChange7DaysValorant`, best current rank, best peak), a player of
+  the week derived from the same field, and `LastRankedGames` (read off `valorantCurrentRank`), and
+  drops the records. Only a failing `GET /val/player` shows "L'API ne répond pas".
 - `/player/[id]` — a player's profile, JungleDiff's `/summoner/[id]` rebuilt in Protocol.
   `ProfileHero` (the `wideart` card under the night veil, the main agent's `fullportrait`, current and
   peak ranks, the last ranked results, smurf links, and a red "Synchroniser" for signed-in users that
@@ -74,8 +83,9 @@ search and an admin space are JungleDiff features PeekDiff does not have yet (se
 - `/settings` — `auth: true`. The signed-in user's name, nickname and Riot ID (`PATCH /player/me`),
   links to their profile and a sign-out. No profile picture upload: PeekDiff shows the Valorant player
   card, never `profilePictureUrl`.
-- **Smurf toggle** — page state in `index.vue`, off by default. It filters the roster the tiles, the
-  ladder and the rail are built from; the store always keeps every account.
+- **Smurf toggle** — page state in `index.vue`, off by default. It filters the ladder (and the rank
+  fallbacks) in place — the store always keeps every account — and re-queries `/val/home` and
+  `/val/match/last` with `includeSmurfs`.
 - **Theme** — dark by default, "Bone" (light) through the header toggle.
 - **Sign-in** — the header's "Se connecter" starts the OIDC flow; signed in, the header shows the
   player's card (a link to their profile, or to `/settings` until `/player/me` answers), a settings
@@ -200,14 +210,21 @@ search and an admin space are JungleDiff features PeekDiff does not have yet (se
   `Day` / `Week` / `Month`), `getValPlayerMatches` (`GET /val/match/player/{id}`, paginated games with
   their ten participants), `getValMatch` (`GET /val/match/{id}`), `getValMatchTimeline`
   (`GET /val/match/{id}/rounds`, rounds and kills), `getCurrentPlayer` (`GET /player/me`) and
-  `updateCurrentPlayer` (`PATCH /player/me`). The API's `/val/home` and `/val/stats/global` are not
-  wired yet.
-- The `val` store caches the crew behind a 60 s window rather than for the whole SPA session, and
-  `index.vue` passes `getCachedData: cacheOnlyDuringHydration` (`app/utils/async-data.ts`) so the
-  handler is replayed on client navigation without breaking hydration. Both halves are required.
-- Everything on the home page derives from one list: `buildLadder(players, includeSmurfs)` in
+  `updateCurrentPlayer` (`PATCH /player/me`), plus `getValHome` (`GET /val/home`) and
+  `getValLastMatches` (`GET /val/match/last`) for the home page. `/val/stats/global` itself is not
+  called: `/val/home` embeds the same records as `crewRecords`.
+- The `val` store caches the crew, the home recap and the crew feed behind a 60 s window rather than
+  for the whole SPA session, and `index.vue` passes `getCachedData: cacheOnlyDuringHydration`
+  (`app/utils/async-data.ts`) so the handlers are replayed on client navigation without breaking
+  hydration. Both halves are required. The recap and the feed also remember the `includeSmurfs` they
+  were loaded with: the clock alone would serve the other flag's answer after a toggle. The page runs
+  the three `useAsyncData` calls through one `Promise.all` (awaited one by one, the SSR pass pays for
+  each in turn) and passes their `signal` down, and `watch: [includeSmurfs]` re-runs the two
+  smurf-dependent ones.
+- The ladder derives from one list: `buildLadder(players, includeSmurfs)` in
   `app/utils/val-ladder.ts` turns it into the ranked entries (sorted by elo, with the gap to the player
-  above) and the unranked ones; the tiles, the podium, the scale, the rows and the rail all read it.
+  above) and the unranked ones; the podium, the scale, the rows, the rank fallbacks and the player of
+  the week's card (looked up there by id, for the card art and rank) all read it.
 - The profile loads the player (with the recap for the URL's filters) through `useAsyncData` during
   SSR, and everything else after mount behind an `AbortController` that a filter change restarts:
   rank history (bucketed for the curve, raw for the per-game bars), the first page of games, and the
@@ -225,8 +242,8 @@ search and an admin space are JungleDiff features PeekDiff does not have yet (se
   `GET /player/me` therefore runs from the header's `onMounted`, and `/settings` loads its form there
   too.
 - The home page's reload chip calls `useValStore().invalidateDashboard()` then
-  `refreshNuxtData('valPlayers')`: it re-reads the API, it does not ask the API to re-synchronise with
-  Riot. Its "Synchro il y a X min" is the latest `valorantRefreshedOn` of the crew.
+  `refreshNuxtData(['valPlayers', 'valHome', 'valLastMatches'])`: it re-reads the API, it does not ask
+  the API to re-synchronise with Riot. Its "Synchro il y a X min" is the latest `valorantRefreshedOn` of the crew.
 
 ## Design System
 
@@ -319,6 +336,12 @@ Each of these is easy to reintroduce and hard to diagnose.
   0-based number. A round's `result` is empty when the timer ran out (◷). Half time is not hard-coded
   at 12: `buildRounds` places it where the teams first swap sides, read off `winningTeam` and
   `winningTeamRole`, so Swiftplay's 4-round halves come out right.
+- **The crew records' `detail` is English.** "16.1% headshots (69 of 428 shots…)" is never printed:
+  `CrewRecords` words each award from its `value`. A streak award of 1 is hidden — the API hands one
+  out to anybody who won or lost a single game.
+- **A day can show net RR without games.** `/val/home` sums RR from the rank history, games from the
+  stored matches; a ranked game older than the account's stored ones moves the day's RR without adding
+  to its games. Print both as they come.
 - **Kills carry no headshot flag.** The design system's `◎` cannot be drawn in the kill feed; the
   per-player HS % comes from the participant stats. A kill whose `weaponType` is "Bomb" is the spike.
 - **Rank history buckets can be too coarse to draw.** A month of history read by `Month` is a single
@@ -374,9 +397,7 @@ Each of these is easy to reintroduce and hard to diagnose.
   kills, profile stats, crew records and a home aggregate on 2026-10-29 (`/val/match/...`,
   `/val/player/{id}?period=`, `/val/stats/global`, `/val/home`), tested against a local API only. The
   production API still serves players and rank history alone, so the profile's tiles and history stay
-  empty there until it is deployed.
-- **The home page still reads ranks only.** `/val/home` (weekly activity, fact of the week),
-  `/val/stats/global` (crew records) and `/val/match/last` (the crew's feed) are not wired.
+  empty there, and the home page stays on its rank-only fallback, until it is deployed.
 - **The match page has no economy and no per-kill headshots.** The API stores neither per round, so
   the design system's economy view and `◎` marks wait for it. Matches that are not in the database
   (older than a player's last synchronisations) cannot be opened: the rank history's `matchId` is

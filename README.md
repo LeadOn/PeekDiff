@@ -181,14 +181,19 @@ The Keycloak client must allow `<origin>/api/auth/callback` as a redirect URI.
 
 ## 📊 Current State
 
-**Done — the home page (`/`)**, entirely on live data from `GET /val/player`:
+**Done — the home page (`/`)**, on live data from `GET /val/player`, `/val/home` and
+`/val/match/last`:
 
 - status chips: reload ("Synchro il y a X min"), "7 derniers jours", the current act;
-- four crew tiles: ranked players, net RR over 7 days, best current rank, the crew's best peak;
+- the week: ranked games against the 7 days before, win rate, net RR and active players, playtime,
+  then the week day by day (wins and losses, net RR);
 - the crew ladder: podium of three over each player's card art, "L'échelle des rangs" on the elo axis
   with a 7-day trail, then every other player with rank, peak, gap and 7-day move; a smurf toggle;
-- the rail: player of the week (best 7-day RR swing), the latest ranked game of each player, the
-  all-time peaks;
+- the rail: player of the week (the API's best net RR, with games and win streak), the crew's last
+  games (each opens its match page), the all-time peaks;
+- the month's records: the crew's awards over 30 days of competitive, the most played agents and maps;
+- against an API without the match history, a rank-only fallback (rank tiles, last ranked game of
+  each player, no records);
 - dark and light themes, sign-in / sign-out, "Vous" on the viewer's row, silent single sign-on with
   JungleDiff; every name links to the player's profile.
 
@@ -210,17 +215,18 @@ The Keycloak client must allow `<origin>/api/auth/callback` as a redirect URI.
 
 **Done — settings (`/settings`)**, signed-in only: name, nickname and Riot ID.
 
-**Not yet:** records, the admin space, the crew search palette, the mobile bottom bar, an agent
-filter on the profile, economy on the match page. The home page still reads ranks only (see below).
+**Not yet:** a `/stats` page, the admin space, the crew search palette, the mobile bottom bar, an
+agent filter on the profile, economy on the match page.
 
 ## 🧩 Backend Gaps
 
 - **Not deployed yet.** The API gained Valorant games, rounds, kills, profile stats, crew records and
   a home aggregate on 2026-10-29. Production still serves players and rank history only, so the
-  profile's tiles and history stay empty there until it ships; the front tolerates the older build.
-  Run a local API and the `peekdiff-prod-local-api` launch configuration to see the profile filled.
-- **Served but not wired:** `/val/home`, `/val/stats/global` and `/val/match/last`. The home tiles stick to ranks and the player of the week is still derived from
-  `rrChange7DaysValorant`.
+  profile's tiles and history stay empty there and the home page keeps its rank-only fallback until it
+  ships; the front tolerates the older build. Run a local API and the `peekdiff-prod-local-api` launch
+  configuration to see everything filled.
+- **Served but not wired:** `/val/stats/global` on its own (its filters would feed a `/stats` page;
+  the home page reads the same records embedded in `/val/home`).
 - **Not served:** live games (the "en partie" strip), agent roles (the role colour under agent icons),
   economy per round, headshots per kill (the kill feed's `◎`).
 

@@ -5,12 +5,17 @@ import { formatPercent } from '~/utils/number'
 import { mapImageUrl } from '~/utils/val-assets'
 import FrameHead from '~/components/ui/FrameHead.vue'
 
-/** The maps of the performance recap, most played first, each over its banner under the veil. */
+/**
+ * Most played maps, each over its banner under the veil: a profile's recap, or the crew's records on
+ * the home page (where a game counts once per crew team).
+ */
 const props = withDefaults(defineProps<{
   maps: ValMapStatDto[]
   periodPhrase: string
   limit?: number
-}>(), { limit: 5 })
+  /** The card title's level: `h2` in the profile's rail, `h3` under the home page's records. */
+  as?: 'h2' | 'h3'
+}>(), { limit: 5, as: 'h2' })
 
 const rows = computed(() => props.maps.slice(0, props.limit).map(map => ({
   ...map,
@@ -20,7 +25,7 @@ const rows = computed(() => props.maps.slice(0, props.limit).map(map => ({
 
 <template>
   <section class="border border-border-base bg-surface-base p-4">
-    <FrameHead title="Cartes" :aside="periodPhrase" as="h2" />
+    <FrameHead title="Cartes" :aside="periodPhrase" :as="as" />
     <ul v-if="rows.length" class="flex flex-col gap-1.5">
       <li
         v-for="map in rows"
