@@ -65,6 +65,7 @@ const toggleTheme = () => {
 
       <nav aria-label="Navigation principale" class="hidden items-center gap-5 md:flex">
         <NuxtLink to="/" class="nav-link">Crew</NuxtLink>
+        <NuxtLink to="/stats" class="nav-link">Records</NuxtLink>
       </nav>
 
       <span class="flex-1" />

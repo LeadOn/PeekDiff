@@ -20,7 +20,7 @@ API and renders game art from media.valorant-api.com.
 ### Application (`app/`)
 
 - `app/pages/` — page components and data orchestration via `useAsyncData`: `index.vue` (the crew
-  dashboard), `player/[id].vue` (a player's profile), `match/[id].vue` (one game) and
+  dashboard), `stats.vue` (the crew records), `player/[id].vue` (a player's profile), `match/[id].vue` (one game) and
   `settings.vue`.
 - `app/components/` — split into `ui/` (generic: `AppHeader`, `AppBottomBar`, `SectionIndex`,
   `FrameHead`, `SegmentSwitch`, `MockBadge`), `home/` (the dashboard), `profile/` (the profile),
@@ -197,6 +197,11 @@ The Keycloak client must allow `<origin>/api/auth/callback` as a redirect URI.
 - dark and light themes, sign-in / sign-out, "Vous" on the viewer's row, silent single sign-on with
   JungleDiff; every name links to the player's profile.
 
+**Done — the crew records (`/stats`)**, from `GET /val/stats/global`: the awards, the most played
+agents and maps, filtered by period (7 j · 30 j · 3 mois · 6 mois · Tout), queue (Compétition ·
+Toutes) and smurfs, kept in the URL. Linked from the header, the search palette and the home page's
+"Records du mois".
+
 **Done — player profiles (`/player/[id]`)**, JungleDiff's profile rebuilt in Protocol:
 
 - a hero over the player card with the main agent's portrait, current and peak ranks, the last ranked
@@ -220,17 +225,17 @@ The Keycloak client must allow `<origin>/api/auth/callback` as a redirect URI.
 finds a member by Riot ID, nickname or full name, and a mobile bottom bar (Crew, Parties, Recherche,
 Profil).
 
-**Not yet:** a `/stats` page, the admin space, economy on the match page.
+**Not yet:** the admin space, economy on the match page.
 
 ## 🧩 Backend Gaps
 
 - **Not deployed yet.** The API gained Valorant games, rounds, kills, profile stats, crew records and
   a home aggregate on 2026-10-29. Production still serves players and rank history only, so the
-  profile's tiles and history stay empty there and the home page keeps its rank-only fallback until it
-  ships; the front tolerates the older build. Run a local API and the `peekdiff-prod-local-api` launch
+  profile's tiles and history stay empty there, the home page keeps its rank-only fallback and
+  `/stats` says "Records indisponibles" until it ships; the front tolerates the older build. Run a local API and the `peekdiff-prod-local-api` launch
   configuration to see everything filled.
-- **Served but not wired:** `/val/stats/global` on its own (its filters would feed a `/stats` page;
-  the home page reads the same records embedded in `/val/home`).
+- **Served but not wired:** the admin routes (`PATCH /val/player/{id}/admin`, `PATCH /val/player/ranks`,
+  `POST /val/match/{id}/update`), waiting for the admin space.
 - **Not served:** live games (the "en partie" strip), agent roles (the role colour under agent icons),
   economy per round, headshots per kill (the kill feed's `◎`).
 

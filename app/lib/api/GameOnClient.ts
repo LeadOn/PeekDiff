@@ -1,6 +1,6 @@
 import { BaseApiService, encodePathSegment as segment } from './BaseApiService'
 import type { RequestOptions } from './BaseApiService'
-import type { PlayerUpdateDto, ValGameDto, ValGameTimelineDto, ValHomeStatsDto, ValHomeWindow, ValListResultDto, ValPlayerDto, ValRankHistoryDto, ValRankHistoryGranularity, ValStatsPeriod } from '../types'
+import type { PlayerUpdateDto, ValGameDto, ValGameTimelineDto, ValGlobalStatsDto, ValHomeStatsDto, ValHomeWindow, ValListResultDto, ValPlayerDto, ValRankHistoryDto, ValRankHistoryGranularity, ValStatsPeriod } from '../types'
 
 /**
  * Filters of the profile's performance recap and match history. `queues` are API queue ids;
@@ -92,6 +92,21 @@ export class GameOnClient extends BaseApiService {
    */
   public getValHome(includeSmurfs: boolean, window: ValHomeWindow = 'Last7Days', signal?: AbortSignal) {
     return this.get<ValHomeStatsDto>(`/val/home?includeSmurfs=${includeSmurfs}&includeOutOfCrew=false&window=${window}`, GameOnClient.opts(signal))
+  }
+
+  /**
+   * The crew's awards and most played agents and maps over `period`: competitive only when
+   * `rankedOnly`, every counted mode otherwise. Crew only, like `getValPlayers`; excluded smurfs are
+   * dropped, not merged into their main.
+   */
+  public getValGlobalStats(filters: { period: ValStatsPeriod, rankedOnly: boolean, includeSmurfs: boolean }, signal?: AbortSignal) {
+    const params = new URLSearchParams({
+      period: filters.period,
+      rankedOnly: String(filters.rankedOnly),
+      includeSmurfs: String(filters.includeSmurfs),
+      includeOutOfCrew: 'false',
+    })
+    return this.get<ValGlobalStatsDto>(`/val/stats/global?${params.toString()}`, GameOnClient.opts(signal))
   }
 
   /** The crew's latest games, newest first, each with its ten participants. */

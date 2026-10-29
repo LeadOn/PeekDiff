@@ -6,30 +6,37 @@ import { formatDecimal } from '~/utils/number'
 import { playerDisplayName } from '~/utils/val-ladder'
 
 /**
- * The crew's awards over the last 30 days of competitive (`crewRecords` of `GET /val/home`). The API's
- * `detail` is an English sentence: each award is worded here from its value, and a single-game record
- * links to its match page.
+ * The crew's awards: `crewRecords` of `GET /val/home` (30 days of competitive) on the home page,
+ * `GET /val/stats/global` on the records page. The API's `detail` is an English sentence: each award is
+ * worded here from its value, and a single-game record links to its match page.
  */
 const props = defineProps<{
   records: ValGlobalStatsDto
+  /** The records' window, spelled out: "sur 30 jours". */
+  periodPhrase: string
+  /** Competitive only, or every counted mode: it names what was missing when nothing was awarded. */
+  rankedOnly: boolean
 }>()
 
 type AwardKey =
   | 'highestCombatScore' | 'entryKing' | 'sharpshooter' | 'longestWinStreak' | 'spikeCarrier' | 'nightOwl'
   | 'knifeAssassin' | 'biggestInter' | 'firstBloodVictim' | 'bodyshotEnjoyer' | 'longestLossStreak'
 
-/** In display order: the flattering ones first. `unit` follows the value; `what` says what was counted. */
-const AWARDS: { key: AwardKey, title: string, unit: string, what: (value: number) => string, decimals?: boolean, minimum?: number }[] = [
+/**
+ * In display order: the flattering ones first. `unit` follows the value; `what` says what was counted,
+ * with the period's phrase for the awards built over the whole window.
+ */
+const AWARDS: { key: AwardKey, title: string, unit: string, what: (value: number, period: string) => string, decimals?: boolean, minimum?: number }[] = [
   { key: 'highestCombatScore', title: 'Meilleur ACS', unit: 'ACS', what: () => 'en une partie' },
   { key: 'entryKing', title: 'Roi de l\'entrée', unit: 'PK', what: value => `premier${value > 1 ? 's' : ''} kill${value > 1 ? 's' : ''} en une partie` },
-  { key: 'sharpshooter', title: 'Tireur d\'élite', unit: '%', what: () => 'de headshots sur le mois', decimals: true },
+  { key: 'sharpshooter', title: 'Tireur d\'élite', unit: '%', what: (_value, period) => `de headshots ${period}`, decimals: true },
   { key: 'longestWinStreak', title: 'Série de victoires', unit: 'V', what: () => 'd\'affilée', minimum: 2 },
   { key: 'spikeCarrier', title: 'Porteur de spike', unit: '', what: value => `pose${value > 1 ? 's' : ''} et désamorçage${value > 1 ? 's' : ''} en une partie` },
   { key: 'nightOwl', title: 'Oiseau de nuit', unit: '', what: value => `partie${value > 1 ? 's' : ''} entre minuit et 6 h` },
   { key: 'knifeAssassin', title: 'Assassin au couteau', unit: '', what: value => `kill${value > 1 ? 's' : ''} au couteau` },
   { key: 'biggestInter', title: 'Plus de morts', unit: '', what: value => `mort${value > 1 ? 's' : ''} en une partie` },
   { key: 'firstBloodVictim', title: 'Premier à tomber', unit: '', what: value => `manche${value > 1 ? 's' : ''} ouverte${value > 1 ? 's' : ''} par sa mort` },
-  { key: 'bodyshotEnjoyer', title: 'Amateur du torse', unit: '%', what: () => 'de headshots sur le mois', decimals: true },
+  { key: 'bodyshotEnjoyer', title: 'Amateur du torse', unit: '%', what: (_value, period) => `de headshots ${period}`, decimals: true },
   { key: 'longestLossStreak', title: 'Série de défaites', unit: 'D', what: () => 'd\'affilée', minimum: 2 },
 ]
 
@@ -42,13 +49,15 @@ const awards = computed(() => AWARDS.flatMap((award) => {
     title: award.title,
     value: award.decimals ? formatDecimal(stat.value) : String(Math.round(stat.value)),
     unit: award.unit,
-    what: award.what(stat.value),
+    what: award.what(stat.value, props.periodPhrase),
     playerId: stat.player.id,
     playerName: playerDisplayName(stat.player),
     date: stat.gameDate ? formatDayMonth(stat.gameDate) : null,
     matchHref: stat.matchId ? `/match/${stat.matchId}?player=${stat.player.id}` : null,
   }]
 }))
+
+const emptyText = computed(() => `Pas encore assez de ${props.rankedOnly ? 'classées' : 'parties'} ${props.periodPhrase} pour décerner des records.`)
 </script>
 
 <template>
@@ -74,6 +83,6 @@ const awards = computed(() => AWARDS.flatMap((award) => {
     </li>
   </ul>
   <p v-else class="ticks border border-border-base bg-surface-base p-6 text-sm text-text-sec">
-    Pas encore assez de classées ce mois-ci pour décerner des records.
+    {{ emptyText }}
   </p>
 </template>
