@@ -11,13 +11,19 @@ import CrewLadder from '~/components/home/CrewLadder.vue'
 import PlayerOfTheWeek from '~/components/home/PlayerOfTheWeek.vue'
 import PeakRecords from '~/components/home/PeakRecords.vue'
 import LastRankedGames from '~/components/home/LastRankedGames.vue'
+import WeekActivity from '~/components/home/WeekActivity.vue'
+import CrewFeed from '~/components/home/CrewFeed.vue'
+import CrewRecords from '~/components/home/CrewRecords.vue'
+import CrewAgents from '~/components/home/CrewAgents.vue'
+import ValMapList from '~/components/val/ValMapList.vue'
 import { isSmurf } from '~/utils/val-smurf'
 
 const store = useValStore()
 
 /**
- * Owned by the page because it governs the whole dashboard, not just the ladder: the tiles, the
- * ladder and the rail are all derived from the same filtered roster. Defaults to excluding smurfs.
+ * Owned by the page because it governs the whole dashboard, not just the ladder. Two mechanisms answer
+ * to it: the ladder (and the rank fallbacks) filter the full roster in place, while `/val/home` and
+ * `/val/match/last` are re-queried with `includeSmurfs`. Defaults to excluding smurfs.
  */
 const includeSmurfs = ref(false)
 
@@ -33,23 +39,47 @@ onMounted(() => {
 })
 onBeforeUnmount(() => clearInterval(clock))
 
-// The handler replays on every return to the home page (see cacheOnlyDuringHydration); the store's
-// freshness window is what decides whether the API actually needs to be called again.
-const { error: playersError } = await useAsyncData(
-  'valPlayers',
-  () => store.fetchPlayers(),
-  { getCachedData: cacheOnlyDuringHydration }
-)
+// The handlers replay on every return to the home page (see cacheOnlyDuringHydration); the store's
+// freshness windows decide whether the API actually needs to be called again. The three run in
+// parallel: awaited one by one, the SSR pass would pay for each in turn. `watch` re-runs the two
+// smurf-dependent ones when the toggle flips, and the store's flag guard keeps a cached answer for the
+// other flag value from being served.
+const freshOnNavigation = { getCachedData: cacheOnlyDuringHydration }
+const [{ error: playersError }, { error: homeError }, { error: lastMatchesError }] = await Promise.all([
+  useAsyncData('valPlayers', (_nuxtApp, { signal }) => store.fetchPlayers(signal), freshOnNavigation),
+  useAsyncData('valHome', (_nuxtApp, { signal }) => store.fetchHomeStats(includeSmurfs.value, signal), { ...freshOnNavigation, watch: [includeSmurfs] }),
+  useAsyncData('valLastMatches', (_nuxtApp, { signal }) => store.fetchLastMatches(includeSmurfs.value, signal), { ...freshOnNavigation, watch: [includeSmurfs] }),
+])
 
 // The error surfaced by `useAsyncData` is authoritative: an empty list is an answer, not a failure.
+// Only the roster is vital: without the recap or the feed (an API older than the match history, or a
+// failing aggregate) the page falls back to what the roster alone can say.
 const hasApiError = computed(() => playersError.value != null)
 
 const ladder = computed(() => buildLadder(store.players, includeSmurfs.value))
 
-/** The best positive 7-day swing; no card when nobody climbed. */
-const playerOfTheWeek = computed(() => ladder.value.ranked
-  .filter(entry => (entry.delta ?? 0) > 0)
-  .sort((a, b) => (b.delta ?? 0) - (a.delta ?? 0))[0] ?? null)
+// While a smurf toggle re-queries them, the previous answers stay on screen rather than flashing the
+// rank-only fallbacks.
+const home = computed(() => (homeError.value == null ? store.homeStats : null))
+const activity = computed(() => home.value?.weeklyActivity ?? null)
+const hasFeed = computed(() => lastMatchesError.value == null && store.lastMatchesFetchedAt > 0)
+
+/**
+ * The API's fact of the week when it serves one (the player is looked up on the ladder for their card
+ * and rank), else the best positive `rrChange7DaysValorant`. No card when nobody climbed.
+ */
+const factOfTheWeek = computed(() => home.value?.factOfTheWeek ?? null)
+const playerOfTheWeek = computed(() => {
+  const fact = factOfTheWeek.value
+  if (fact) {
+    const entry = [...ladder.value.ranked, ...ladder.value.unranked].find(candidate => candidate.id === fact.player.id)
+    if (entry) return entry
+  }
+  return ladder.value.ranked
+    .filter(entry => (entry.delta ?? 0) > 0)
+    .sort((a, b) => (b.delta ?? 0) - (a.delta ?? 0))[0] ?? null
+})
+const playerOfTheWeekFact = computed(() => (factOfTheWeek.value && factOfTheWeek.value.player.id === playerOfTheWeek.value?.id ? factOfTheWeek.value : null))
 
 const visiblePlayers = computed(() => (includeSmurfs.value ? store.players : store.players.filter(player => !isSmurf(player))))
 
@@ -69,6 +99,11 @@ const lastSyncedAt = computed(() => store.players.reduce<string | null>(
   null
 ))
 
+const recordsSubtitle = computed(() => {
+  const analyzed = home.value?.crewRecords.totalGamesAnalyzed ?? 0
+  return `Compétition · 30 derniers jours · ${analyzed} partie${analyzed > 1 ? 's' : ''} analysée${analyzed > 1 ? 's' : ''}`
+})
+
 const syncLabel = computed(() => (now.value !== null && lastSyncedAt.value ? `Synchro ${timeAgo(lastSyncedAt.value, now.value)}` : 'Synchro'))
 
 const reloading = ref(false)
@@ -79,7 +114,7 @@ const reload = async () => {
   reloading.value = true
   store.invalidateDashboard()
   try {
-    await refreshNuxtData(['valPlayers'])
+    await refreshNuxtData(['valPlayers', 'valHome', 'valLastMatches'])
     now.value = Date.now()
   } finally {
     reloading.value = false
@@ -88,7 +123,7 @@ const reload = async () => {
 
 useSeoMeta({
   title: 'Accueil',
-  description: 'Le classement Valorant du crew PeekDiff : rangs, progression sur 7 jours et pics de rang.'
+  description: 'Le crew PeekDiff sur Valorant : classement, semaine de classées, dernières parties et records du mois.'
 })
 </script>
 
@@ -109,7 +144,10 @@ useSeoMeta({
         <span v-if="currentAct" class="chip">Acte {{ currentAct }}</span>
       </div>
 
-      <WeekBento v-if="!hasApiError" :ladder="ladder" />
+      <template v-if="!hasApiError">
+        <WeekActivity v-if="activity" :activity="activity" :crew-size="ladder.visibleCount" />
+        <WeekBento v-else :ladder="ladder" />
+      </template>
 
       <div v-else class="ticks flex flex-wrap items-center gap-5 border border-brand-red/40 bg-surface-base p-6">
         <pre aria-hidden="true" class="ascii text-sm text-border-ascii">  │
@@ -138,12 +176,26 @@ useSeoMeta({
       <aside class="min-w-0" aria-label="Le crew cette semaine">
         <SectionIndex index="02" label="Cette semaine" class="mb-4" />
         <div class="grid items-start gap-4 md:max-rail:grid-cols-2">
-          <PlayerOfTheWeek v-if="playerOfTheWeek" :entry="playerOfTheWeek" class="md:max-rail:col-span-2" />
-          <LastRankedGames :players="visiblePlayers" />
+          <PlayerOfTheWeek v-if="playerOfTheWeek" :entry="playerOfTheWeek" :fact="playerOfTheWeekFact" class="md:max-rail:col-span-2" />
+          <CrewFeed v-if="hasFeed" :games="store.lastMatches" />
+          <LastRankedGames v-else :players="visiblePlayers" />
           <PeakRecords :entries="[...ladder.ranked, ...ladder.unranked]" />
         </div>
       </aside>
     </div>
+
+    <section v-if="!hasApiError && home" aria-labelledby="crew-records-title" class="mt-12">
+      <SectionIndex index="03" label="Records" />
+      <div class="mb-5 mt-3">
+        <h2 id="crew-records-title" class="font-display text-[40px] font-extrabold uppercase leading-[0.95] tracking-[0.01em] md:text-5xl">Records du mois</h2>
+        <p class="mt-2 font-mono text-[13px] text-text-sec">{{ recordsSubtitle }}</p>
+      </div>
+      <CrewRecords :records="home.crewRecords" />
+      <div class="mt-4 grid items-start gap-4 md:grid-cols-2">
+        <CrewAgents :agents="home.crewRecords.topAgents" period-phrase="sur 30 jours" />
+        <ValMapList :maps="home.crewRecords.topMaps" period-phrase="sur 30 jours" as="h3" />
+      </div>
+    </section>
   </div>
 </template>
 

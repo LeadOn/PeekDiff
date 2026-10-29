@@ -94,6 +94,14 @@ test.describe('GameOn proxy guards', () => {
     expect((await request.delete('/api/gameon/player/me')).status()).toBe(405)
   })
 
+  test('lets the home page\'s aggregates through the allowlist', async ({ request }) => {
+    test.skip(!!process.env.NUXT_PUBLIC_GAME_ON_API_URL, 'a real API is configured')
+
+    // 502 (dead upstream) rather than 403 proves the path was allowed and actually forwarded.
+    expect((await request.get('/api/gameon/val/home?includeSmurfs=false&window=Last7Days')).status()).toBe(502)
+    expect((await request.get('/api/gameon/val/match/last?page=1&size=6')).status()).toBe(502)
+  })
+
   test('reports an unreachable upstream as 502, not 500', async ({ request }) => {
     // The config points the proxy at a dead port unless a real API URL is provided.
     test.skip(!!process.env.NUXT_PUBLIC_GAME_ON_API_URL, 'a real API is configured')

@@ -238,6 +238,14 @@ libellés ne passent jamais à la ligne : sur mobile, le sélecteur défile hori
   `surface-selected` + filet rouge ; colonnes ACS · K · D · A · +/− · ADR · HS% · KAST · FK · FD
   (libellées PK / PM, premiers kills et premières morts). Un tableau par équipe, filet haut 2px de la
   couleur du camp ; sur mobile il défile à l'horizontale sous une colonne joueur collante.
+- **Jour par jour** (accueil) : sept colonnes, une par jour (heure de Paris), barre empilée victoires
+  (`win`) sur défaites (`loss`) proportionnelle au nombre de parties, le compte au-dessus, le RR net
+  du jour en dessous (`—` sans classée), l'initiale du jour au pied, le jour courant en gras. Une
+  légende sous la carte ; chaque colonne porte son résumé en `aria-label`.
+- **Records** (accueil) : une carte par distinction, label `// TITRE`, valeur en display 44px et son
+  unité en mono, ce qui a été compté en une ligne, puis sous un filet pointillé le joueur (lien vers
+  son profil), la date et `[ LA PARTIE ]` quand le record tient en une partie. Les plus flatteuses
+  d'abord. Pas de rouge : un record n'est ni une défaite ni une action.
 - **Graphes** (chart.js) : grille `border-base`, axes mono 11px, allié `ally`, ennemi `enemy`,
   joueur sélectionné `brand-red`. Toujours un tooltip et une alternative tableau.
 

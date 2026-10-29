@@ -7,8 +7,8 @@ import { glyphBar } from '~/utils/ascii'
 import ValRankEmblem from '~/components/val/ValRankEmblem.vue'
 
 /**
- * The four crew tiles above the ladder. Everything is derived from `GET /val/player`: the API has no
- * Valorant home aggregate (no games, no playtime), so the tiles are about ranks only.
+ * The rank-only fallback of the crew tiles, derived from `GET /val/player` alone. The page shows it
+ * when `/val/home` fails — an API build without the match history — and `WeekActivity` otherwise.
  */
 const props = defineProps<{
   ladder: Ladder

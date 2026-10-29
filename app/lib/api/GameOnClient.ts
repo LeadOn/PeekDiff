@@ -1,6 +1,6 @@
 import { BaseApiService, encodePathSegment as segment } from './BaseApiService'
 import type { RequestOptions } from './BaseApiService'
-import type { PlayerUpdateDto, ValGameDto, ValGameTimelineDto, ValListResultDto, ValPlayerDto, ValRankHistoryDto, ValRankHistoryGranularity, ValStatsPeriod } from '../types'
+import type { PlayerUpdateDto, ValGameDto, ValGameTimelineDto, ValHomeStatsDto, ValHomeWindow, ValListResultDto, ValPlayerDto, ValRankHistoryDto, ValRankHistoryGranularity, ValStatsPeriod } from '../types'
 
 /** Filters of the profile's performance recap and match history. `queues` are API queue ids. */
 export interface ValPlayerFilters {
@@ -77,6 +77,25 @@ export class GameOnClient extends BaseApiService {
     if (options.limit !== undefined) params.set('limit', String(options.limit))
     const query = params.toString()
     return this.get<ValRankHistoryDto[]>(`/val/player/${segment(id)}/rank${query ? `?${query}` : ''}`, GameOnClient.opts(signal))
+  }
+
+  /**
+   * The home recap: the crew's competitive activity over `window` against the week before, the player
+   * of the week, and the crew records of the last 30 days. Crew only, like `getValPlayers`.
+   */
+  public getValHome(includeSmurfs: boolean, window: ValHomeWindow = 'Last7Days', signal?: AbortSignal) {
+    return this.get<ValHomeStatsDto>(`/val/home?includeSmurfs=${includeSmurfs}&includeOutOfCrew=false&window=${window}`, GameOnClient.opts(signal))
+  }
+
+  /** The crew's latest games, newest first, each with its ten participants. */
+  public getValLastMatches(options: { size?: number, includeSmurfs?: boolean } = {}, signal?: AbortSignal) {
+    const params = new URLSearchParams({
+      page: '1',
+      size: String(options.size ?? 10),
+      includeSmurfs: String(options.includeSmurfs ?? true),
+      includeOutOfCrew: 'false',
+    })
+    return this.get<ValListResultDto<ValGameDto>>(`/val/match/last?${params.toString()}`, GameOnClient.opts(signal))
   }
 
   /** One game with its teams and ten participants (stats included). Unknown ids answer 404. */
