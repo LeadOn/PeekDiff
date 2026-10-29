@@ -46,8 +46,6 @@ const profileLabel = computed(() =>
   || 'Mon compte'
 )
 
-/** The player's own profile once `/player/me` answered; settings until then (or without a GameOn account). */
-const profileLink = computed(() => (playerStore.currentPlayer ? `/player/${playerStore.currentPlayer.id}` : '/settings'))
 
 const toggleTheme = () => {
   isLight.value = !isLight.value
@@ -97,8 +95,8 @@ const toggleTheme = () => {
         <ClientOnly>
           <div v-if="authStore.isAuthenticated" class="flex items-center gap-2">
             <NuxtLink
-              :to="profileLink"
-              :aria-label="`${profileLabel}, ${playerStore.currentPlayer ? 'mon profil' : 'paramètres'}`"
+              :to="playerStore.profilePath"
+              :aria-label="`${profileLabel}, ${playerStore.hasProfile ? 'mon profil' : 'paramètres'}`"
               class="flex h-10 items-center gap-2 border border-border-base p-1 transition-colors duration-150 ease-snap hover:border-border-strong lg:pr-3"
             >
               <ValPlayerCard :src="playerStore.currentPlayer?.valorantPlayerCardSmallUrl" :name="profileLabel" class="size-8" />

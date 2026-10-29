@@ -64,7 +64,7 @@ const matchingActions = computed(() => {
     { key: 'crew', label: 'Classement du crew', href: '/' },
     { key: 'records', label: 'Records du crew', href: '/stats' },
   ]
-  if (playerStore.currentPlayer) actions.push({ key: 'me', label: 'Mon profil', href: `/player/${playerStore.currentPlayer.id}` })
+  if (playerStore.hasProfile) actions.push({ key: 'me', label: 'Mon profil', href: playerStore.profilePath })
   if (authStore.isAuthenticated) actions.push({ key: 'settings', label: 'Paramètres du compte', href: '/settings' })
   const needle = normalizeSearchText(query.value)
   return needle ? actions.filter(action => normalizeSearchText(action.label).includes(needle)) : actions
