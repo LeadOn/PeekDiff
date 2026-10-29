@@ -22,4 +22,9 @@ export interface SessionState {
   user: SessionUser | null
   /** Server-side access token expiry, in ms since epoch. 0 when there is no session. */
   expiresAt: number
+  /**
+   * A silent single sign-on attempt (or a sign-out) happened recently, so the client must not start
+   * another one. Mirrors an httpOnly marker cookie the client cannot read itself.
+   */
+  ssoProbed: boolean
 }

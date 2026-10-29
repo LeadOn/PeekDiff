@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import type { APIResponse } from '@playwright/test'
 
 /**
  * Guards the production-hardening work. Every assertion here holds with **no upstream at all** —
@@ -107,7 +108,7 @@ test.describe('authentication', () => {
     const response = await request.get('/api/auth/session')
 
     expect(response.status()).toBe(200)
-    expect(await response.json()).toEqual({ authenticated: false, user: null, expiresAt: 0 })
+    expect(await response.json()).toEqual({ authenticated: false, user: null, expiresAt: 0, ssoProbed: false })
     expect(response.headers()['cache-control']).toContain('no-store')
   })
 
@@ -124,6 +125,88 @@ test.describe('authentication', () => {
     // A GET sign-out can be triggered from a third-party <img> tag.
     const response = await request.get('/api/auth/logout')
     expect(response.status()).toBe(404)
+  })
+})
+
+test.describe('silent single sign-on', () => {
+  const setCookies = (response: APIResponse): string[] =>
+    response.headersArray().filter(h => h.name.toLowerCase() === 'set-cookie').map(h => h.value)
+
+  /** A PKCE cookie as `/api/auth/login` would have issued it. */
+  const pkceCookie = (silent: boolean) => `pd_pkce=${encodeURIComponent(JSON.stringify({
+    codeVerifier: 'verifier',
+    state: 'state',
+    redirectTo: '/classement?saison=2',
+    silent
+  }))}`
+
+  test('the session endpoint exposes the probe marker it cannot let the client read', async ({ request }) => {
+    const response = await request.get('/api/auth/session', { headers: { cookie: 'pd_sso_probe=1' } })
+    expect(await response.json()).toMatchObject({ authenticated: false, ssoProbed: true })
+  })
+
+  test('a silent flow refused by Keycloak returns to the page, quietly, with the marker set', async ({ request }) => {
+    for (const error of ['login_required', 'consent_required', 'interaction_required']) {
+      const response = await request.get(`/api/auth/callback?error=${error}&state=state`, {
+        headers: { cookie: pkceCookie(true) },
+        maxRedirects: 0
+      })
+
+      expect(response.status()).toBe(302)
+      expect(response.headers().location).toBe('/classement?saison=2')
+      expect(setCookies(response).some(c => c.startsWith('pd_sso_probe=1') && /httponly/i.test(c))).toBe(true)
+    }
+  })
+
+  test('an interactive flow refused by Keycloak still reports the error', async ({ request }) => {
+    const response = await request.get('/api/auth/callback?error=access_denied&state=state', {
+      headers: { cookie: pkceCookie(false) },
+      maxRedirects: 0
+    })
+
+    expect(response.status()).toBe(302)
+    expect(response.headers().location).toBe('/?auth_error=denied')
+  })
+
+  test('an unreachable Keycloak sends a silent probe back to the page instead of failing', async ({ request }) => {
+    test.skip(!!process.env.NUXT_PUBLIC_KEYCLOAK_AUTHORITY, 'a real Keycloak is configured')
+
+    const response = await request.get('/api/auth/login?silent=1&redirect=%2Fclassement', { maxRedirects: 0 })
+    expect(response.status()).toBe(302)
+    expect(response.headers().location).toBe('/classement')
+    expect(setCookies(response).some(c => c.startsWith('pd_sso_probe=1'))).toBe(true)
+
+    // The redirect target stays internal on the silent path too.
+    const offsite = await request.get('/api/auth/login?silent=1&redirect=https%3A%2F%2Fevil.example', { maxRedirects: 0 })
+    expect(offsite.headers().location).toBe('/')
+  })
+
+  test('signing out sets the marker, so the probe does not sign the user straight back in', async ({ request }) => {
+    const response = await request.post('/api/auth/logout')
+
+    expect(response.status()).toBe(200)
+    expect(setCookies(response).some(c => c.startsWith('pd_sso_probe=1'))).toBe(true)
+  })
+
+  test('an anonymous visit probes once, comes back to the same page, and does not loop', async ({ page }) => {
+    test.skip(!!process.env.NUXT_PUBLIC_KEYCLOAK_AUTHORITY, 'a real Keycloak is configured')
+
+    const probes: string[] = []
+    page.on('request', (req) => {
+      if (req.url().includes('/api/auth/login')) probes.push(req.url())
+    })
+
+    await page.goto('/')
+    await expect.poll(() => probes.length).toBe(1)
+    expect(probes[0]).toContain('silent=1')
+    await page.waitForURL(url => url.pathname === '/' && !url.search.includes('auth_error'))
+    await page.waitForLoadState('networkidle')
+
+    // Back on the page with the marker set: no second round trip.
+    expect(probes).toHaveLength(1)
+    await page.reload()
+    await page.waitForLoadState('networkidle')
+    expect(probes).toHaveLength(1)
   })
 })
 
