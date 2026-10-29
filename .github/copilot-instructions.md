@@ -25,8 +25,8 @@ exists so a crew member is recognised ("Vous") and can edit their own profile.
 
 # Features
 
-Five pages so far: the crew dashboard, the crew records, player profiles, match pages and settings.
-An admin space is a JungleDiff feature PeekDiff does not have yet (see Known Gaps).
+Six pages so far: the crew dashboard, the crew records, player profiles, match pages, settings and the
+admin space.
 
 - `/` — crew dashboard, built from the "Protocol" design system. Top to bottom: status chips (the
   reload chip with "Synchro il y a X min", "7 derniers jours", the current act), the week
@@ -83,7 +83,20 @@ An admin space is a JungleDiff feature PeekDiff does not have yet (see Known Gap
 - `/settings` — `auth: true`. The signed-in user's name, nickname and Riot ID (`PATCH /player/me`),
   a link to their profile (or, without a Riot ID, a notice asking for one) and a sign-out. No profile
   picture upload: PeekDiff shows the Valorant player
-  card, never `profilePictureUrl`.
+  card, never `profilePictureUrl`. Admins also get a link to `/admin`.
+- `/admin` — `admin: true`, reserved to `gameon_admin` (guarded on the server and the client, see
+  Authentication). "Actions": `AdminActions` refreshes every crew rank (`PATCH /val/player/ranks`) and
+  imports one game from HenrikDev by its uuid, with an optional region (`POST /val/match/{id}/update`,
+  then a link to its match page). "Comptes": every GameOn account (`GET /player`, active and archived,
+  crew or not, smurfs and accounts **without a Riot ID** included — `GET /val/player` leaves those out),
+  joined with its Valorant side (`GET /val/player?includeOutOfCrew=true`) by `buildAdminRows`
+  (`app/utils/val-admin.ts`) and filtered Crew · Hors crew · Archivés. Accounts without a Riot ID come
+  first. Each `AdminAccountRow` shows card, nickname, full name, Riot ID (or "// sans Riot ID"), status
+  and smurf badges, rank and last sync, and offers "Synchroniser" (`PATCH /val/player/{id}`), "Riot ID"
+  (an inline form, `PATCH /val/player/{id}/admin`) and "Profil" when the account has one. Everything
+  loads after mount; every write re-reads the list, invalidates the `val` store and says what happened
+  in a live region. No crew membership, archiving or smurf linking: the Valorant API has no route for
+  them (see Known Gaps). Linked from the header ("Admin", client-only), the palette and `/settings`.
 - **Smurf toggle** — page state in `index.vue`, off by default. It filters the ladder (and the rank
   fallbacks) in place — the store always keeps every account — and re-queries `/val/home` and
   `/val/match/last` with `includeSmurfs`.
@@ -115,6 +128,7 @@ An admin space is a JungleDiff feature PeekDiff does not have yet (see Known Gap
 - `app/components/home/` — the home page's business components.
 - `app/components/profile/` — the profile page's business components (`Profile*`).
 - `app/components/match/` — the match page's business components (`Match*`).
+- `app/components/admin/` — the admin space's components (`AdminActions`, `AdminAccountRow`).
 - `app/components/val/` — components representing a Valorant entity (`ValRankEmblem`,
   `ValPlayerCard`, `ValAgentIcon`, `ValRoleChip`, `ValMatchRow`, `ValMapList`, `ValPlayerPalette`),
   reused across pages.
@@ -125,7 +139,7 @@ An admin space is a JungleDiff feature PeekDiff does not have yet (see Known Gap
 - `app/utils/` — pure helpers.
 - `shared/types/` — contracts used by both Nitro and the app, imported via `#shared`.
 - `shared/utils/` — logic both sides run, imported explicitly via `#shared/utils/...`
-  (`admin-access.ts`: `ADMIN_ROLE`; `sso-probe.ts`: `SSO_PROBE_TTL_MS`).
+  (`admin-access.ts`: `ADMIN_ROLE`, `isAdminPath`; `sso-probe.ts`: `SSO_PROBE_TTL_MS`).
 - `server/api/`, `server/routes/`, `server/middleware/`, `server/plugins/`, `server/utils/` — Nitro.
 - `design-system/` — the design system's source of truth: `MASTER.md` (the spec), `tokens.css`
   (reference tokens, mirrored by `app/assets/css/main.css`), `valorant-assets.ts` (reference asset
@@ -144,7 +158,7 @@ An admin space is a JungleDiff feature PeekDiff does not have yet (see Known Gap
 - **Composables**: file named after the function — `useGameOnVal.ts` → `useGameOnVal`.
 - **Utils**: kebab-case filenames; Valorant-domain helpers carry a `val-` prefix (`val-tier.ts`,
   `val-ladder.ts`, `val-assets.ts`, `val-smurf.ts`, `val-match.ts`, `val-game.ts`, `val-period.ts`,
-  `val-search.ts`, `val-agents.ts`).
+  `val-search.ts`, `val-agents.ts`, `val-profile.ts`, `val-admin.ts`).
   Generic ones do not (`theme.ts`, `date.ts`, `ascii.ts`).
   Despite `app/utils/` being auto-imported, the codebase **imports these explicitly** — match that.
 - **Types**: Valorant domain types are prefixed `Val` and API payload shapes end in `Dto`
@@ -178,12 +192,17 @@ An admin space is a JungleDiff feature PeekDiff does not have yet (see Known Gap
   or tournament controllers of the same API. Widen it deliberately. `DELETE_PATHS` is empty — every
   `DELETE` is a `405` until a route needs one.
 - Roles come from the session, not from decoding a token client-side: `authStore.isAdmin` checks the
-  `gameon_admin` realm role (`ADMIN_ROLE` in `shared/utils/admin-access.ts`). Only `/settings` reads
-  it, to print "administrateur".
+  `gameon_admin` realm role (`ADMIN_ROLE` in `shared/utils/admin-access.ts`). It shows the admin
+  links (header, palette, `/settings`); the guard below is what actually keeps the space closed.
 - Pages are public by default. `definePageMeta({ auth: true })` requires a session and is checked on
-  the client only (`app/middleware/auth.global.ts`); `/settings` sets it. JungleDiff's SSR guard for
-  an admin space (`server/middleware/admin-session.ts`) was not carried over: bring it back with the
-  admin space.
+  the client only (`app/middleware/auth.global.ts`); `/settings` sets it. `admin: true` (which implies
+  `auth`) adds the `gameon_admin` role and is checked on the server too, as on JungleDiff:
+  `server/middleware/admin-session.ts` resolves the session of every admin-path request into
+  `event.context.sessionUser` (typed in `shared/types/auth.ts`), and the route middleware reads it
+  during SSR — anonymous → 302 to `/api/auth/login?redirect=…`, signed-in non-admin → a real 403,
+  never the page shell. `isAdminPath` normalises the path the way vue-router does (case, percent
+  escapes, doubled slashes), so `/ADMIN` or `/%61dmin` cannot slip past it; a path the Nitro
+  middleware did not recognise (`sessionUser` `undefined`) is refused rather than rendered.
 - Session cookies are prefixed `pd_` (`server/utils/session.ts`); JungleDiff's are `jd_`. Cookies
   ignore ports, so both apps share `localhost` in development: identical names would make each
   overwrite the other's session. The id token (`pd_idt`) is scoped to `/api/auth` — only the
@@ -228,7 +247,10 @@ An admin space is a JungleDiff feature PeekDiff does not have yet (see Known Gap
   `updateCurrentPlayer` (`PATCH /player/me`), plus `getValHome` (`GET /val/home`) and
   `getValLastMatches` (`GET /val/match/last`) for the home page, and `getValGlobalStats`
   (`GET /val/stats/global?period=&rankedOnly=&includeSmurfs=`) for `/stats`. The home page does not
-  call the latter: `/val/home` embeds its 30-day competitive answer as `crewRecords`.
+  call the latter: `/val/home` embeds its 30-day competitive answer as `crewRecords`. The admin space
+  adds `getPlayerAccounts` (`GET /player?archived=`), `getValAccounts`, `refreshAllValRanks`,
+  `updateValRiotId` (compare the Riot ID it answers with the one sent: the API answers 200 with the
+  account unchanged when another account holds it) and `importValMatch`.
 - The `val` store caches the crew, the home recap and the crew feed behind a 60 s window rather than
   for the whole SPA session, and `index.vue` passes `getCachedData: cacheOnlyDuringHydration`
   (`app/utils/async-data.ts`) so the handlers are replayed on client navigation without breaking
@@ -255,7 +277,7 @@ An admin space is a JungleDiff feature PeekDiff does not have yet (see Known Gap
   `app/utils/val-game.ts` does the same for the whole game: `resolvePerspective` picks the allies,
   `buildScoreboard`, `buildRounds` and `buildRoundDetail` read everything off it.
 - `/` and `/stats` are served through Nitro's SWR cache (60 s; each `/stats` query string is its own
-  entry); `/settings` and `/api/auth/**` are explicitly
+  entry); `/settings`, `/admin` (and `/admin/**`) and `/api/auth/**` are explicitly
   `no-store`. Profiles are not cached: their filters live in the query string and a sync must show at
   once.
 - **Authenticated reads run after mount.** Nuxt's global `$fetch` does not forward the browser's
@@ -441,7 +463,11 @@ Each of these is easy to reintroduce and hard to diagnose.
   every playable agent (uuid and English name, from valorant-api.com) to its role, and Riot's next
   agent needs a row there. Until it gets one it is drawn with the neutral `border-strong` rule and no
   chip. The profile filters by agent, not by role: the API's `agentName` takes a single agent.
-- **No admin space yet.**
+- **The admin space only covers what the Valorant API serves.** No crew membership, archiving,
+  name edits or smurf linking (JungleDiff has them through `lol/summoner/...` routes with no Valorant
+  counterpart; `PATCH /player` could archive, but it overwrites `keycloakId` with whatever it is sent).
+  `PATCH /val/player/ranks`, `PATCH /val/player/{id}` and `POST /val/match/{id}/update` are anonymous
+  on the API: the admin space is where PeekDiff calls them, not what protects them.
 - **No CI pipeline.** Lint, types, audit, build and the e2e suite only run when someone runs them.
 - **No error tracking.** Failures are reported through `console.error` only.
 - **No rate limiting on `/api/gameon`.** The allowlist bounds paths, not request volume.

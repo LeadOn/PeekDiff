@@ -1,6 +1,6 @@
 import { BaseApiService, encodePathSegment as segment } from './BaseApiService'
 import type { RequestOptions } from './BaseApiService'
-import type { PlayerUpdateDto, ValGameDto, ValGameTimelineDto, ValGlobalStatsDto, ValHomeStatsDto, ValHomeWindow, ValListResultDto, ValPlayerDto, ValRankHistoryDto, ValRankHistoryGranularity, ValStatsPeriod } from '../types'
+import type { PlayerAccountDto, PlayerUpdateDto, ValGameDto, ValGameTimelineDto, ValGlobalStatsDto, ValHomeStatsDto, ValHomeWindow, ValListResultDto, ValPlayerDto, ValRankHistoryDto, ValRankHistoryGranularity, ValStatsPeriod } from '../types'
 
 /**
  * Filters of the profile's performance recap and match history. `queues` are API queue ids;
@@ -128,6 +128,46 @@ export class GameOnClient extends BaseApiService {
   /** A game's rounds and kills, in order. Unknown ids answer 404. */
   public getValMatchTimeline(matchId: string, signal?: AbortSignal) {
     return this.get<ValGameTimelineDto>(`/val/match/${segment(matchId)}/rounds`, GameOnClient.opts(signal))
+  }
+
+  // --- Admin space. Routes marked `gameon_admin` are refused upstream to anyone else; the others are
+  // anonymous on the API and merely called from the admin UI. ---
+
+  /**
+   * Every GameOn account of one `archived` value: crew or not, smurfs included, and — unlike
+   * `GET /val/player` — accounts without a Riot ID too, the ones an admin most needs to see.
+   */
+  public getPlayerAccounts(archived: boolean, signal?: AbortSignal) {
+    return this.get<PlayerAccountDto[]>(`/player?archived=${archived}`, GameOnClient.opts(signal))
+  }
+
+  /** The Valorant side of every account with a Riot ID, crew or not, smurfs included: ranks and cards. */
+  public getValAccounts(archived: boolean, signal?: AbortSignal) {
+    return this.get<ValPlayerDto[]>(`/val/player?archived=${archived}&includeOutOfCrew=true&includeSmurfs=true`, GameOnClient.opts(signal))
+  }
+
+  /** Re-reads every crew member's profile and rank from Riot. Slow; answers `204`. */
+  public async refreshAllValRanks(signal?: AbortSignal): Promise<void> {
+    await this.patch<unknown>('/val/player/ranks', null, GameOnClient.opts(signal))
+  }
+
+  /**
+   * Points an account at another Riot ID, then re-synchronises it. `gameon_admin`. The API answers
+   * `200` with the account unchanged when another account already uses that Riot ID: callers compare
+   * the Riot ID they get back with the one they sent.
+   */
+  public updateValRiotId(playerId: number, gameName: string, tagLine: string, signal?: AbortSignal) {
+    const params = new URLSearchParams({ riotGamesNickname: gameName, riotGamesTagLine: tagLine })
+    return this.patch<ValPlayerDto>(`/val/player/${segment(playerId)}/admin?${params.toString()}`, null, GameOnClient.opts(signal))
+  }
+
+  /**
+   * Fetches a game from HenrikDev and stores it (or refreshes it). `404` when HenrikDev does not know
+   * it. Without `region`, the API uses the stored one, else "eu".
+   */
+  public importValMatch(matchId: string, region?: string, signal?: AbortSignal) {
+    const query = region ? `?region=${encodeURIComponent(region)}` : ''
+    return this.post<ValGameDto>(`/val/match/${segment(matchId)}/update${query}`, null, GameOnClient.opts(signal))
   }
 
   /** The signed-in user's GameOn account (`GET /player/me`), for the header and the "Vous" badges. */

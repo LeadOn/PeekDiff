@@ -101,6 +101,8 @@ test.describe('GameOn proxy guards', () => {
     expect((await request.get('/api/gameon/val/home?includeSmurfs=false&window=Last7Days')).status()).toBe(502)
     expect((await request.get('/api/gameon/val/match/last?page=1&size=6')).status()).toBe(502)
     expect((await request.get('/api/gameon/val/stats/global?period=Month&rankedOnly=true&includeSmurfs=false')).status()).toBe(502)
+    // The admin space's account list lives under `player/`, outside `val/`.
+    expect((await request.get('/api/gameon/player?archived=false')).status()).toBe(502)
   })
 
   test('reports an unreachable upstream as 502, not 500', async ({ request }) => {
@@ -216,6 +218,33 @@ test.describe('silent single sign-on', () => {
     await page.reload()
     await page.waitForLoadState('networkidle')
     expect(probes).toHaveLength(1)
+  })
+})
+
+test.describe('admin space', () => {
+  // Holds with no Keycloak: the redirect to `/api/auth/login` is asserted, not followed.
+
+  test('sends an anonymous visitor to sign in instead of rendering the page', async ({ request }) => {
+    const response = await request.get('/admin', { maxRedirects: 0 })
+
+    expect(response.status()).toBe(302)
+    expect(response.headers().location).toBe('/api/auth/login?redirect=%2Fadmin')
+    expect(response.headers()['cache-control']).toContain('no-store')
+  })
+
+  test('guards every spelling of the path the router still matches', async ({ request }) => {
+    // vue-router matches case-insensitively and after decoding: each of these renders the admin
+    // page, so each must go through the same session check.
+    for (const path of ['/admin', '/admin/', '/ADMIN', '/%61dmin']) {
+      const response = await request.get(path, { maxRedirects: 0 })
+      expect(response.status(), path).toBe(302)
+      expect(response.headers().location, path).toContain('/api/auth/login?redirect=')
+    }
+  })
+
+  test('is not linked for an anonymous visitor', async ({ request }) => {
+    const html = await (await request.get('/')).text()
+    expect(html).not.toContain('href="/admin"')
   })
 })
 

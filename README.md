@@ -20,11 +20,11 @@ API and renders game art from media.valorant-api.com.
 ### Application (`app/`)
 
 - `app/pages/` — page components and data orchestration via `useAsyncData`: `index.vue` (the crew
-  dashboard), `stats.vue` (the crew records), `player/[id].vue` (a player's profile), `match/[id].vue` (one game) and
-  `settings.vue`.
+  dashboard), `stats.vue` (the crew records), `player/[id].vue` (a player's profile), `match/[id].vue` (one game),
+  `settings.vue` and `admin.vue` (the admin space).
 - `app/components/` — split into `ui/` (generic: `AppHeader`, `AppBottomBar`, `SectionIndex`,
   `FrameHead`, `SegmentSwitch`, `MockBadge`), `home/` (the dashboard), `profile/` (the profile),
-  `match/` (the match page) and `val/` (Valorant entities: `ValRankEmblem`, `ValPlayerCard`,
+  `match/` (the match page), `admin/` (the admin space) and `val/` (Valorant entities: `ValRankEmblem`, `ValPlayerCard`,
   `ValAgentIcon`, `ValRoleChip`, `ValMatchRow`, `ValMapList`, `ValPlayerPalette`).
 - `app/composables/` — reusable logic, including API client injection (`useGameOnVal`).
 - `app/stores/` — Pinia stores: `val` (the crew, behind a 60 s freshness window), `auth` (session
@@ -47,6 +47,8 @@ API and renders game art from media.valorant-api.com.
 - `server/api/gameon/[...path].ts` — authenticating proxy to the GameOn API. Reads the session
   cookies, attaches the bearer, and only lets `val/` and `player/` through. Every `DELETE` is a `405`.
   An upstream that never answers yields `502`, one that blows the 120 s ceiling `504`.
+- `server/middleware/admin-session.ts` — resolves the session of admin-path requests so the admin
+  space is refused (302 to sign-in, or 403) during SSR, never served as a shell.
 - `server/middleware/security-headers.ts` and `server/plugins/csp.ts` — security headers and the
   per-render CSP nonce. `img-src` allows `https://media.valorant-api.com`.
 - `server/routes/healthz.get.ts` — dependency-free liveness probe for orchestrators.
@@ -54,7 +56,7 @@ API and renders game art from media.valorant-api.com.
 ### Shared (`shared/`)
 
 Contracts used by both Nitro and the app (`SessionState`), imported via `#shared`, and
-`shared/utils/admin-access.ts` (the `gameon_admin` role) and `shared/utils/sso-probe.ts` (how long
+`shared/utils/admin-access.ts` (the `gameon_admin` role and `isAdminPath`) and `shared/utils/sso-probe.ts` (how long
 the silent sign-in waits between attempts).
 
 ### Design system (`design-system/`)
@@ -229,7 +231,13 @@ Profil).
 contrôleur, sentinelle), the agent lists of the profile and the records show a role chip, and the
 profile hero names the main agent's role.
 
-**Not yet:** the admin space, economy on the match page.
+**Done — the admin space (`/admin`)**, `gameon_admin` only, refused on the server to anyone else:
+refresh every crew rank, import a game from HenrikDev, and every GameOn account (crew, outside the
+crew, archived; those without a Riot ID first) with its Riot ID, rank and last sync, to re-sync or
+point at another Riot ID.
+
+**Not yet:** crew membership, archiving and smurf linking in the admin space, economy on the match
+page.
 
 ## 🧩 Backend Gaps
 
@@ -238,8 +246,9 @@ profile hero names the main agent's role.
   profile's tiles and history stay empty there, the home page keeps its rank-only fallback and
   `/stats` says "Records indisponibles" until it ships; the front tolerates the older build. Run a local API and the `peekdiff-prod-local-api` launch
   configuration to see everything filled.
-- **Served but not wired:** the admin routes (`PATCH /val/player/{id}/admin`, `PATCH /val/player/ranks`,
-  `POST /val/match/{id}/update`), waiting for the admin space.
+- **Not served for Valorant:** crew membership, archiving and smurf linking (JungleDiff's admin uses
+  `lol/summoner/...` routes for them). The write routes the admin space calls — every rank, one player,
+  one game — are anonymous on the API.
 - **Not served:** live games (the "en partie" strip), economy per round, headshots per kill (the kill
   feed's `◎`). Agent roles are not served either: the front keeps its own table
   (`app/utils/val-agents.ts`), to extend when Riot ships an agent.

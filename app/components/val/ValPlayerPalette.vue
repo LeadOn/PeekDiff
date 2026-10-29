@@ -66,6 +66,7 @@ const matchingActions = computed(() => {
   ]
   if (playerStore.hasProfile) actions.push({ key: 'me', label: 'Mon profil', href: playerStore.profilePath })
   if (authStore.isAuthenticated) actions.push({ key: 'settings', label: 'Paramètres du compte', href: '/settings' })
+  if (authStore.isAdmin) actions.push({ key: 'admin', label: 'Administration', href: '/admin' })
   const needle = normalizeSearchText(query.value)
   return needle ? actions.filter(action => normalizeSearchText(action.label).includes(needle)) : actions
 })
