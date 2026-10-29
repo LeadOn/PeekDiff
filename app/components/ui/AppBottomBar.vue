@@ -15,11 +15,11 @@ const authStore = useAuthStore()
 const playerStore = usePlayerStore()
 const palette = useSearchPalette()
 
-/** The viewer's own profile; settings until `/player/me` answers; sign-in when anonymous. */
-const profileLink = computed(() => {
-  if (playerStore.currentPlayer) return `/player/${playerStore.currentPlayer.id}`
-  return authStore.isAuthenticated ? '/settings' : null
-})
+/**
+ * The viewer's own profile; settings until `/player/me` answers or while the account has no Riot ID;
+ * sign-in when anonymous.
+ */
+const profileLink = computed(() => (authStore.isAuthenticated ? playerStore.profilePath : null))
 
 const isProfileActive = computed(() => !!profileLink.value && route.path === profileLink.value)
 </script>

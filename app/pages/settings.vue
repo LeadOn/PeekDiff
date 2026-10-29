@@ -130,7 +130,8 @@ const save = async () => {
         </div>
         <div class="flex flex-wrap gap-2">
           <NuxtLink
-            :to="`/player/${player.id}`"
+            v-if="playerStore.hasProfile"
+            :to="playerStore.profilePath"
             class="inline-flex h-10 items-center gap-1.5 border border-border-strong px-3.5 font-mono text-xs font-medium uppercase tracking-[0.06em] transition-colors duration-150 ease-snap hover:bg-surface-hover"
           >
             <span aria-hidden="true" class="text-text-ter">[</span>Mon profil<span aria-hidden="true" class="text-text-ter">]</span>
@@ -172,8 +173,11 @@ const save = async () => {
             <input v-model="form.riotGamesTagLine" type="text" placeholder="Ex : EUW" autocomplete="off" class="field-input font-mono uppercase">
           </label>
         </div>
-        <p class="mt-3 text-pretty text-sm text-text-sec">
+        <p v-if="playerStore.hasProfile" class="mt-3 text-pretty text-sm text-text-sec">
           Après un changement de Riot ID, lancez une synchronisation depuis votre profil pour récupérer rang et parties.
+        </p>
+        <p v-else class="mt-3 border border-border-strong bg-surface-high px-4 py-3 text-pretty text-sm">
+          Renseignez votre Riot ID pour ouvrir votre profil : rang, performances et dernières parties.
         </p>
 
         <div class="mt-6 flex flex-wrap items-center gap-4">

@@ -44,6 +44,8 @@ export interface ValPlayerDto {
   profilePictureUrl: string | null;
   riotGamesNickname: string | null;
   riotGamesTagLine: string | null;
+  /** The Riot account's PUUID, shared with League of Legends; set once a Riot sync found the account. */
+  riotGamesPUUID?: string | null;
   /** The main account's id for a smurf. See `isSmurf` for the values that do NOT mean "smurf". */
   primaryPlayerId?: number | null;
   archived?: boolean;

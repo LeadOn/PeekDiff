@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import type { ValPlayerDto } from '~/lib/types'
 import { useGameOnVal } from '~/composables/useGameOnVal'
 import { useAuthStore } from './auth'
@@ -34,9 +34,25 @@ export const usePlayerStore = defineStore('player', () => {
     currentPlayer.value = player
   }
 
+  /**
+   * Whether the signed-in account has a profile page. Mirrors the rule behind `GET /val/player/{id}`,
+   * which answers 404 for an account with no Valorant PUUID, no Riot PUUID and no complete Riot ID:
+   * a crew member who never entered one would land on "Page introuvable".
+   */
+  const hasProfile = computed(() => {
+    const player = currentPlayer.value
+    if (!player) return false
+    return !!player.valorantPuuid || !!player.riotGamesPUUID || (!!player.riotGamesNickname && !!player.riotGamesTagLine)
+  })
+
+  /** The viewer's profile, or the settings where the Riot ID is entered (also until `/player/me` answers). */
+  const profilePath = computed(() => (currentPlayer.value && hasProfile.value ? `/player/${currentPlayer.value.id}` : '/settings'))
+
   return {
     currentPlayer,
     loading,
+    hasProfile,
+    profilePath,
     fetchCurrentPlayer,
     setCurrentPlayer
   }

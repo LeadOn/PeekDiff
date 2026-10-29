@@ -79,7 +79,8 @@ An admin space is a JungleDiff feature PeekDiff does not have yet (see Known Gap
   than 2026-10-29) shows "Records indisponibles", not an outage. Linked from the header ("Records"),
   the palette and the home page; not from the mobile bar, which keeps its four entries.
 - `/settings` — `auth: true`. The signed-in user's name, nickname and Riot ID (`PATCH /player/me`),
-  links to their profile and a sign-out. No profile picture upload: PeekDiff shows the Valorant player
+  a link to their profile (or, without a Riot ID, a notice asking for one) and a sign-out. No profile
+  picture upload: PeekDiff shows the Valorant player
   card, never `profilePictureUrl`.
 - **Smurf toggle** — page state in `index.vue`, off by default. It filters the ladder (and the rank
   fallbacks) in place — the store always keeps every account — and re-queries `/val/home` and
@@ -88,17 +89,17 @@ An admin space is a JungleDiff feature PeekDiff does not have yet (see Known Gap
   `>_ chercher un joueur ⌘K` button (from `md:`), the mobile bar, ⌘K / Ctrl K or "/". It matches
   Riot ID, nickname and full name locally (`filterPlayersByName` in `app/utils/val-search.ts`: the API
   has no search by name) against the crew list, smurfs included, in ladder order, then offers "Classement
-  du crew", "Records du crew", "Mon profil" and "Paramètres". A combobox: arrows move, Enter opens, Escape and any
+  du crew", "Records du crew", "Mon profil" (only with a Riot ID) and "Paramètres". A combobox: arrows move, Enter opens, Escape and any
   navigation close it, Tab stays in the input, focus returns to the opener. Its open state is
   `useSearchPalette` (`useState`), shared by the three openers.
 - **Mobile bar** — `AppBottomBar`, below `md` only: Crew (`/`), Parties (`/#parties`, the home page's
   crew feed — or its rank-only fallback — which carries that id), Recherche (the palette) and Profil
-  (the viewer's profile, `/settings` until `/player/me` answers, "Connexion" when anonymous; resolved
+  (`playerStore.profilePath`: the viewer's profile, else `/settings`; "Connexion" when anonymous; resolved
   after mount). The footer pads its bottom on phones to clear it. The header's search button is hidden
   on phones.
 - **Theme** — dark by default, "Bone" (light) through the header toggle.
 - **Sign-in** — the header's "Se connecter" starts the OIDC flow; signed in, the header shows the
-  player's card (a link to their profile, or to `/settings` until `/player/me` answers), a settings
+  player's card (a link to `playerStore.profilePath`: their profile, else `/settings`), a settings
   button and a sign-out button (hidden on phones, where `/settings` carries it), and the ladder and
   the profile mark the viewer "Vous".
 - **Silent single sign-on** — a visitor already signed in to JungleDiff (same realm, same client) is
@@ -388,6 +389,11 @@ Each of these is easy to reintroduce and hard to diagnose.
 - **Elo is the ladder's axis, not RR.** RR is relative to the tier; `elo` is continuous (100 per
   division from Iron 1 at 0). `rankElo` rebuilds it from tier and RR when a snapshot carries `elo` 0.
   Immortal and Radiant RR can exceed 100.
+- **Link to the viewer's profile through `playerStore.profilePath`, never `/player/${currentPlayer.id}`.**
+  `GET /val/player/{id}` answers 404 for an account with no Valorant PUUID, no Riot PUUID and no
+  complete Riot ID, so a crew member who never entered one would land on "Page introuvable".
+  `hasProfile` mirrors that rule and `profilePath` falls back to `/settings` (also until `/player/me`
+  answers); the header, the mobile bar, the palette and the settings page all read it.
 - **Tier names are French and come from `tierInfo`.** The API's `tierName` is English ("Gold 1") and
   is never printed.
 - **`mapId` may be a uuid or a game path.** `resolveMap` (`val-assets.ts`) accepts both; the live API
