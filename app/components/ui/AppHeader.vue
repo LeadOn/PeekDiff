@@ -40,6 +40,9 @@ const profileLabel = computed(() =>
   || 'Mon compte'
 )
 
+/** The player's own profile once `/player/me` answered; settings until then (or without a GameOn account). */
+const profileLink = computed(() => (playerStore.currentPlayer ? `/player/${playerStore.currentPlayer.id}` : '/settings'))
+
 const toggleTheme = () => {
   isLight.value = !isLight.value
   applyTheme(isLight.value ? 'light' : 'dark')
@@ -73,15 +76,27 @@ const toggleTheme = () => {
 
         <ClientOnly>
           <div v-if="authStore.isAuthenticated" class="flex items-center gap-2">
-            <span class="flex h-10 items-center gap-2 border border-border-base p-1 md:pr-3">
+            <NuxtLink
+              :to="profileLink"
+              :aria-label="`${profileLabel}, ${playerStore.currentPlayer ? 'mon profil' : 'paramètres'}`"
+              class="flex h-10 items-center gap-2 border border-border-base p-1 transition-colors duration-150 ease-snap hover:border-border-strong md:pr-3"
+            >
               <ValPlayerCard :src="playerStore.currentPlayer?.valorantPlayerCardSmallUrl" :name="profileLabel" class="size-8" />
               <span class="hidden max-w-[150px] truncate text-sm font-semibold md:block">{{ profileLabel }}</span>
-            </span>
+            </NuxtLink>
+            <NuxtLink
+              to="/settings"
+              aria-label="Paramètres"
+              title="Paramètres"
+              class="flex size-10 items-center justify-center border border-border-base text-text-sec transition-colors duration-150 ease-snap hover:border-border-strong hover:text-text-main"
+            >
+              <Icon name="lucide:settings" class="size-[18px]" />
+            </NuxtLink>
             <button
               type="button"
               aria-label="Se déconnecter"
               title="Se déconnecter"
-              class="flex size-10 cursor-pointer items-center justify-center border border-border-base text-text-sec transition-colors duration-150 ease-snap hover:border-border-strong hover:text-text-main"
+              class="hidden size-10 sm:flex cursor-pointer items-center justify-center border border-border-base text-text-sec transition-colors duration-150 ease-snap hover:border-border-strong hover:text-text-main"
               @click="authStore.logout()"
             >
               <Icon name="lucide:log-out" class="size-[18px]" />

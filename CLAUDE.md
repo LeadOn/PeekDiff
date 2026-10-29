@@ -4,7 +4,7 @@ You are assisting with PeekDiff, a Valorant stats tracker for a closed group of 
 crew"). It is the Valorant counterpart of JungleDiff (League of Legends) and shares its architecture:
 it reads player and rank data from the GameOn API, renders game art from media.valorant-api.com, and
 presents the crew's ladder. The interface is French; there is no public sign-up — authentication
-exists so a crew member is recognised ("Vous") and, later, can edit their own profile.
+exists so a crew member is recognised ("Vous") and can edit their own profile.
 
 # Technology Stack
 
@@ -25,9 +25,8 @@ exists so a crew member is recognised ("Vous") and, later, can edit their own pr
 
 # Features
 
-Only the home page exists so far. Profiles, match pages, records, settings and an admin space are
-JungleDiff features PeekDiff does not have yet — and the GameOn API does not serve Valorant matches
-yet either (see Known Gaps).
+Three pages so far: the crew dashboard, player profiles and settings. Match pages, records, a crew
+search and an admin space are JungleDiff features PeekDiff does not have yet (see Known Gaps).
 
 - `/` — crew dashboard, built from the "Protocol" design system. Top to bottom: status chips (the
   reload chip with "Synchro il y a X min", "7 derniers jours", the current act), four crew tiles
@@ -36,21 +35,39 @@ yet either (see Known Gaps).
   `wideart` card, "L'échelle des rangs" (`RankTrack`) on the elo axis with a 7-day trail, the remaining
   rows) beside a rail: `PlayerOfTheWeek` (best positive 7-day RR swing, over the player's `largeart`),
   `LastRankedGames` (the latest competitive game of each player, read off `valorantCurrentRank`) and
-  `PeakRecords` (all-time peaks). Everything on it is live data from `GET /val/player`.
+  `PeakRecords` (all-time peaks). Everything on it is live data from `GET /val/player`. Every player
+  name on it (rows, podium, scale dots, rail) links to their profile.
+- `/player/[id]` — a player's profile, JungleDiff's `/summoner/[id]` rebuilt in Protocol.
+  `ProfileHero` (the `wideart` card under the night veil, the main agent's `fullportrait`, current and
+  peak ranks, the last ranked results, smurf links, and a red "Synchroniser" for signed-in users that
+  calls `PATCH /val/player/{id}`), then "Performances" (`ProfileKpis`: games and win rate, ACS / ADR,
+  K/D / KDA, headshots, KAST, rating, first duels, playtime) filtered by period (7 j · 30 j · 3 mois ·
+  Tout) and queue (Toutes · Compétition · Non classée · Vélocité), then two columns — "Dernières
+  parties" (`ValMatchRow` grouped by Paris day with the day's record and net RR, 10 per page) beside a
+  rail: `ProfileRankProgress` (the elo curve of the period and the RR of each ranked game),
+  `ProfileAgents`, `ProfileMaps`, `ProfileDuos`. Filters live in the query string (`?period=7j&queue=
+  competitive`). The period does not restrict the history; the queue does. A crew member with no
+  `valorantPuuid` gets a notice instead of the stats.
+- `/settings` — `auth: true`. The signed-in user's name, nickname and Riot ID (`PATCH /player/me`),
+  links to their profile and a sign-out. No profile picture upload: PeekDiff shows the Valorant player
+  card, never `profilePictureUrl`.
 - **Smurf toggle** — page state in `index.vue`, off by default. It filters the roster the tiles, the
   ladder and the rail are built from; the store always keeps every account.
 - **Theme** — dark by default, "Bone" (light) through the header toggle.
 - **Sign-in** — the header's "Se connecter" starts the OIDC flow; signed in, the header shows the
-  player's card and a sign-out button, and the ladder marks the viewer's row "Vous".
+  player's card (a link to their profile, or to `/settings` until `/player/me` answers), a settings
+  button and a sign-out button (hidden on phones, where `/settings` carries it), and the ladder and
+  the profile mark the viewer "Vous".
 
 # Directory Layout
 
 - `app/pages/` — orchestrate data loading with `useAsyncData` and own the page layout.
 - `app/components/ui/` — generic, domain-free UI (`AppHeader`, `SectionIndex`, `FrameHead`,
-  `MockBadge`).
+  `SegmentSwitch`, `MockBadge`).
 - `app/components/home/` — the home page's business components.
+- `app/components/profile/` — the profile page's business components (`Profile*`).
 - `app/components/val/` — components representing a Valorant entity (`ValRankEmblem`,
-  `ValPlayerCard`), reused across pages.
+  `ValPlayerCard`, `ValAgentIcon`, `ValMatchRow`), reused across pages.
 - `app/composables/` — reusable logic and API client injection.
 - `app/stores/` — Pinia setup stores.
 - `app/lib/api/` — typed HTTP clients built on `BaseApiService`.
@@ -76,10 +93,12 @@ yet either (see Known Gaps).
 - **Stores**: file `app/stores/<domain>.ts` exporting `use<Domain>Store` — `val.ts` → `useValStore`.
 - **Composables**: file named after the function — `useGameOnVal.ts` → `useGameOnVal`.
 - **Utils**: kebab-case filenames; Valorant-domain helpers carry a `val-` prefix (`val-tier.ts`,
-  `val-ladder.ts`, `val-assets.ts`, `val-smurf.ts`). Generic ones do not (`theme.ts`, `date.ts`).
+  `val-ladder.ts`, `val-assets.ts`, `val-smurf.ts`, `val-match.ts`, `val-period.ts`). Generic ones do
+  not (`theme.ts`, `date.ts`, `ascii.ts`).
   Despite `app/utils/` being auto-imported, the codebase **imports these explicitly** — match that.
 - **Types**: Valorant domain types are prefixed `Val` and API payload shapes end in `Dto`
-  (`ValPlayerDto`, `ValRankHistoryDto`).
+  (`ValPlayerDto`, `ValRankHistoryDto`, `ValGameDto`); a payload that is not Valorant-specific drops
+  the prefix (`PlayerUpdateDto`).
 - **Server routes**: `<name>.<method>.ts` — `session.get.ts`, `logout.post.ts`. The method suffix is
   what restricts the verb; omitting it accepts every verb.
 - **Server utils**: kebab-case, imported by **relative path** (`../../utils/session`) rather than
@@ -108,9 +127,10 @@ yet either (see Known Gaps).
   or tournament controllers of the same API. Widen it deliberately. `DELETE_PATHS` is empty — every
   `DELETE` is a `405` until a route needs one.
 - Roles come from the session, not from decoding a token client-side: `authStore.isAdmin` checks the
-  `gameon_admin` realm role (`ADMIN_ROLE` in `shared/utils/admin-access.ts`). Nothing uses it yet.
+  `gameon_admin` realm role (`ADMIN_ROLE` in `shared/utils/admin-access.ts`). Only `/settings` reads
+  it, to print "administrateur".
 - Pages are public by default. `definePageMeta({ auth: true })` requires a session and is checked on
-  the client only (`app/middleware/auth.global.ts`). No page sets it yet. JungleDiff's SSR guard for
+  the client only (`app/middleware/auth.global.ts`); `/settings` sets it. JungleDiff's SSR guard for
   an admin space (`server/middleware/admin-session.ts`) was not carried over: bring it back with the
   admin space.
 
@@ -123,19 +143,33 @@ yet either (see Known Gaps).
   120 s is `UPSTREAM_TIMEOUT_MS` in the proxy, and **the two must move together** — whichever is
   lower is the one that actually cuts the call.
 - `GameOnClient` (`app/lib/api/GameOnClient.ts`) exposes `getValPlayers` (`GET /val/player`, crew only,
-  smurfs included), `getValPlayerById`, `getValRankHistory` (`GET /val/player/{id}/rank`, raw or
-  bucketed by `Day` / `Week` / `Month`) and `getCurrentPlayer` (`GET /player/me`). Only the first and
-  the last are used today.
+  smurfs included), `getValPlayerById` (`GET /val/player/{id}?period=&queues=`, with the performance
+  recap, smurfs and main agent), `refreshValPlayer` (`PATCH /val/player/{id}`, a Riot re-sync that also
+  imports the last 10 games), `getValRankHistory` (`GET /val/player/{id}/rank`, raw or bucketed by
+  `Day` / `Week` / `Month`), `getValPlayerMatches` (`GET /val/match/player/{id}`, paginated games with
+  their ten participants), `getCurrentPlayer` (`GET /player/me`) and `updateCurrentPlayer`
+  (`PATCH /player/me`). The API's `/val/home`, `/val/stats/global` and `/val/match/{id}` are not wired
+  yet.
 - The `val` store caches the crew behind a 60 s window rather than for the whole SPA session, and
   `index.vue` passes `getCachedData: cacheOnlyDuringHydration` (`app/utils/async-data.ts`) so the
   handler is replayed on client navigation without breaking hydration. Both halves are required.
 - Everything on the home page derives from one list: `buildLadder(players, includeSmurfs)` in
   `app/utils/val-ladder.ts` turns it into the ranked entries (sorted by elo, with the gap to the player
   above) and the unranked ones; the tiles, the podium, the scale, the rows and the rail all read it.
-- `/` is served through Nitro's SWR cache (60 s); `/api/auth/**` is explicitly `no-store`.
+- The profile loads the player (with the recap for the URL's filters) through `useAsyncData` during
+  SSR, and everything else after mount behind an `AbortController` that a filter change restarts:
+  rank history (bucketed for the curve, raw for the per-game bars), the first page of games, and the
+  crew list (its own controller) to name a smurf's main. A filter change re-reads the player and
+  reassigns `data` — `useAsyncData` data is a shallow ref, so mutating a nested field is not seen.
+  `buildGameLine(game, playerId)` in `app/utils/val-match.ts` turns a game into what the row shows,
+  seen from that player; `groupGamesByDay` groups the lines by Paris day.
+- `/` is served through Nitro's SWR cache (60 s); `/settings` and `/api/auth/**` are explicitly
+  `no-store`. Profiles are not cached: their filters live in the query string and a sync must show at
+  once.
 - **Authenticated reads run after mount.** Nuxt's global `$fetch` does not forward the browser's
   cookies on an SSR call to `/api/gameon`, so a read made during SSR reaches the API anonymously.
-  `GET /player/me` therefore runs from the header's `onMounted`.
+  `GET /player/me` therefore runs from the header's `onMounted`, and `/settings` loads its form there
+  too.
 - The home page's reload chip calls `useValStore().invalidateDashboard()` then
   `refreshNuxtData('valPlayers')`: it re-reads the API, it does not ask the API to re-synchronise with
   Riot. Its "Synchro il y a X min" is the latest `valorantRefreshedOn` of the crew.
@@ -217,8 +251,23 @@ Each of these is easy to reintroduce and hard to diagnose.
   component instance and the hook is silently dropped.
 - **`createError` inside a `useAsyncData` handler never reaches Nuxt.** `useAsyncData` captures it
   into `error`, so the response stays 200. Inspect `error.value` and throw at setup level for a 404.
-- **The GameOn API answers `204 No Content` for unknown ids** on its LoL routes, not 404. Expect the
-  same from `GET /val/player/{id}` and treat an empty successful response as "not found".
+- **Unknown ids: 204 on the LoL routes, 404 on the Valorant ones.** `GET /val/player/{id}` answers
+  404 for an unknown player, and the profile turns it into a real 404 page; an empty successful
+  response is treated as "not found" too, as on JungleDiff.
+- **`GET /val/match/player/{id}` answers 404 for a crew member without a `valorantPuuid`.** It is "no
+  games", not a failure: the profile shows the empty history and logs nothing. The first call for an
+  account with no stored game also synchronises its last 10 games from HenrikDev before answering, so
+  it can take seconds.
+- **`aceParticipantId` is the losing team's best rating, not a five-kill round.** The profile prints
+  it "MVP équipe" (`mvp-team`); `mvpParticipantId` is the winning team's best ("MVP", `mvp`). Both are
+  `null` on a draw or a remake. A remake (3 rounds or fewer) is result "R", counted in no stat.
+- **Rank history buckets can be too coarse to draw.** A month of history read by `Month` is a single
+  point: `ProfileRankProgress` falls back to the raw entries when the buckets give fewer than three.
+  The API's `days` only applies to buckets, so the profile filters raw entries to the period itself.
+- **The Valorant fields added with the match history are optional in `ValPlayerDto`.** An API build
+  older than 2026-10-29 does not send `recentFormValorant`, `mainAgent*`, `smurfAccounts` or
+  `valorantPerformanceStats`, nor serve `/val/match/...`: the profile then shows empty tiles and an
+  empty history instead of failing. Keep them optional until every environment runs the new API.
 - **Inline scripts need the CSP nonce.** Nuxt emits inline bootstrap scripts whose content changes
   per render; the nonce is issued in `server/plugins/csp.ts` during the render so it stays in step
   with the SWR-cached HTML.
@@ -245,8 +294,9 @@ Each of these is easy to reintroduce and hard to diagnose.
 - **The smurf predicate lives in `app/utils/val-smurf.ts` and is the only copy.** The API returns
   `primaryPlayerId` pointing at the account itself, or `0`, for some main accounts — the short
   `!!primaryPlayerId` form crowns real mains as smurfs.
-- **Anything that depends on the viewer renders after mount on `/`.** The page is served from a shared
-  SWR cache: "Vous", relative times ("il y a 2 h") and the theme icon are resolved client-side only.
+- **Anything that depends on the viewer renders after mount.** `/` is served from a shared SWR cache:
+  "Vous", relative times ("il y a 2 h") and the theme icon are resolved client-side only. The profile
+  follows the same rule for "Vous", "Synchro il y a…" and the sync button, though it is not cached.
 - **Entrance animations start from the server's state.** `useEntered` is `false` on the server and on
   the first client render, then flips: the scale's dots slide from the left edge after hydration.
 - **Google renamed "Big Shoulders Display" to "Big Shoulders".** `@nuxt/fonts` fails the build on the
@@ -256,18 +306,26 @@ Each of these is easy to reintroduce and hard to diagnose.
 
 # Known Gaps
 
-- **No Valorant matches on the API.** GameOn-API serves Valorant players and their rank history only
-  (`/val/player`, `/val/player/{id}/rank`). There is no match list, no scoreboard, no live game, no
-  agent or K/D data: the "recent games" feed, the live strip, match pages, agent stats and the coach
-  of the design system cannot be built yet. `LastRankedGames` is the closest honest substitute.
-- **No profile page.** Ladder rows, the podium and the scale are not links; there is nothing to link
-  to yet. The crew search palette (⌘K) waits for it too, which is why the header has no search.
-- **Only the home page exists.** No `/stats`, `/settings`, admin space or mobile bottom bar yet.
+- **The match history API is not in production yet.** GameOn-API gained Valorant games, rounds,
+  kills, profile stats, crew records and a home aggregate on 2026-10-29 (`/val/match/...`,
+  `/val/player/{id}?period=`, `/val/stats/global`, `/val/home`), tested against a local API only. The
+  production API still serves players and rank history alone, so the profile's tiles and history stay
+  empty there until it is deployed.
+- **No match page.** `ValMatchRow` is not a link; `/val/match/{id}` and `/val/match/{id}/rounds` (the
+  round timeline and kill feed of the design system) are not wired. The home page still reads ranks
+  only: `/val/home` (weekly activity, fact of the week) and `/val/stats/global` are not wired either.
+- **No agent filter on the profile.** The API takes `agentName` on both the recap and the history; the
+  page only filters by period and queue. Agent roles are not served at all, so agent icons carry a
+  neutral rule instead of the role colour the design system asks for.
+- **No crew search.** The search palette (⌘K) and the mobile bottom bar are still to build; profiles
+  are reached from the ladder, the rail and the header.
+- **No `/stats` or admin space yet.**
 - **No CI pipeline.** Lint, types, audit, build and the e2e suite only run when someone runs them.
 - **No error tracking.** Failures are reported through `console.error` only.
 - **No rate limiting on `/api/gameon`.** The allowlist bounds paths, not request volume.
-- **No image optimisation.** Game art is loaded at its original size from media.valorant-api.com
-  (player cards are small; agent portraits would not be). `@nuxt/image` is the plan in `MASTER.md`.
+- **No image optimisation.** Game art is loaded at its original size from media.valorant-api.com.
+  Player cards and agent icons are small, but the profile hero's agent portrait is a 2048px PNG.
+  `@nuxt/image` is the plan in `MASTER.md`.
 - The GameOn API itself is a separate repository and out of scope — JungleDiff and GameOn-Front
   consume it too, so changes there need their own discussion.
 

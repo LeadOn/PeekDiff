@@ -136,6 +136,37 @@ test.describe('error handling', () => {
   })
 })
 
+test.describe('player profile', () => {
+  test('a non-numeric id is a real 404 without calling the API', async ({ page }) => {
+    const response = await page.goto('/player/pas-un-id')
+
+    expect(response?.status()).toBe(404)
+    await expect(page.getByRole('heading', { name: 'Page introuvable' })).toBeVisible()
+  })
+
+  test('an unreachable API degrades to a retry panel, not a 404 or a 5xx', async ({ page }) => {
+    test.skip(!!process.env.NUXT_PUBLIC_GAME_ON_API_URL, 'a real API is configured')
+
+    const response = await page.goto('/player/12')
+
+    // A dead upstream says nothing about whether the player exists: it must not read as a 404.
+    expect(response?.status()).toBe(200)
+    await expect(page.getByRole('heading', { name: 'L\'API ne répond pas' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Réessayer' })).toBeVisible()
+  })
+})
+
+test.describe('settings', () => {
+  test('is never cached and renders no personal data on the server', async ({ request }) => {
+    const response = await request.get('/settings')
+
+    expect(response.status()).toBe(200)
+    expect(response.headers()['cache-control']).toContain('no-store')
+    // The form is filled after mount, from `/player/me`: the server HTML only carries the shell.
+    expect(await response.text()).not.toContain('Nom complet')
+  })
+})
+
 test.describe('resilience', () => {
   test('the home page still renders when the API is unreachable', async ({ page }) => {
     test.skip(!!process.env.NUXT_PUBLIC_GAME_ON_API_URL, 'a real API is configured')

@@ -1,3 +1,5 @@
+import type { ValPerformanceStatsDto } from './stats'
+
 /**
  * One entry of a player's Valorant rank history (`ValorantRankHistory` on the API): either the rank
  * after a competitive match (`matchId` set, `lastChange` the RR it moved) or a standalone snapshot.
@@ -68,7 +70,31 @@ export interface ValPlayerDto {
    * snapshot both now and at least 7 days ago — not the same as 0.
    */
   rrChange7DaysValorant: number | null;
+  /**
+   * The latest ranked results, newest first (`true` = win): 5 on `GET /val/player`, 8 on
+   * `GET /val/player/{id}`. Optional, like every field below: an API build older than the match
+   * history (2026-10-29) does not send them, and the front degrades instead of failing.
+   */
+  recentFormValorant?: boolean[];
+  /** The agent this account played the most over the last 30 days, customs and remakes left out. */
+  mainAgentName?: string | null;
+  mainAgentIconUrl?: string | null;
+  /** The secondary accounts of a main. Only served by `GET /val/player/{id}`. */
+  smurfAccounts?: ValPlayerDto[];
+  /**
+   * The performance recap over the requested filters. Only served by `GET /val/player/{id}`, and
+   * `null` when the account has no counted game in them.
+   */
+  valorantPerformanceStats?: ValPerformanceStatsDto | null;
 }
 
 /** Same enum as the LoL rank history on the API. */
 export type ValRankHistoryGranularity = 'Day' | 'Week' | 'Month';
+
+/** The body of `PATCH /player/me` (`UpdatePlayerDto` on the API). The API binds it case-insensitively. */
+export interface PlayerUpdateDto {
+  fullName: string;
+  nickname: string;
+  riotGamesNickname?: string;
+  riotGamesTagLine?: string;
+}

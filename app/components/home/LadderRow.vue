@@ -38,7 +38,7 @@ const deltaClass = computed(() => {
 
 <template>
   <div
-    class="grid grid-cols-[40px_36px_minmax(0,1fr)_auto] items-center gap-3 border-b border-l-2 border-b-border-base px-3 py-2.5 transition-colors duration-150 ease-snap last:border-b-0 sm:grid-cols-[40px_36px_minmax(0,1.3fr)_minmax(0,1.2fr)_minmax(0,1fr)_72px_64px]"
+    class="relative grid grid-cols-[40px_36px_minmax(0,1fr)_auto] items-center gap-3 border-b border-l-2 border-b-border-base px-3 py-2.5 transition-colors duration-150 ease-snap last:border-b-0 sm:grid-cols-[40px_36px_minmax(0,1.3fr)_minmax(0,1.2fr)_minmax(0,1fr)_72px_64px]"
     :class="rowClass"
     :style="ruleStyle"
     @mouseenter="emit('hover', entry.id)"
@@ -52,12 +52,12 @@ const deltaClass = computed(() => {
 
     <span class="flex min-w-0 flex-col">
       <span class="flex min-w-0 items-center gap-1.5">
-        <span class="truncate font-semibold">{{ entry.name }}</span>
+        <NuxtLink :to="`/player/${entry.id}`" class="truncate font-semibold after:absolute after:inset-0 after:content-[''] hover:text-brand-red">{{ entry.name }}</NuxtLink>
         <span v-if="isMe" class="shrink-0 bg-brand-red-fill px-1.5 font-mono text-[10px] font-bold uppercase text-white">Vous</span>
         <span
           v-if="entry.smurf"
           :title="entry.mainName ? `Compte secondaire de ${entry.mainName}` : 'Compte secondaire'"
-          class="shrink-0 cursor-help border border-border-strong px-1 font-mono text-[10px] uppercase"
+          class="relative z-[1] shrink-0 cursor-help border border-border-strong px-1 font-mono text-[10px] uppercase"
         >Smurf</span>
       </span>
       <span class="hidden font-mono text-xs text-text-ter sm:block">{{ entry.tag }}</span>
@@ -84,11 +84,11 @@ const deltaClass = computed(() => {
       <span
         v-if="entry.gap !== null"
         :title="`${entry.gap} RR pour dépasser ${entry.previousName}`"
-        class="whitespace-nowrap font-mono text-xs text-text-sec"
+        class="relative z-[1] whitespace-nowrap font-mono text-xs text-text-sec"
       >{{ formatSigned(-entry.gap) }}</span>
     </span>
 
-    <span class="text-right font-mono text-[13px] font-medium" :class="deltaClass" :title="entry.delta === null ? 'Pas de point de comparaison à 7 jours' : 'Progression sur 7 jours'">
+    <span class="relative z-[1] text-right font-mono text-[13px] font-medium" :class="deltaClass" :title="entry.delta === null ? 'Pas de point de comparaison à 7 jours' : 'Progression sur 7 jours'">
       {{ entry.delta === null ? '—' : formatSigned(entry.delta) }}
     </span>
   </div>

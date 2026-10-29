@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import type { Ladder, LadderEntry } from '~/utils/val-ladder'
 import { useAnimatedNumber } from '~/composables/useAnimatedNumber'
 import { formatSigned } from '~/utils/number'
+import { glyphBar } from '~/utils/ascii'
 import ValRankEmblem from '~/components/val/ValRankEmblem.vue'
 
 /**
@@ -17,11 +18,7 @@ const rankedCount = computed(() => props.ladder.ranked.length)
 const crewSize = computed(() => props.ladder.visibleCount)
 
 /** ASCII motif 4: a glyph bar of the ranked share, 16 cells wide. */
-const rankedBar = computed(() => {
-  const cells = 16
-  const filled = crewSize.value > 0 ? Math.round((rankedCount.value / crewSize.value) * cells) : 0
-  return { on: '█'.repeat(filled), off: '░'.repeat(cells - filled) }
-})
+const rankedBar = computed(() => glyphBar(crewSize.value > 0 ? rankedCount.value / crewSize.value : 0, 16))
 
 /** Only players with a comparable pair 7 days apart count; `null` is not 0. */
 const tracked = computed(() => props.ladder.ranked.filter(entry => entry.delta !== null))

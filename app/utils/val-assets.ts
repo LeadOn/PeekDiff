@@ -45,6 +45,14 @@ export function agentImageUrl(agentId: string | null | undefined, variant: keyof
   return agentId ? `${MEDIA}/agents/${agentId}/${AGENT_FILES[variant]}.png` : null
 }
 
+/**
+ * The agent uuid inside a URL the API built on the CDN (`MainAgentIconUrl`, `AgentIconUrl`), so the
+ * other variants of the same agent can be derived: `/agents/{uuid}/displayicon.png` → `{uuid}`.
+ */
+export function agentIdFromUrl(url: string | null | undefined): string | null {
+  return url?.match(/\/agents\/([0-9a-f-]{36})\//i)?.[1] ?? null
+}
+
 export type AgentRole = 'duelist' | 'initiator' | 'controller' | 'sentinel'
 
 /** Role uuid, French label and icon (128px white glyph; tint it with the `role-*` token via a mask). */

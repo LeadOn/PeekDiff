@@ -2,8 +2,8 @@
 
 PeekDiff is a Valorant stats tracker for the crew — the Valorant counterpart of
 JungleDiff (League of Legends), built on the same strict Nuxt 4 architecture and
-the same server-side Keycloak OIDC authentication. It reads players and ranks from the GameOn API
-and renders game art from media.valorant-api.com.
+the same server-side Keycloak OIDC authentication. It reads players, ranks and games from the GameOn
+API and renders game art from media.valorant-api.com.
 
 ## 🚀 Technology Stack
 
@@ -19,10 +19,11 @@ and renders game art from media.valorant-api.com.
 
 ### Application (`app/`)
 
-- `app/pages/` — page components and data orchestration via `useAsyncData`. Only `index.vue` today.
+- `app/pages/` — page components and data orchestration via `useAsyncData`: `index.vue` (the crew
+  dashboard), `player/[id].vue` (a player's profile) and `settings.vue`.
 - `app/components/` — split into `ui/` (generic: `AppHeader`, `SectionIndex`, `FrameHead`,
-  `MockBadge`), `home/` (the dashboard) and `val/` (Valorant entities: `ValRankEmblem`,
-  `ValPlayerCard`).
+  `SegmentSwitch`, `MockBadge`), `home/` (the dashboard), `profile/` (the profile) and `val/`
+  (Valorant entities: `ValRankEmblem`, `ValPlayerCard`, `ValAgentIcon`, `ValMatchRow`).
 - `app/composables/` — reusable logic, including API client injection (`useGameOnVal`).
 - `app/stores/` — Pinia stores: `val` (the crew, behind a 60 s freshness window), `auth` (session
   state, never a token), `player` (the signed-in player).
@@ -31,8 +32,10 @@ and renders game art from media.valorant-api.com.
   the proxy's own timeout.
 - `app/utils/` — pure helpers. `val-ladder.ts` builds the ladder (elo order, gaps, peaks) from the
   player list; `val-tier.ts` holds the tier table, French labels and the elo axis; `val-assets.ts`
-  builds media.valorant-api.com URLs; `val-smurf.ts` is the only smurf predicate; `theme.ts` is the
-  single entry point for the theme.
+  builds media.valorant-api.com URLs; `val-smurf.ts` is the only smurf predicate; `val-match.ts`
+  turns a game into a history row seen from one player and groups rows by Paris day; `val-period.ts`
+  maps the profile's period switch onto the API's period and rank buckets; `ascii.ts` draws glyph
+  bars; `theme.ts` is the single entry point for the theme.
 
 ### Server (`server/`)
 
@@ -68,7 +71,8 @@ representing a Valorant entity live in `val/` and are prefixed `Val`.
 **Stores / composables / utils** — `app/stores/val.ts` → `useValStore`; `useGameOnVal.ts` →
 `useGameOnVal`; kebab-case utils, Valorant ones prefixed `val-`, imported explicitly.
 
-**Types** — prefixed `Val`, API payloads end in `Dto` (`ValPlayerDto`, `ValRankHistoryDto`).
+**Types** — prefixed `Val`, API payloads end in `Dto` (`ValPlayerDto`, `ValRankHistoryDto`,
+`ValGameDto`).
 
 **Server routes** — `<name>.<method>.ts`; server utils imported by relative path.
 
@@ -94,7 +98,7 @@ signed in and as whom. `offline_access` is requested deliberately — it backs t
 session, and is safe because the refresh token stays server-side.
 
 Data calls go to `/api/gameon/...` and the proxy authenticates them. Pages are public; a page can ask
-for a session with `definePageMeta({ auth: true })`, checked in the browser. No page needs it yet.
+for a session with `definePageMeta({ auth: true })`, checked in the browser. `/settings` does.
 
 ## ⚙️ Configuration
 
@@ -121,20 +125,34 @@ The Keycloak client must allow `<origin>/api/auth/callback` as a redirect URI.
   with a 7-day trail, then every other player with rank, peak, gap and 7-day move; a smurf toggle;
 - the rail: player of the week (best 7-day RR swing), the latest ranked game of each player, the
   all-time peaks;
-- dark and light themes, sign-in / sign-out, "Vous" on the viewer's row.
+- dark and light themes, sign-in / sign-out, "Vous" on the viewer's row; every name links to the
+  player's profile.
 
-**Not yet:** player profiles, match pages, records, settings, the admin space, the crew search
-palette, the mobile bottom bar.
+**Done — player profiles (`/player/[id]`)**, JungleDiff's profile rebuilt in Protocol:
+
+- a hero over the player card with the main agent's portrait, current and peak ranks, the last ranked
+  results, smurf links, and "Synchroniser" for signed-in users (a Riot re-sync through the API);
+- performance tiles (games and win rate, ACS / ADR, K/D / KDA, headshots, KAST, rating, first duels,
+  playtime) filtered by period (7 j · 30 j · 3 mois · Tout) and queue, kept in the URL;
+- the last games grouped by day with the day's record and net RR, 10 at a time;
+- a rail: the elo curve over the period with the RR of each ranked game, agents, maps, duos.
+
+**Done — settings (`/settings`)**, signed-in only: name, nickname and Riot ID.
+
+**Not yet:** match pages, records, the admin space, the crew search palette, the mobile bottom bar,
+an agent filter on the profile. The home page still reads ranks only (see below).
 
 ## 🧩 Backend Gaps
 
-What the GameOn API does not serve for Valorant yet, and what it blocks:
-
-- **Matches** (list, scoreboard, rounds, kill feed, economy) — the recent-games feed, match pages,
-  agent and K/D statistics, the AI coach.
-- **Live games** — the "en partie" strip.
-- **A home aggregate** (games and playtime over 7 days, fact of the week) — the tiles stick to ranks;
-  the player of the week is derived on the front end from `rrChange7DaysValorant`.
+- **Not deployed yet.** The API gained Valorant games, rounds, kills, profile stats, crew records and
+  a home aggregate on 2026-10-29. Production still serves players and rank history only, so the
+  profile's tiles and history stay empty there until it ships; the front tolerates the older build.
+  Run a local API and the `peekdiff-prod-local-api` launch configuration to see the profile filled.
+- **Served but not wired:** the match page routes (`/val/match/{id}`, `/rounds`), `/val/home` and
+  `/val/stats/global`. The home tiles stick to ranks and the player of the week is still derived from
+  `rrChange7DaysValorant`.
+- **Not served:** live games (the "en partie" strip), agent roles (the role colour under agent icons),
+  economy per round.
 
 Also: `rrChange7DaysValorant` is `null` until a player has rank snapshots 7 days apart — rank history
 was introduced on 2026-10-28, so the 7-day figures fill in over the first week.

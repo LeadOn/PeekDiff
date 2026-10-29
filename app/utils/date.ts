@@ -112,3 +112,19 @@ export function timeAgo(value: string | number | Date, now: number): string {
   if (hours < 24) return `il y a ${hours} h`
   return `il y a ${Math.floor(hours / 24)} j`
 }
+
+/** "37 min", "1 h 05": a game's length or an average one. */
+export function formatDuration(seconds: number): string {
+  const minutes = Math.max(0, Math.round(seconds / 60))
+  if (minutes < 60) return `${minutes} min`
+  return `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, '0')}`
+}
+
+/** "12 h", "3 h 20", "45 min": a total playtime. */
+export function formatPlaytime(seconds: number): string {
+  const minutes = Math.max(0, Math.round(seconds / 60))
+  if (minutes < 60) return `${minutes} min`
+  const hours = Math.floor(minutes / 60)
+  const rest = minutes % 60
+  return rest === 0 || hours >= 10 ? `${hours} h` : `${hours} h ${String(rest).padStart(2, '0')}`
+}

@@ -174,9 +174,20 @@ Hauteur 44px (36px en dense desktop, zone de clic étendue à 44px). Désactivé
 `cursor-not-allowed` + `disabled`. Chargement : le libellé devient `[■■■□□] SYNCHRO…` et le bouton
 est `aria-busy`.
 
+### Sélecteur segmenté
+
+Filtres exclusifs d'une vue (`7 J · 30 J · 3 MOIS · TOUT`, files de jeu) : cadre 1px `border-base`
+sur `surface`, options en mono 12px MAJ., hauteur 36px. L'option active prend `surface-high`, le texte
+principal et le **filet bas rouge 2px** de l'élément actif ; les autres restent en `text-sec`. Les
+libellés ne passent jamais à la ligne : sur mobile, le sélecteur défile horizontalement.
+`aria-pressed` sur chaque option, `aria-label` sur le groupe (« Période »). Composant :
+`ui/SegmentSwitch.vue`.
+
 ### Pastilles
 
 - **Résultat** : carré 24px, lettre V/D/N en mono 700, fond teinté (`win-soft` / `loss-soft`).
+  **R** pour une partie annulée (remake, 3 manches ou moins) : fond `surface-high`, texte `text-ter`,
+  ligne à 70 % d'opacité ; elle ne compte dans aucune stat.
 - **Rang** : emblème `smallicon` 20px + fond couleur du rang, texte `night`, mono 11px —
   `◈ DIAMANT 2`. Version compacte (ligne dense) : l'emblème seul, nom en `title` et `alt`.
 - **RR** : `+18 RR` en `win` / `−21 RR` en `loss` / `±0 RR` en `text-sec`, mono.
@@ -189,7 +200,12 @@ est `aria-busy`.
 - **Carte vedette** : `ticks` + chiffre-clé en display.
 - **Héros profil** : `night`, carte de joueur `wideart` en bandeau voilé, portrait de l'agent
   principal (`fullportrait`) détouré à droite, trame `░▒▓`, `notch-2`, filet rouge en
-  `animate-wipe`, emblème du pic de rang (`ValorantPeakRankIconUrl`).
+  `animate-wipe`, emblème du pic de rang (`ValorantPeakRankIconUrl`). Les cartes de joueur vont du
+  presque noir à l'illustration saturée en plein jour : un voile plat `night` à 50 % passe **sous** le
+  dégradé, sinon les rangs deviennent illisibles sur les plus claires. Le portrait n'apparaît qu'à
+  partir de `md:`, masqué de 10 % à 55 % de sa largeur pour ne pas couvrir les rangs. Rangs actuel et
+  pic, forme des classées (pastilles V/D), puis le CTA rouge « Synchroniser » (connecté uniquement)
+  et « Synchro il y a X min ».
 - **Héros match** : `splash` de la carte sous le voile `night`, portrait de l'agent joué.
 
 ### Lignes
@@ -198,7 +214,11 @@ est `aria-busy`.
   32px, Riot ID + tag en mono `text-ter`, emblème + pastille rang, RR, sparkline glyphe.
 - **Partie (fil)** : pastille résultat, icône d'agent (`displayicon` 52px), bandeau de la carte
   (`listviewicon`) en fond voilé, score `13–9` en display, K/D/A mono, ACS, HS % en barre glyphe,
-  pastille RR. Ligne entière cliquable, survol `surface-hover` + filet gauche rouge.
+  pastille RR. Ligne entière cliquable, survol `surface-hover` + filet gauche rouge. Tant qu'il n'y a
+  pas de page de match, la ligne n'est pas un lien : seul le filet se renforce au survol, et les
+  coéquipiers du crew (« En groupe avec … ») sont des liens vers leur profil. L'API ne sert pas les
+  rôles d'agent : le filet bas de l'icône reste `border-strong`. Regroupement par jour (heure de
+  Paris) sous un index `// AUJOURD'HUI` avec le bilan `2V · 1D` et le RR net du jour.
 
 ### Données de match
 

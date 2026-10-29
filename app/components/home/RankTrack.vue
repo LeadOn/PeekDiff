@@ -174,12 +174,12 @@ const height = computed(() => railY.value + (lanes.value.count - 1) * laneStep.v
         />
       </template>
 
-      <button
+      <NuxtLink
         v-for="dot in dots"
         :key="dot.entry.id"
-        type="button"
+        :to="`/player/${dot.entry.id}`"
         :aria-label="dot.label"
-        class="absolute cursor-default transition-[left,top,transform,opacity] duration-[700ms,300ms,150ms,200ms] ease-snap"
+        class="absolute transition-[left,top,transform,opacity] duration-[700ms,300ms,150ms,200ms] ease-snap"
         :style="dot.style"
         @mouseenter="emit('hover', dot.entry.id)"
         @mouseleave="emit('hover', null)"
@@ -203,7 +203,7 @@ const height = computed(() => railY.value + (lanes.value.count - 1) * laneStep.v
           <span class="block text-[13px] font-semibold">{{ dot.entry.name }}{{ dot.isMe ? ' · vous' : '' }}</span>
           <span class="mt-0.5 block font-mono text-[11px] text-on-night-2">{{ dot.detail }}</span>
         </span>
-      </button>
+      </NuxtLink>
     </div>
   </div>
 </template>
