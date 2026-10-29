@@ -23,8 +23,8 @@ exists so a crew member is recognised ("Vous") and can edit their own profile.
 
 # Features
 
-Four pages so far: the crew dashboard, player profiles, match pages and settings. A `/stats` page, a
-crew search and an admin space are JungleDiff features PeekDiff does not have yet (see Known Gaps).
+Four pages so far: the crew dashboard, player profiles, match pages and settings. A `/stats` page and
+an admin space are JungleDiff features PeekDiff does not have yet (see Known Gaps).
 
 - `/` — crew dashboard, built from the "Protocol" design system. Top to bottom: status chips (the
   reload chip with "Synchro il y a X min", "7 derniers jours", the current act), the week
@@ -49,11 +49,14 @@ crew search and an admin space are JungleDiff features PeekDiff does not have ye
   peak ranks, the last ranked results, smurf links, and a red "Synchroniser" for signed-in users that
   calls `PATCH /val/player/{id}`), then "Performances" (`ProfileKpis`: games and win rate, ACS / ADR,
   K/D / KDA, headshots, KAST, rating, first duels, playtime) filtered by period (7 j · 30 j · 3 mois ·
-  Tout) and queue (Toutes · Compétition · Non classée · Vélocité), then two columns — "Dernières
-  parties" (`ValMatchRow` grouped by Paris day with the day's record and net RR, 10 per page) beside a
-  rail: `ProfileRankProgress` (the elo curve of the period and the RR of each ranked game),
-  `ProfileAgents`, `ProfileMaps`, `ProfileDuos`. Filters live in the query string (`?period=7j&queue=
-  competitive`). The period does not restrict the history; the queue does. A crew member with no
+  Tout), queue (Toutes · Compétition · Non classée · Vélocité) and agent, then two columns —
+  "Dernières parties" (`ValMatchRow` grouped by Paris day with the day's record and net RR, 10 per
+  page) beside a rail: `ProfileRankProgress` (the elo curve of the period and the RR of each ranked
+  game), `ProfileAgents`, `ValMapList`, `ProfileDuos`. Filters live in the query string
+  (`?period=7j&queue=competitive&agent=Jett`). The period does not restrict the history; the queue
+  and the agent do. The agent filter is picked from `ProfileAgents` (a row toggles it) and shown as a
+  removable chip beside the switches; it restricts the tiles, the maps, the duos and the history,
+  never the rank progression (a rank is the account's, not an agent's). A crew member with no
   `valorantPuuid` gets a notice instead of the stats. Each history row opens its match page.
 - `/match/[id]` — one game, told from one side: "Alliés" (teal) is the team of the player in
   `?player=` (the profile's links set it), else the viewer's once mounted if they played it, else the
@@ -230,6 +233,10 @@ crew search and an admin space are JungleDiff features PeekDiff does not have ye
   rank history (bucketed for the curve, raw for the per-game bars), the first page of games, and the
   crew list (its own controller) to name a smurf's main. A filter change re-reads the player and
   reassigns `data` — `useAsyncData` data is a shallow ref, so mutating a nested field is not seen.
+  Filtered on an agent, the recap lists that agent alone: the page keeps the unfiltered agent list in
+  `agentOptions` — snapshotted from the recap when an agent is picked, re-read (same period and queue,
+  no agent) when the page opens filtered or the period or queue changes — so every agent stays
+  pickable.
   `buildGameLine(game, playerId)` in `app/utils/val-match.ts` turns a game into what the row shows,
   seen from that player; `groupGamesByDay` groups the lines by Paris day. On the match page,
   `app/utils/val-game.ts` does the same for the whole game: `resolvePerspective` picks the allies,
@@ -347,6 +354,9 @@ Each of these is easy to reintroduce and hard to diagnose.
 - **Rank history buckets can be too coarse to draw.** A month of history read by `Month` is a single
   point: `ProfileRankProgress` falls back to the raw entries when the buckets give fewer than three.
   The API's `days` only applies to buckets, so the profile filters raw entries to the period itself.
+- **`agentName` is matched exactly by the API.** It compares the stored English name ("Jett",
+  "KAY/O") case-sensitively: always send a name read from an agent list, never a typed or lowercased
+  one. `?agent=` accepts any plausible name; an unknown one simply yields empty tiles and history.
 - **The Valorant fields added with the match history are optional in `ValPlayerDto`.** An API build
   older than 2026-10-29 does not send `recentFormValorant`, `mainAgent*`, `smurfAccounts` or
   `valorantPerformanceStats`, nor serve `/val/match/...`: the profile then shows empty tiles and an
@@ -402,9 +412,8 @@ Each of these is easy to reintroduce and hard to diagnose.
   the design system's economy view and `◎` marks wait for it. Matches that are not in the database
   (older than a player's last synchronisations) cannot be opened: the rank history's `matchId` is
   therefore never linked.
-- **No agent filter on the profile.** The API takes `agentName` on both the recap and the history; the
-  page only filters by period and queue. Agent roles are not served at all, so agent icons carry a
-  neutral rule instead of the role colour the design system asks for.
+- **No agent roles.** The API does not serve them, so agent icons carry a neutral rule instead of the
+  role colour the design system asks for, and the profile filters by agent, not by role.
 - **No `/stats` or admin space yet.**
 - **No CI pipeline.** Lint, types, audit, build and the e2e suite only run when someone runs them.
 - **No error tracking.** Failures are reported through `console.error` only.

@@ -202,9 +202,10 @@ The Keycloak client must allow `<origin>/api/auth/callback` as a redirect URI.
 - a hero over the player card with the main agent's portrait, current and peak ranks, the last ranked
   results, smurf links, and "Synchroniser" for signed-in users (a Riot re-sync through the API);
 - performance tiles (games and win rate, ACS / ADR, K/D / KDA, headshots, KAST, rating, first duels,
-  playtime) filtered by period (7 j · 30 j · 3 mois · Tout) and queue, kept in the URL;
+  playtime) filtered by period (7 j · 30 j · 3 mois · Tout), queue and agent, kept in the URL;
 - the last games grouped by day with the day's record and net RR, 10 at a time;
-- a rail: the elo curve over the period with the RR of each ranked game, agents, maps, duos.
+- a rail: the elo curve over the period with the RR of each ranked game, agents (a row filters the
+  profile on that agent), maps, duos.
 
 **Done — match pages (`/match/[id]`)**, opened from any row of a profile's history:
 
@@ -219,8 +220,7 @@ The Keycloak client must allow `<origin>/api/auth/callback` as a redirect URI.
 finds a member by Riot ID, nickname or full name, and a mobile bottom bar (Crew, Parties, Recherche,
 Profil).
 
-**Not yet:** a `/stats` page, the admin space, an agent filter on the profile, economy on the match
-page.
+**Not yet:** a `/stats` page, the admin space, economy on the match page.
 
 ## 🧩 Backend Gaps
 
