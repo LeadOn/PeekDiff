@@ -271,7 +271,8 @@ icône 24px, nom en mono MAJ., `×` en `text-ter`, filet bas rouge 2px ; un clic
   période (headshots) se dit avec elle : « de headshots sur 3 mois ».
 - **Page Records** (`/stats`) : `// 01 ── RECORDS`, titre « Records du crew », sous-titre mono
   `COMPÉTITION · 30 DERNIERS JOURS · N PARTIES ANALYSÉES · N JOUEURS`, l'interrupteur `[x] SMURFS` à
-  droite comme sur le classement. Dessous, deux sélecteurs segmentés : période (`7 J · 30 J · 3 MOIS ·
+  droite comme sur le classement (qui en a deux, `[ ] SMURFS` et `[ ] SANS VALORANT`, éteints par
+  défaut). Dessous, deux sélecteurs segmentés : période (`7 J · 30 J · 3 MOIS ·
   6 MOIS · TOUT`) et file (`COMPÉTITION · TOUTES`). La grille des records, puis
   `// 02 ── AGENTS ET CARTES` avec les deux cartes côte à côte dès `md:`. Pendant qu'un filtre
   recharge, la réponse précédente reste à 50 % d'opacité. L'accueil y mène par `[ TOUS LES RECORDS → ]`

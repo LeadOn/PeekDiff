@@ -30,6 +30,13 @@ const client = useGameOnVal()
  */
 const includeSmurfs = ref(false)
 
+/**
+ * Whether the ladder also lists crew members without Valorant data (League of Legends players with a
+ * Riot ID, accounts never played). Off by default; the crew list is re-queried with
+ * `includeWithoutValorant`, which only reaches it: the recap and the feed are made of games anyway.
+ */
+const includeWithoutValorant = ref(false)
+
 // "Synchro il y a 4 min" depends on the reader's clock, and `/` is served from a shared SWR cache:
 // the relative time only exists client side, refreshed every minute.
 const now = ref<number | null>(null)
@@ -51,11 +58,11 @@ onBeforeUnmount(() => {
 // The handlers replay on every return to the home page (see cacheOnlyDuringHydration); the store's
 // freshness windows decide whether the API actually needs to be called again. The three run in
 // parallel: awaited one by one, the SSR pass would pay for each in turn. `watch` re-runs the two
-// smurf-dependent ones when the toggle flips, and the store's flag guard keeps a cached answer for the
-// other flag value from being served.
+// smurf-dependent ones when the smurf toggle flips, and the crew list when "Sans Valorant" does; the
+// store's flag guards keep a cached answer for the other flag value from being served.
 const freshOnNavigation = { getCachedData: cacheOnlyDuringHydration }
 const [{ error: playersError }, { error: homeError }, { error: lastMatchesError }] = await Promise.all([
-  useAsyncData('valPlayers', (_nuxtApp, { signal }) => store.fetchPlayers(signal), freshOnNavigation),
+  useAsyncData('valPlayers', (_nuxtApp, { signal }) => store.fetchPlayers(includeWithoutValorant.value, signal), { ...freshOnNavigation, watch: [includeWithoutValorant] }),
   useAsyncData('valHome', (_nuxtApp, { signal }) => store.fetchHomeStats(includeSmurfs.value, signal), { ...freshOnNavigation, watch: [includeSmurfs] }),
   useAsyncData('valLastMatches', (_nuxtApp, { signal }) => store.fetchLastMatches(includeSmurfs.value, signal), { ...freshOnNavigation, watch: [includeSmurfs] }),
 ])
@@ -207,7 +214,7 @@ useSeoMeta({
     </section>
 
     <div v-if="!hasApiError" class="mt-12 grid items-start gap-10 rail:grid-cols-[minmax(0,1fr)_340px]">
-      <CrewLadder v-model:include-smurfs="includeSmurfs" :ladder="ladder" class="min-w-0" />
+      <CrewLadder v-model:include-smurfs="includeSmurfs" v-model:include-without-valorant="includeWithoutValorant" :ladder="ladder" class="min-w-0" />
 
       <aside class="min-w-0" aria-label="Le crew cette semaine">
         <SectionIndex index="02" label="Cette semaine" class="mb-4" />

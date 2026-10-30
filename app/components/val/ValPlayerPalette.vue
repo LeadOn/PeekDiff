@@ -87,6 +87,10 @@ const countLabel = computed(() => {
 const optionId = (index: number) => `search-palette-option-${index}`
 const isMe = (entry: LadderEntry) => playerStore.currentPlayer?.id === entry.id
 
+/**
+ * Reuses whatever list the store holds: opened on the home page with "Sans Valorant" on, the palette
+ * finds the same players the ladder shows. Otherwise, members with Valorant data only.
+ */
 const loadPlayers = async () => {
   if (store.players.length > 0) return
   loadRequest?.abort()
@@ -94,7 +98,7 @@ const loadPlayers = async () => {
   isLoading.value = true
   loadFailed.value = false
   try {
-    await store.fetchPlayers(loadRequest.signal)
+    await store.fetchPlayers(false, loadRequest.signal)
   } catch (error) {
     if (!isAbortError(error)) {
       console.error('[palette] Liste du crew indisponible :', error)

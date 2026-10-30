@@ -246,7 +246,7 @@ const historySubtitle = computed(() => {
 
 async function loadCrew() {
   try {
-    await valStore.fetchPlayers(crewRequest.signal)
+    await valStore.fetchPlayers(false, crewRequest.signal)
   } catch (e) {
     if (!isAbortError(e)) console.error('[player] Liste du crew indisponible :', e)
   }
