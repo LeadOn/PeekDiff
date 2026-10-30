@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRuntimeConfig } from '#app'
 import { useAuthStore } from '~/stores/auth'
 import { usePlayerStore } from '~/stores/player'
 import { useSearchPalette } from '~/composables/useSearchPalette'
 import { applyTheme, isLightTheme } from '~/utils/theme'
 import ValPlayerCard from '~/components/val/ValPlayerCard.vue'
 
+const config = useRuntimeConfig()
 const authStore = useAuthStore()
 const playerStore = usePlayerStore()
 const palette = useSearchPalette()
@@ -86,6 +88,15 @@ const toggleTheme = () => {
       </button>
 
       <div class="flex items-center gap-2">
+        <!-- The crew's League of Legends twin. Hidden on phones, where the header is full: the footer carries it. -->
+        <a
+          :href="config.public.jungleDiffUrl"
+          aria-label="JungleDiff, le crew sur League of Legends"
+          title="JungleDiff, le crew sur League of Legends"
+          class="hidden size-10 items-center justify-center border border-border-base transition-colors duration-150 ease-snap hover:border-border-strong sm:flex"
+        >
+          <img src="~/assets/img/JungleDiff_Logo.png" alt="" width="128" height="128" class="size-8 object-contain">
+        </a>
         <button
           type="button"
           :aria-label="isLight ? 'Passer au thème sombre' : 'Passer au thème clair'"
