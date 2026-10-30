@@ -52,7 +52,7 @@ admin space.
   Tout), queue (Toutes · Compétition · Non classée · Vélocité) and agent, then two columns —
   "Dernières parties" (`ValMatchRow` grouped by Paris day with the day's record and net RR, 10 per
   page) beside a rail: `ProfileRankProgress` (the elo curve of the period and the RR of each ranked
-  game), `ProfileAgents`, `ValMapList`, `ProfileDuos`. Filters live in the query string
+  game, a bar opening its match page when the API flags it `matchStored`), `ProfileAgents`, `ValMapList`, `ProfileDuos`. Filters live in the query string
   (`?period=7j&queue=competitive&agent=Jett`). The period does not restrict the history; the queue
   and the agent do. The agent filter is picked from `ProfileAgents` (a row toggles it) and shown as a
   removable chip beside the switches; it restricts the tiles, the maps, the duos and the history,
@@ -66,8 +66,14 @@ admin space.
   PK, PM; the followed player on `surface-selected` with the red rule; crew members link to their
   profile), then "Manche par manche" (`MatchTimeline`: the round frieze, glyph of the round's end in
   the winning side's colour, a separator at half time and at overtime, a dot on rounds with a
-  ceremony; selecting a round shows its plant / defuse and its kill feed). The game is rendered on
-  the server; rounds and kills (`/rounds`) load after mount. A non-uuid id is a 404 without calling
+  ceremony; selecting a round shows its plant / defuse and its kill feed), then "Économie"
+  (`MatchEconomy`, from the same `/rounds` answer's `roundPlayerStats`: one column per round, the
+  allies' team loadout above the axis and the enemies' below, the axis in the round winner's colour
+  and each team's buy — pistolets, éco, semi, achat complet, `buyType` in `val-game.ts` — under its
+  bar; the selected round, shared with the frieze, lists each player's weapon, armor, loadout, bank,
+  damage and kills). A game imported before the API stored per-round stats says "Économie
+  indisponible pour cette partie" instead of drawing zeros. The game is rendered on the server;
+  rounds, kills and round stats (`/rounds`) load after mount. A non-uuid id is a 404 without calling
   the API.
 - `/stats` — "Records du crew", the home page's records with filters, from `GET /val/stats/global`:
   period (7 j · 30 j · 3 mois · 6 mois · Tout, `RECORDS_PERIODS` in `val-period.ts`), queue
@@ -78,8 +84,9 @@ admin space.
   `useAsyncData` handler, the previous answer dimmed meanwhile. An API answering 404 (a build older
   than 2026-10-29) shows "Records indisponibles", not an outage. Linked from the header ("Records"),
   the palette and the home page; not from the mobile bar, which keeps its four entries.
-- `/settings` — `auth: true`. The signed-in user's name, nickname and Riot ID (`PATCH /player/me`),
-  a link to their profile (or, without a Riot ID, a notice asking for one) and a sign-out. No profile
+- `/settings` — `auth: true`. The signed-in user's name, nickname and Riot ID (`PATCH /player/me`;
+  a `409` means another account holds that Riot ID and nothing was saved, names included — the page
+  says so), a link to their profile (or, without a Riot ID, a notice asking for one) and a sign-out. No profile
   picture upload: PeekDiff shows the Valorant player
   card, never `profilePictureUrl`. Admins also get a link to `/admin`.
 - `/admin` — `admin: true`, reserved to `gameon_admin` (guarded on the server and the client, see
@@ -90,11 +97,21 @@ admin space.
   joined with its Valorant side (`GET /val/player?includeOutOfCrew=true`) by `buildAdminRows`
   (`app/utils/val-admin.ts`) and filtered Crew · Hors crew · Archivés. Accounts without a Riot ID come
   first. Each `AdminAccountRow` shows card, nickname, full name, Riot ID (or "// sans Riot ID"), status
-  and smurf badges, rank and last sync, and offers "Synchroniser" (`PATCH /val/player/{id}`), "Riot ID"
-  (an inline form, `PATCH /val/player/{id}/admin`) and "Profil" when the account has one. Everything
-  loads after mount; every write re-reads the list, invalidates the `val` store and says what happened
-  in a live region. No crew membership, archiving or smurf linking: the Valorant API has no route for
-  them (see Known Gaps). Linked from the header ("Admin", client-only), the palette and `/settings`.
+  and smurf badges, rank and last sync, and offers "Synchroniser" (`PATCH /val/player/{id}`), "Gérer"
+  and "Profil" when the account has one. "Gérer" opens a panel under the row: the Riot ID
+  (`PATCH /val/player/{id}/admin`, `409` when another account holds it), crew membership
+  (`PATCH /val/player/{id}/crew`; a main leaving takes its smurfs along, the toast counts them, and
+  coming back does not bring them back), archiving (`PATCH /player/{id}/archived`), and the smurfs —
+  unlink (`DELETE /val/player/smurfs/{id}`) or, on a main, link one by Riot ID
+  (`POST /val/player/{id}/smurfs`: an unknown account is created outside the crew and synchronised
+  from HenrikDev, up to a minute). Leaving the crew, archiving and unlinking take a second click.
+  `InCrew`, `Archived` and `PrimaryPlayerId` are single fields of the GameOn account, shared with
+  JungleDiff: a change here applies there too, on purpose, and the panel says so. Everything loads
+  after mount; one write at a time per row; every write re-reads the whole list (one write can move
+  several accounts), invalidates the `val` store and says what happened in a live region. Refusals
+  are worded from the status (`adminErrorMessage`, `linkSmurfErrorMessage` in `val-admin.ts`), the
+  API's English sentence only telling two 404s or two 409s apart. Linked from the header ("Admin",
+  client-only), the palette and `/settings`.
 - **Smurf toggle** — page state in `index.vue`, off by default. It filters the ladder (and the rank
   fallbacks) in place — the store always keeps every account — and re-queries `/val/home` and
   `/val/match/last` with `includeSmurfs`.
@@ -187,8 +204,8 @@ admin space.
   directly from the browser. Game art is the one external origin the browser loads, as anonymous
   images from `https://media.valorant-api.com` (allowed by the CSP's `img-src`).
 - `ALLOWED_PREFIXES` in the proxy is `['val/', 'player/']`: the front end cannot reach the LoL, FIFA
-  or tournament controllers of the same API. Widen it deliberately. `DELETE_PATHS` is empty — every
-  `DELETE` is a `405` until a route needs one.
+  or tournament controllers of the same API. Widen it deliberately. `DELETE_PATHS` allows a single
+  shape, `val/player/smurfs/{id}` (unlinking a smurf); every other `DELETE` is a `405`.
 - Roles come from the session, not from decoding a token client-side: `authStore.isAdmin` checks the
   `gameon_admin` realm role (`ADMIN_ROLE` in `shared/utils/admin-access.ts`). It shows the admin
   links (header, palette, `/settings`); the guard below is what actually keeps the space closed.
@@ -247,8 +264,9 @@ admin space.
   (`GET /val/stats/global?period=&rankedOnly=&includeSmurfs=`) for `/stats`. The home page does not
   call the latter: `/val/home` embeds its 30-day competitive answer as `crewRecords`. The admin space
   adds `getPlayerAccounts` (`GET /player?archived=`), `getValAccounts`, `refreshAllValRanks`,
-  `updateValRiotId` (compare the Riot ID it answers with the one sent: the API answers 200 with the
-  account unchanged when another account holds it) and `importValMatch`.
+  `updateValRiotId` (`409` when another account holds the Riot ID), `setValCrewMembership`,
+  `setPlayerArchived` (never `PATCH /player`, which also rewrites `keycloakId`), `linkValSmurf`,
+  `unlinkValSmurf` and `importValMatch`.
 - The `val` store caches the crew, the home recap and the crew feed behind a 60 s window rather than
   for the whole SPA session, and `index.vue` passes `getCachedData: cacheOnlyDuringHydration`
   (`app/utils/async-data.ts`) so the handlers are replayed on client navigation without breaking
@@ -387,6 +405,11 @@ Each of these is easy to reintroduce and hard to diagnose.
 - **A day can show net RR without games.** `/val/home` sums RR from the rank history, games from the
   stored matches; a ranked game older than the account's stored ones moves the day's RR without adding
   to its games. Print both as they come.
+- **The API's refusals are English sentences.** A `409` or `404` body is a JSON string such as "That
+  Riot ID is already used by another player.": decide on the status, print French, and read the text
+  only to tell two refusals of the same status apart (`linkSmurfErrorMessage`), with a wording that
+  still holds if the sentence changes. `roundPlayerStats` is optional and may be empty: both mean
+  "économie indisponible", never zeros.
 - **Kills carry no headshot flag.** The design system's `◎` cannot be drawn in the kill feed; the
   per-player HS % comes from the participant stats. A kill whose `weaponType` is "Bomb" is the spike.
 - **Rank history buckets can be too coarse to draw.** A month of history read by `Month` is a single
@@ -457,17 +480,21 @@ Each of these is easy to reintroduce and hard to diagnose.
   `/val/player/{id}?period=`, `/val/stats/global`, `/val/home`), tested against a local API only. The
   production API still serves players and rank history alone, so the profile's tiles and history stay
   empty there, and the home page stays on its rank-only fallback, until it is deployed.
-- **The match page has no economy and no per-kill headshots.** The API stores neither per round, so
-  the design system's economy view and `◎` marks wait for it. Matches that are not in the database
-  (older than a player's last synchronisations) cannot be opened: the rank history's `matchId` is
-  therefore never linked.
+- **The admin routes, the economy and `matchStored` are not deployed yet.** GameOn-API's
+  `features/valorant/admin-and-economy` branch (2026-10-30) adds the crew / archive / smurf routes, the
+  `409` on a taken Riot ID, `roundPlayerStats` and `matchStored`. Until it runs, those admin actions
+  fail upstream, every game says its economy is unavailable, and no rank bar is linked.
+- **No per-kill headshots.** HenrikDev does not give them: the design system's `◎` waits, and the
+  economy's hits per body part are never turned into one. Matches that are not in the database
+  (older than a player's last synchronisations) cannot be opened: only rank history entries flagged
+  `matchStored` link to their match, and `matchStored` is only filled by `GET /val/player/{id}/rank`
+  (`valorantCurrentRank` always carries `false`, so `LastRankedGames` links to the player).
 - **Agent roles are a front-end table.** The API does not serve them: `app/utils/val-agents.ts` maps
   every playable agent (uuid and English name, from valorant-api.com) to its role, and Riot's next
   agent needs a row there. Until it gets one it is drawn with the neutral `border-strong` rule and no
   chip. The profile filters by agent, not by role: the API's `agentName` takes a single agent.
-- **The admin space only covers what the Valorant API serves.** No crew membership, archiving,
-  name edits or smurf linking (JungleDiff has them through `lol/summoner/...` routes with no Valorant
-  counterpart; `PATCH /player` could archive, but it overwrites `keycloakId` with whatever it is sent).
+- **The admin space only covers what the Valorant API serves.** No name edits on another account
+  (`PATCH /player` would overwrite `keycloakId` with whatever it is sent).
   `PATCH /val/player/ranks`, `PATCH /val/player/{id}` and `POST /val/match/{id}/update` are anonymous
   on the API: the admin space (and, for the first two, the home chip and the profile, open to anyone) is
   where PeekDiff calls them, not what protects them.

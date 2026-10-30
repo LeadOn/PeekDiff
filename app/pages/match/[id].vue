@@ -6,11 +6,12 @@ import { AppError, errorStatusCode, isAbortError } from '~/lib/types/error'
 import { useGameOnVal } from '~/composables/useGameOnVal'
 import { usePlayerStore } from '~/stores/player'
 import { cacheOnlyDuringHydration } from '~/utils/async-data'
-import { buildRoundDetail, buildRounds, buildScoreboard, resolvePerspective } from '~/utils/val-game'
+import { buildEconomy, buildRoundDetail, buildRoundLoadouts, buildRounds, buildScoreboard, resolvePerspective } from '~/utils/val-game'
 import SectionIndex from '~/components/ui/SectionIndex.vue'
 import MatchHero from '~/components/match/MatchHero.vue'
 import MatchScoreboard from '~/components/match/MatchScoreboard.vue'
 import MatchTimeline from '~/components/match/MatchTimeline.vue'
+import MatchEconomy from '~/components/match/MatchEconomy.vue'
 
 const route = useRoute()
 const client = useGameOnVal()
@@ -102,6 +103,9 @@ async function loadTimeline() {
   }
 }
 
+/** Rounds load after mount: until they answer (server render included), both cards show a skeleton. */
+const timelinePending = computed(() => timelineLoading.value || (!timeline.value && !timelineFailed.value))
+
 const cells = computed(() => (timeline.value ? buildRounds(timeline.value.rounds, perspective.value) : []))
 const activeRound = computed(() => selectedRound.value ?? cells.value[0]?.index ?? null)
 
@@ -111,6 +115,13 @@ const roundDetail = computed(() => {
   if (!game.value || !timeline.value || !round || !cell) return null
   return buildRoundDetail(game.value, round, cell, timeline.value.kills, perspective.value)
 })
+
+// Absent from an API build older than 2026-10-30, empty for a game imported before it: same thing here.
+const roundPlayerStats = computed(() => timeline.value?.roundPlayerStats ?? [])
+const economy = computed(() => buildEconomy(roundPlayerStats.value, cells.value, perspective.value))
+const roundLoadouts = computed(() => (game.value
+  ? buildRoundLoadouts(game.value, roundPlayerStats.value, economy.value.find(round => round.index === activeRound.value), perspective.value)
+  : []))
 
 const retrying = ref(false)
 
@@ -183,8 +194,22 @@ async function retry() {
           :selected="activeRound"
           :cells="cells"
           :detail="roundDetail"
-          :loading="timelineLoading"
+          :loading="timelinePending"
           :failed="timelineFailed"
+          @update:selected="selectedRound = $event"
+        />
+      </section>
+
+      <section aria-labelledby="match-economy" class="mt-12">
+        <SectionIndex index="03" label="Économie" />
+        <h2 id="match-economy" class="mb-5 mt-3 font-display text-[40px] font-extrabold uppercase leading-[0.95] tracking-[0.01em] md:text-5xl">Économie</h2>
+        <MatchEconomy
+          :selected="activeRound"
+          :rounds="economy"
+          :loadouts="roundLoadouts"
+          :loading="timelinePending"
+          :failed="timelineFailed"
+          :has-rounds="cells.length > 0"
           @update:selected="selectedRound = $event"
         />
       </section>

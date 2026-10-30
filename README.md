@@ -45,7 +45,8 @@ API and renders game art from media.valorant-api.com.
 - `server/api/auth/*` — the complete OIDC Authorization Code + PKCE flow: `login` (also the silent
   `?silent=1` probe), `callback`, `session`, `logout`. Cookies are prefixed `pd_`.
 - `server/api/gameon/[...path].ts` — authenticating proxy to the GameOn API. Reads the session
-  cookies, attaches the bearer, and only lets `val/` and `player/` through. Every `DELETE` is a `405`.
+  cookies, attaches the bearer, and only lets `val/` and `player/` through. The only `DELETE` it relays is unlinking a smurf
+  (`val/player/smurfs/{id}`); every other one is a `405`.
   An upstream that never answers yields `502`, one that blows the 120 s ceiling `504`.
 - `server/middleware/admin-session.ts` — resolves the session of admin-path requests so the admin
   space is refused (302 to sign-in, or 403) during SSR, never served as a shell.
@@ -212,7 +213,8 @@ Toutes) and smurfs, kept in the URL. Linked from the header, the search palette 
 - performance tiles (games and win rate, ACS / ADR, K/D / KDA, headshots, KAST, rating, first duels,
   playtime) filtered by period (7 j · 30 j · 3 mois · Tout), queue and agent, kept in the URL;
 - the last games grouped by day with the day's record and net RR, 10 at a time;
-- a rail: the elo curve over the period with the RR of each ranked game, agents (a row filters the
+- a rail: the elo curve over the period with the RR of each ranked game (a bar opens its match when
+  the game is stored), agents (a row filters the
   profile on that agent), maps, duos.
 
 **Done — match pages (`/match/[id]`)**, opened from any row of a profile's history:
@@ -220,9 +222,13 @@ Toutes) and smurfs, kept in the URL. Linked from the header, the search palette 
 - a hero over the map's splash with the score from the followed player's side and their line;
 - both scoreboards (ACS, K, D, A, +/−, ADR, HS, KAST, first kills and deaths), crew members linked;
 - the round frieze (how each round ended, who won it, half time, overtime, ceremonies) and, for the
-  selected round, the plant / defuse and the kill feed.
+  selected round, the plant / defuse and the kill feed;
+- the economy: each team's loadout per round with its buy (pistolets, éco, semi, achat complet) and,
+  for the selected round, every player's weapon, armor, credits and damage — or "économie
+  indisponible" for a game imported before the API kept it.
 
-**Done — settings (`/settings`)**, signed-in only: name, nickname and Riot ID.
+**Done — settings (`/settings`)**, signed-in only: name, nickname and Riot ID (a Riot ID already
+held by another account is refused, and nothing is saved).
 
 **Done — navigation:** the crew search palette (⌘K / Ctrl K, "/", or the header's `>_` button) that
 finds a member by Riot ID, nickname or full name, and a mobile bottom bar (Crew, Parties, Recherche,
@@ -234,11 +240,10 @@ profile hero names the main agent's role.
 
 **Done — the admin space (`/admin`)**, `gameon_admin` only, refused on the server to anyone else:
 refresh every crew rank, import a game from HenrikDev, and every GameOn account (crew, outside the
-crew, archived; those without a Riot ID first) with its Riot ID, rank and last sync, to re-sync or
-point at another Riot ID.
-
-**Not yet:** crew membership, archiving and smurf linking in the admin space, economy on the match
-page.
+crew, archived; those without a Riot ID first) with its Riot ID, rank and last sync, to re-sync,
+point at another Riot ID, move in or out of the crew, archive, and link or unlink smurfs. Crew,
+archiving and smurfs are fields of the GameOn account: changing them here changes them in JungleDiff
+too, on purpose.
 
 ## 🧩 Backend Gaps
 
@@ -247,10 +252,13 @@ page.
   profile's tiles and history stay empty there, the home page keeps its rank-only fallback and
   `/stats` says "Records indisponibles" until it ships; the front tolerates the older build. Run a local API and the `peekdiff-prod-local-api` launch
   configuration to see everything filled.
-- **Not served for Valorant:** crew membership, archiving and smurf linking (JungleDiff's admin uses
-  `lol/summoner/...` routes for them). The write routes the admin space calls — every rank, one player,
-  one game — are anonymous on the API.
-- **Not served:** live games (the "en partie" strip), economy per round, headshots per kill (the kill
+- **Not deployed yet either:** the GameOn-API branch `features/valorant/admin-and-economy`
+  (2026-10-30) — crew, archive and smurf routes, the `409` on a taken Riot ID, the per-round economy
+  (`roundPlayerStats`) and `matchStored` on the rank history. Its database needs the
+  `Added_ValGameRoundPlayerStats` migration, or `/val/match/{id}/rounds` answers 500.
+- **Anonymous upstream:** the sync routes (every rank, one player) and the game import are anonymous
+  on the API; the admin space is where PeekDiff calls them, not what protects them.
+- **Not served:** live games (the "en partie" strip), headshots per kill (the kill
   feed's `◎`). Agent roles are not served either: the front keeps its own table
   (`app/utils/val-agents.ts`), to extend when Riot ships an agent.
 

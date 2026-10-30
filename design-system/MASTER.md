@@ -243,6 +243,15 @@ icône 24px, nom en mono MAJ., `×` en `text-ter`, filet bas rouge 2px ; un clic
   `enemy-soft`, filet 2px de la couleur du camp sur la manche sélectionnée, séparateurs libellés
   `MT` et `PROL.`, petit carré `mvp` dans le coin d'une manche à cérémonie (ace, clutch, sans
   faute…). Légende des glyphes au-dessus ; chaque case porte son libellé complet en `aria-label`.
+- **Économie** : sous la frise, carte « Achats par manche ». Une colonne par manche, alignées comme la
+  frise : la valeur d'équipement des alliés monte au-dessus d'un axe de 4px, celle des ennemis descend
+  en dessous (`ally` / `enemy`, hauteur proportionnelle au maximum de la partie), l'axe à la couleur
+  du camp qui gagne la manche. Une lettre mono 10px au bout de chaque barre dit l'achat (`P` pistolets,
+  `É` éco sous 2 000 crédits par joueur, `S` semi, `A` achat complet dès 3 900), légende au-dessus,
+  libellé complet en `aria-label`. La manche sélectionnée est celle de la frise ; dessous, un tableau
+  par camp (valeur totale, pastille d'achat, banque, dégâts, puis par joueur : arme · armure, valeur,
+  banque, dégâts, kills ; le joueur suivi en `surface-selected`). Sans données de manche : une ligne
+  `// Économie indisponible pour cette partie`, jamais de barres à zéro.
 - **Kill feed** : motif Journal avec les `killfeedportrait` (32×16) des deux agents, nom en `ally`
   ou `enemy`, `◎` pour headshot — l'API ne fournit pas encore le headshot par kill, le `◎` attend.
   Une manche à la fois (celle de la frise), avec pose et désamorçage du spike en tête ; le joueur
@@ -313,8 +322,15 @@ CTA rouge plein**, toutes les actions en boutons secondaires `[ LIBELLÉ ]` (cha
   Une ligne par compte : carte `smallart` 32px, pseudo, nom complet en `text-ter`, pastilles à filet
   (`HORS CREW`, `ARCHIVÉ`, `SMURF DE …`), Riot ID en mono — ou `// sans Riot ID` en `brand-red`, ces
   comptes en tête —, emblème et rang, « Synchro il y a … », puis les actions ghost
-  `[ SYNCHRONISER ] [ RIOT ID ] [ PROFIL ]`. Le formulaire de Riot ID s'ouvre sous la ligne, dans un
-  cadre pointillé `border-strong`. Les lignes archivées à 70 % d'opacité.
+  `[ SYNCHRONISER ] [ GÉRER ] [ PROFIL ]`. « Gérer » ouvre sous la ligne, dans un cadre pointillé
+  `border-strong`, trois blocs séparés par des filets pointillés, chacun titré en mono MAJ. : « Riot ID »
+  (formulaire), « Statut » (`[ RETIRER DU CREW ]` / `[ AJOUTER AU CREW ]`, `[ ARCHIVER ]` /
+  `[ DÉSARCHIVER ]`) et « Smurfs » (les smurfs du compte avec `[ DÉLIER ]`, puis le formulaire
+  `[ LIER UN SMURF ]` ; sur un smurf, son principal et `[ DÉLIER ]`). Retirer du crew, archiver et
+  délier demandent un second clic : le libellé devient `[ CONFIRMER ? ]` quatre secondes. Une ligne
+  `// …` en `text-ter` au pied du cadre rappelle que crew, archivage et smurfs sont partagés avec
+  JungleDiff. Une seule écriture à la fois par ligne ; l'erreur s'écrit sous la ligne en `brand-red`.
+  Les lignes archivées à 70 % d'opacité.
 - **Retour** : chaque action réussie s'annonce dans une ligne `[ok] …` en mono (`role="status"`) au-dessus
   de la liste, cinq secondes.
 

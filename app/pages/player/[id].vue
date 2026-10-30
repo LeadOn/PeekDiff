@@ -488,6 +488,7 @@ async function sync() {
               <ProfileRankProgress
                 :snapshots="rankSnapshots"
                 :changes="rankChanges"
+                :player-id="playerId"
                 :loading="rankLoading"
                 :period-phrase="periodOption.phrase"
                 class="md:max-rail:col-span-2"

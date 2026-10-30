@@ -9,7 +9,8 @@ import FrameHead from '~/components/ui/FrameHead.vue'
 /**
  * "Progression" card of a profile: the elo curve over the period (one snapshot per bucket, from
  * `GET /val/player/{id}/rank?granularity=…`), and under it one bar per ranked game with the RR it
- * moved (the raw entries that carry a `matchId`).
+ * moved (the raw entries that carry a `matchId`). A bar opens its match page only when the API says
+ * the game is stored (`matchStored`): the MMR history also knows ranked games that were never imported.
  *
  * Elo, not RR, is the axis: RR resets at every division while elo runs on (100 per division).
  */
@@ -18,6 +19,8 @@ const props = defineProps<{
   snapshots: ValRankHistoryDto[]
   /** Raw entries, oldest first. */
   changes: ValRankHistoryDto[]
+  /** The profile's player, followed on the match pages the bars open. */
+  playerId: string
   loading: boolean
   periodPhrase: string
 }>()
@@ -101,9 +104,16 @@ const games = computed(() => props.changes
     id: entry.id,
     change: entry.lastChange,
     title: `${formatDayMonth(entry.createdOn)} · ${entry.mapName ?? 'Carte inconnue'} · ${formatSigned(entry.lastChange)} RR${entry.wasDerankProtected ? ' (protégé)' : ''}`,
+    href: entry.matchStored ? `/match/${entry.matchId}?player=${props.playerId}` : null,
   })))
 
 const maxChange = computed(() => Math.max(1, ...games.value.map(game => Math.abs(game.change))))
+
+const bars = computed(() => games.value.map(game => ({
+  ...game,
+  barClass: game.change >= 0 ? 'bottom-1/2 bg-win' : 'top-1/2 bg-loss',
+  barHeight: `${Math.max(2, (Math.abs(game.change) / maxChange.value) * 50)}%`,
+})))
 
 const average = (values: number[]) => (values.length ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length) : null)
 const averageGain = computed(() => average(games.value.filter(game => game.change > 0).map(game => game.change)))
@@ -164,14 +174,25 @@ const netClass = computed(() => (net.value === null || net.value === 0 ? 'text-t
           </span>
         </p>
         <ol class="mt-2 flex h-16 items-stretch gap-0.5" aria-label="RR gagnés ou perdus par partie classée, de la plus ancienne à la plus récente">
-          <li v-for="game in games" :key="game.id" :title="game.title" class="relative flex-1">
-            <span
-              aria-hidden="true"
-              class="absolute inset-x-0"
-              :class="game.change >= 0 ? 'bottom-1/2 bg-win' : 'top-1/2 bg-loss'"
-              :style="{ height: `${Math.max(2, (Math.abs(game.change) / maxChange) * 50)}%` }"
-            />
-            <span class="sr-only">{{ game.title }}</span>
+          <li v-for="game in bars" :key="game.id" :title="game.title" class="relative flex-1">
+            <NuxtLink v-if="game.href" :to="game.href" class="absolute inset-0 hover:bg-surface-hover focus-visible:outline-offset-[-2px]">
+              <span
+                aria-hidden="true"
+                class="absolute inset-x-0"
+                :class="game.barClass"
+                :style="{ height: game.barHeight }"
+              />
+              <span class="sr-only">{{ game.title }} · ouvrir la partie</span>
+            </NuxtLink>
+            <template v-else>
+              <span
+                aria-hidden="true"
+                class="absolute inset-x-0"
+                :class="game.barClass"
+                :style="{ height: game.barHeight }"
+              />
+              <span class="sr-only">{{ game.title }}</span>
+            </template>
           </li>
         </ol>
       </div>

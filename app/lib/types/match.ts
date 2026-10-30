@@ -151,9 +151,48 @@ export interface ValGameKillDto {
   weaponType: string | null;
 }
 
+/**
+ * One player's round (`ValGameRoundPlayerStat`): what they bought, what they did with it. There is no
+ * headshot per kill here either, only hits per body part.
+ */
+export interface ValGameRoundPlayerStatDto {
+  id: number;
+  matchId: string;
+  /** 0-based, like rounds and kills. */
+  roundNumber: number;
+  puuid: string;
+  /** "Red" or "Blue". */
+  team: string | null;
+  /** The value of what the player carried into the round, in credits. */
+  loadoutValue: number;
+  /** Credits left after the buy phase. */
+  remaining: number;
+  weaponId: string | null;
+  /** English name, e.g. "Vandal"; `null` with no main weapon. */
+  weaponName: string | null;
+  armorId: string | null;
+  /** English name, e.g. "Heavy Shields"; `null` without armor. */
+  armorName: string | null;
+  /** Combat score of the round; can be negative. */
+  score: number;
+  kills: number;
+  headshots: number;
+  bodyshots: number;
+  legshots: number;
+  /** Total damage dealt in the round, over every player hit. */
+  damage: number;
+  wasAfk: boolean;
+}
+
 /** `GET /val/match/{id}/rounds`: the round timeline and every kill, in order. */
 export interface ValGameTimelineDto {
   matchId: string;
   rounds: ValGameRoundDto[];
   kills: ValGameKillDto[];
+  /**
+   * Every player's round, sorted by round, team and puuid. Empty for games imported before the API
+   * stored them, and absent from an API build older than 2026-10-30: the economy is then unavailable,
+   * never drawn at zero.
+   */
+  roundPlayerStats?: ValGameRoundPlayerStatDto[];
 }
