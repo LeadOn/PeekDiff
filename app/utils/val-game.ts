@@ -1,4 +1,4 @@
-import type { ValGameDto, ValGameKillDto, ValGameParticipantDto, ValGameRoundDto } from '~/lib/types'
+import type { ValGameDto, ValGameKillDto, ValGameParticipantDto, ValGameRoundDto, ValGameRoundPlayerStatDto } from '~/lib/types'
 import type { GameResult } from '~/utils/val-match'
 import { playerDisplayName } from '~/utils/val-ladder'
 import { agentImageUrl, playerCardUrl } from '~/utils/val-assets'
@@ -309,4 +309,173 @@ export function buildRoundDetail(
       isFirstBlood: index === 0,
     })),
   }
+}
+
+// --- Economy ---
+
+/**
+ * How a team bought, from its average loadout per player (what each one carried into the round:
+ * weapon, armor and abilities, saved gear included). A pistol round is every half's first, whatever
+ * was spent: 800 credits buy nothing else.
+ */
+export type BuyType = 'pistol' | 'eco' | 'semi' | 'full'
+
+export const BUY_LABELS: Record<BuyType, string> = {
+  pistol: 'Pistolets',
+  eco: 'Éco',
+  semi: 'Semi',
+  full: 'Achat complet',
+}
+
+/** Under 2 000 a player carries a pistol at best; from 3 900 a rifle and heavy shields. */
+const ECO_BELOW = 2000
+const FULL_FROM = 3900
+
+export function buyType(averageLoadout: number, pistol: boolean): BuyType {
+  if (pistol) return 'pistol'
+  if (averageLoadout < ECO_BELOW) return 'eco'
+  return averageLoadout < FULL_FROM ? 'semi' : 'full'
+}
+
+export interface EconomyTeam {
+  side: Side
+  /** Sum of the players' loadouts, in credits. */
+  loadout: number
+  /** Credits the team kept after buying. */
+  remaining: number
+  buy: BuyType
+  damage: number
+}
+
+export interface EconomyRound {
+  /** 0-based, as the API counts. */
+  index: number
+  number: number
+  /** The side that won the round, from the timeline. */
+  winner: Side
+  ally: EconomyTeam | null
+  enemy: EconomyTeam | null
+  /** "Manche 4 · Alliés 18 400 crédits (semi) · Ennemis 22 100 crédits (achat complet) · gagnée par les alliés". */
+  label: string
+}
+
+const credits = (value: number) => `${value.toLocaleString('fr-FR')} crédits`
+
+/**
+ * The economy of each round, team by team, aligned on the timeline's cells: the rounds the stats
+ * cover, nothing for a round without any. Empty when the game was imported before the API stored
+ * per-round stats, which the page says rather than drawing zeros.
+ */
+export function buildEconomy(stats: ValGameRoundPlayerStatDto[], cells: RoundCell[], perspective: GamePerspective): EconomyRound[] {
+  if (stats.length === 0) return []
+  const pistolRounds = new Set(cells.filter((cell, position) => position === 0 || cell.breakBefore === 'half').map(cell => cell.index))
+
+  return cells.flatMap((cell) => {
+    const roundStats = stats.filter(entry => entry.roundNumber === cell.index)
+    if (roundStats.length === 0) return []
+
+    const team = (side: Side): EconomyTeam | null => {
+      const players = roundStats.filter(entry => sideOf(entry.team, perspective) === side)
+      if (players.length === 0) return null
+      const loadout = players.reduce((sum, entry) => sum + entry.loadoutValue, 0)
+      return {
+        side,
+        loadout,
+        remaining: players.reduce((sum, entry) => sum + entry.remaining, 0),
+        buy: buyType(loadout / players.length, pistolRounds.has(cell.index)),
+        damage: players.reduce((sum, entry) => sum + entry.damage, 0),
+      }
+    }
+
+    const ally = team('ally')
+    const enemy = team('enemy')
+    const describe = (economy: EconomyTeam | null) => (economy
+      ? `${SIDE_LABELS[economy.side]} ${credits(economy.loadout)} (${BUY_LABELS[economy.buy].toLowerCase()})`
+      : null)
+
+    return [{
+      index: cell.index,
+      number: cell.number,
+      winner: cell.side,
+      ally,
+      enemy,
+      label: [`Manche ${cell.number}`, describe(ally), describe(enemy), `gagnée par les ${SIDE_LABELS[cell.side].toLowerCase()}`]
+        .filter(Boolean)
+        .join(' · '),
+    }]
+  })
+}
+
+/** Armor names as the French client prints them; anything else as the API sends it. */
+const ARMORS: Record<string, string> = {
+  'Light Shields': 'Bouclier léger',
+  'Heavy Shields': 'Bouclier lourd',
+  'Regen Shield': 'Bouclier régénérant',
+}
+
+export interface LoadoutLine {
+  puuid: string
+  name: string
+  side: Side
+  agentName: string
+  agentIconUrl: string | null
+  /** "Vandal", "Couteau" without a weapon. */
+  weapon: string
+  /** `null` without armor. */
+  armor: string | null
+  loadout: number
+  remaining: number
+  damage: number
+  kills: number
+  score: number
+  wasAfk: boolean
+  isFocus: boolean
+}
+
+export interface RoundLoadouts {
+  side: Side
+  label: string
+  economy: EconomyTeam | null
+  lines: LoadoutLine[]
+}
+
+/** What each player carried in one round and what they did with it, allies first, by loadout. */
+export function buildRoundLoadouts(
+  game: ValGameDto,
+  stats: ValGameRoundPlayerStatDto[],
+  round: EconomyRound | undefined,
+  perspective: GamePerspective,
+): RoundLoadouts[] {
+  if (!round) return []
+  const byPuuid = new Map(game.valorantGameParticipants.map(entry => [entry.puuid, entry]))
+
+  const lines = stats
+    .filter(entry => entry.roundNumber === round.index)
+    .map((entry): LoadoutLine => {
+      const participant = byPuuid.get(entry.puuid)
+      return {
+        puuid: entry.puuid,
+        name: participant ? participantName(participant) : 'Joueur inconnu',
+        side: sideOf(entry.team, perspective),
+        agentName: participant?.agentName ?? 'Agent inconnu',
+        agentIconUrl: participant ? participant.agentIconUrl ?? agentImageUrl(participant.agentId) : null,
+        weapon: !entry.weaponName || entry.weaponName === 'Melee' ? 'Couteau' : entry.weaponName,
+        armor: entry.armorName ? ARMORS[entry.armorName] ?? entry.armorName : null,
+        loadout: entry.loadoutValue,
+        remaining: entry.remaining,
+        damage: entry.damage,
+        kills: entry.kills,
+        score: entry.score,
+        wasAfk: entry.wasAfk,
+        isFocus: participant !== undefined && participant.id === perspective.focusId,
+      }
+    })
+    .sort((a, b) => b.loadout - a.loadout)
+
+  return (['ally', 'enemy'] as const).map(side => ({
+    side,
+    label: SIDE_LABELS[side],
+    economy: round[side],
+    lines: lines.filter(line => line.side === side),
+  }))
 }

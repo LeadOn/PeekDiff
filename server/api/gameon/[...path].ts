@@ -7,9 +7,10 @@ const ALLOWED_METHODS = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE'])
 /**
  * Routes a DELETE may reach, allowlisted by exact shape rather than opened on every prefix, so a
  * script injected into the page cannot use the session to delete anything the API would let a
- * DELETE reach. Nothing on the front end deletes yet: every DELETE is a `405`.
+ * DELETE reach. Every other DELETE is a `405`. Only the admin space deletes: unlinking a smurf
+ * (`gameon_admin` upstream; the account and its history stay).
  */
-const DELETE_PATHS: RegExp[] = []
+const DELETE_PATHS: RegExp[] = [/^val\/player\/smurfs\/\d+$/i]
 
 /**
  * GameOn API prefixes the front end is allowed to reach. The proxy runs with the user's token, so

@@ -28,6 +28,13 @@ export interface ValRankHistoryDto {
   mapId: string | null;
   mapName: string | null;
   createdOn: string;
+  /**
+   * Whether `matchId` is a game stored in the database, so its match page opens: the MMR history also
+   * knows ranked games that were never imported. Only `GET /val/player/{id}/rank` fills it (on a
+   * bucketed read, for the bucket's last entry, the one returned); `false` everywhere else, and absent
+   * from an API build older than 2026-10-30.
+   */
+  matchStored?: boolean;
   /** Emblem URLs on media.valorant-api.com, `null` for tiers without one. */
   smallIconUrl: string | null;
   largeIconUrl: string | null;
@@ -106,6 +113,30 @@ export interface PlayerAccountDto {
   inCrew: boolean;
   primaryPlayerId: number | null;
   archived: boolean;
+}
+
+/**
+ * `PATCH /val/player/{id}/crew` (`gameon_admin`). Crew membership is one flag of the account, shared
+ * with League of Legends.
+ */
+export interface SetCrewMembershipResultDto {
+  account: PlayerAccountDto;
+  /**
+   * Smurfs taken out of the crew along with their main. Only ever non-zero when a main leaves: putting
+   * it back does not bring its smurfs back.
+   */
+  affectedSmurfAccounts: number;
+}
+
+/**
+ * `POST /val/player/{id}/smurfs` (`gameon_admin`), on success. Refusals answer 404 / 409 with a plain
+ * English sentence instead (see `linkSmurfErrorMessage`).
+ */
+export interface LinkSmurfAccountResultDto {
+  status: 'Linked';
+  smurfAccount: PlayerAccountDto;
+  /** Stored game participations that had no player yet and now belong to the smurf. */
+  backfilledParticipations: number;
 }
 
 /** Same enum as the LoL rank history on the API. */

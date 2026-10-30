@@ -1,6 +1,6 @@
 import { BaseApiService, encodePathSegment as segment } from './BaseApiService'
 import type { RequestOptions } from './BaseApiService'
-import type { PlayerAccountDto, PlayerUpdateDto, ValGameDto, ValGameTimelineDto, ValGlobalStatsDto, ValHomeStatsDto, ValHomeWindow, ValListResultDto, ValPlayerDto, ValRankHistoryDto, ValRankHistoryGranularity, ValStatsPeriod } from '../types'
+import type { LinkSmurfAccountResultDto, PlayerAccountDto, PlayerUpdateDto, SetCrewMembershipResultDto, ValGameDto, ValGameTimelineDto, ValGlobalStatsDto, ValHomeStatsDto, ValHomeWindow, ValListResultDto, ValPlayerDto, ValRankHistoryDto, ValRankHistoryGranularity, ValStatsPeriod } from '../types'
 
 /**
  * Filters of the profile's performance recap and match history. `queues` are API queue ids;
@@ -152,13 +152,45 @@ export class GameOnClient extends BaseApiService {
   }
 
   /**
-   * Points an account at another Riot ID, then re-synchronises it. `gameon_admin`. The API answers
-   * `200` with the account unchanged when another account already uses that Riot ID: callers compare
-   * the Riot ID they get back with the one they sent.
+   * Points an account at another Riot ID, then re-synchronises it. `gameon_admin`. `409` when another
+   * account already uses that Riot ID, and nothing is saved.
    */
   public updateValRiotId(playerId: number, gameName: string, tagLine: string, signal?: AbortSignal) {
     const params = new URLSearchParams({ riotGamesNickname: gameName, riotGamesTagLine: tagLine })
     return this.patch<ValPlayerDto>(`/val/player/${segment(playerId)}/admin?${params.toString()}`, null, GameOnClient.opts(signal))
+  }
+
+  /**
+   * Moves an account in or out of the crew. `gameon_admin`; `404` for an unknown account. The flag is
+   * the account's, shared with League of Legends: JungleDiff sees the change too. A main leaving takes
+   * its smurfs with it; coming back does not bring them back.
+   */
+  public setValCrewMembership(playerId: number, inCrew: boolean, signal?: AbortSignal) {
+    return this.patch<SetCrewMembershipResultDto>(`/val/player/${segment(playerId)}/crew?inCrew=${inCrew}`, null, GameOnClient.opts(signal))
+  }
+
+  /**
+   * Archives or restores an account, for every game. `gameon_admin`; `404` for an unknown account.
+   * Never `PATCH /player` for this: that route also rewrites `keycloakId` with whatever it is sent.
+   */
+  public setPlayerArchived(playerId: number, archived: boolean, signal?: AbortSignal) {
+    return this.patch<PlayerAccountDto>(`/player/${segment(playerId)}/archived?archived=${archived}`, null, GameOnClient.opts(signal))
+  }
+
+  /**
+   * Attaches a Riot account to a main as its smurf (shared with League of Legends). `gameon_admin`. An
+   * unknown account is created outside the crew, the stored games it played are re-attached, then it
+   * is synchronised from HenrikDev — up to a minute on a busy quota. `404`: main or Riot account
+   * unknown. `409`: the main is itself a smurf, or the account belongs to someone else.
+   */
+  public linkValSmurf(mainPlayerId: number, gameName: string, tagLine: string, signal?: AbortSignal) {
+    const params = new URLSearchParams({ riotGamesNickname: gameName, riotGamesTagLine: tagLine })
+    return this.post<LinkSmurfAccountResultDto>(`/val/player/${segment(mainPlayerId)}/smurfs?${params.toString()}`, null, GameOnClient.opts(signal))
+  }
+
+  /** Detaches a smurf from its main; the account and its history stay. `gameon_admin`; `404` if unknown. */
+  public unlinkValSmurf(smurfId: number, signal?: AbortSignal) {
+    return this.delete<PlayerAccountDto>(`/val/player/smurfs/${segment(smurfId)}`, GameOnClient.opts(signal))
   }
 
   /**
@@ -175,7 +207,10 @@ export class GameOnClient extends BaseApiService {
     return this.get<ValPlayerDto>('/player/me', GameOnClient.opts(signal))
   }
 
-  /** Updates the signed-in user's identity and Riot ID (`PATCH /player/me`). */
+  /**
+   * Updates the signed-in user's identity and Riot ID (`PATCH /player/me`). `409` when another account
+   * already uses that Riot ID, and then nothing is saved, names included.
+   */
   public updateCurrentPlayer(data: PlayerUpdateDto, signal?: AbortSignal) {
     return this.patch<ValPlayerDto>('/player/me', data, GameOnClient.opts(signal))
   }

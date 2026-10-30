@@ -4,7 +4,7 @@ import { useAuthStore } from '~/stores/auth'
 import { usePlayerStore } from '~/stores/player'
 import { useValStore } from '~/stores/val'
 import { useGameOnVal } from '~/composables/useGameOnVal'
-import { isAbortError } from '~/lib/types/error'
+import { errorStatusCode, isAbortError } from '~/lib/types/error'
 import { playerDisplayName } from '~/utils/val-ladder'
 import SectionIndex from '~/components/ui/SectionIndex.vue'
 import FrameHead from '~/components/ui/FrameHead.vue'
@@ -94,6 +94,12 @@ const save = async () => {
     successTimer = setTimeout(() => { saved.value = false }, 4000)
   } catch (e) {
     if (isAbortError(e)) return
+    // 409: another account holds that Riot ID, and the API saved nothing at all, names included.
+    // Decided on the status: the body is an English sentence.
+    if (errorStatusCode(e) === 409) {
+      saveError.value = 'Ce Riot ID est déjà utilisé par un autre compte. Rien n\'a été enregistré.'
+      return
+    }
     console.error('[settings] Mise à jour du profil en échec :', e)
     saveError.value = 'La mise à jour n\'a pas pu être enregistrée. Réessayez dans un instant.'
   } finally {
