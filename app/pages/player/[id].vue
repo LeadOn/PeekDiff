@@ -5,7 +5,6 @@ import type { ValAgentStatDto, ValGameDto, ValRankHistoryDto } from '~/lib/types
 import { AppError, errorStatusCode, isAbortError } from '~/lib/types/error'
 import { useGameOnVal } from '~/composables/useGameOnVal'
 import { useNow } from '~/composables/useNow'
-import { useAuthStore } from '~/stores/auth'
 import { usePlayerStore } from '~/stores/player'
 import { useValStore } from '~/stores/val'
 import { cacheOnlyDuringHydration } from '~/utils/async-data'
@@ -29,7 +28,6 @@ import ValMatchRow from '~/components/val/ValMatchRow.vue'
 const route = useRoute()
 const router = useRouter()
 const client = useGameOnVal()
-const authStore = useAuthStore()
 const playerStore = usePlayerStore()
 const valStore = useValStore()
 
@@ -119,7 +117,8 @@ useSeoMeta({
 
 // --- Viewer-dependent bits, resolved after mount ---
 const isMe = computed(() => isMounted.value && !!player.value && playerStore.currentPlayer?.id === player.value.id)
-const canSync = computed(() => isMounted.value && authStore.isAuthenticated && hasValorant.value)
+// The API's sync route is anonymous: any visitor may ask for one, signed in or not.
+const canSync = computed(() => isMounted.value && hasValorant.value)
 
 /** The main account's name for a smurf, read from the crew list (cached a minute by the store). */
 const mainName = computed(() => {

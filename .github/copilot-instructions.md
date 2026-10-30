@@ -29,7 +29,7 @@ Six pages so far: the crew dashboard, the crew records, player profiles, match p
 admin space.
 
 - `/` — crew dashboard, built from the "Protocol" design system. Top to bottom: status chips (the
-  reload chip with "Synchro il y a X min", "7 derniers jours", the current act), the week
+  sync chip with "Synchro il y a X min", open to every visitor, "7 derniers jours", the current act), the week
   (`WeekActivity`, from `GET /val/home?window=Last7Days`: ranked games against the 7 days before, win
   rate with an ASCII bar, net RR and active players, playtime, then "Jour par jour", a stacked
   win / loss bar and the net RR of each day), then two columns — `CrewLadder` (a podium of three over
@@ -48,7 +48,7 @@ admin space.
   drops the records. Only a failing `GET /val/player` shows "L'API ne répond pas".
 - `/player/[id]` — a player's profile, JungleDiff's `/summoner/[id]` rebuilt in Protocol.
   `ProfileHero` (the `wideart` card under the night veil, the main agent's `fullportrait`, current and
-  peak ranks, the last ranked results, smurf links, and a red "Synchroniser" for signed-in users that
+  peak ranks, the last ranked results, smurf links, and a red "Synchroniser", open to every visitor (signed in or not), that
   calls `PATCH /val/player/{id}`), then "Performances" (`ProfileKpis`: games and win rate, ACS / ADR,
   K/D / KDA, headshots, KAST, rating, first duels, playtime) filtered by period (7 j · 30 j · 3 mois ·
   Tout), queue (Toutes · Compétition · Non classée · Vélocité) and agent, then two columns —
@@ -284,9 +284,13 @@ admin space.
   cookies on an SSR call to `/api/gameon`, so a read made during SSR reaches the API anonymously.
   `GET /player/me` therefore runs from the header's `onMounted`, and `/settings` loads its form there
   too.
-- The home page's reload chip calls `useValStore().invalidateDashboard()` then
-  `refreshNuxtData(['valPlayers', 'valHome', 'valLastMatches'])`: it re-reads the API, it does not ask
-  the API to re-synchronise with Riot. Its "Synchro il y a X min" is the latest `valorantRefreshedOn` of the crew.
+- The home page's sync chip asks the API to re-read every crew rank from Riot
+  (`PATCH /val/player/ranks`, about a minute, cancelled when the page unmounts), then calls
+  `useValStore().invalidateDashboard()` and `refreshNuxtData(['valPlayers', 'valHome', 'valLastMatches'])`
+  — even after a failed sync, which may have refreshed part of the crew. Its "Synchro il y a X min" is
+  the latest `valorantRefreshedOn` of the crew. The outage card's `[ Réessayer ]` only re-reads.
+- The two sync buttons (the home chip, the profile's "Synchroniser") need no session: the API's sync
+  routes are anonymous and the proxy forwards a call without a bearer.
 
 # Design System
 
@@ -467,7 +471,8 @@ Each of these is easy to reintroduce and hard to diagnose.
   name edits or smurf linking (JungleDiff has them through `lol/summoner/...` routes with no Valorant
   counterpart; `PATCH /player` could archive, but it overwrites `keycloakId` with whatever it is sent).
   `PATCH /val/player/ranks`, `PATCH /val/player/{id}` and `POST /val/match/{id}/update` are anonymous
-  on the API: the admin space is where PeekDiff calls them, not what protects them.
+  on the API: the admin space (and, for the first two, the home chip and the profile, open to anyone) is
+  where PeekDiff calls them, not what protects them.
 - **No CI pipeline.** Lint, types, audit, build and the e2e suite only run when someone runs them.
 - **No error tracking.** Failures are reported through `console.error` only.
 - **No rate limiting on `/api/gameon`.** The allowlist bounds paths, not request volume.

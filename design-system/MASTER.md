@@ -217,7 +217,7 @@ icône 24px, nom en mono MAJ., `×` en `text-ter`, filet bas rouge 2px ; un clic
   presque noir à l'illustration saturée en plein jour : un voile plat `night` à 50 % passe **sous** le
   dégradé, sinon les rangs deviennent illisibles sur les plus claires. Le portrait n'apparaît qu'à
   partir de `md:`, masqué de 10 % à 55 % de sa largeur pour ne pas couvrir les rangs. Rangs actuel et
-  pic, forme des classées (pastilles V/D), puis le CTA rouge « Synchroniser » (connecté uniquement)
+  pic, forme des classées (pastilles V/D), puis le CTA rouge « Synchroniser » (ouvert à tous)
   et « Synchro il y a X min ».
 - **Héros match** : `splash` de la carte sous le voile `night`, portrait de l'agent joué.
 
