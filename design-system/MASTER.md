@@ -290,7 +290,9 @@ en file (`[■■□□□] POSITION 3`), rapport, abandonné, erreur.
 ### Navigation
 
 - **Header** : mascotte 40px + wordmark `PEEK/DIFF` (le `/` en rouge), liens en mono MAJ. 12px (`CREW · RECORDS`, plus `ADMIN` pour un administrateur), actif souligné
-  rouge 2px, recherche `>_ ⌘K`, bascule thème. La recherche est un bouton à l'allure de champ
+  rouge 2px, recherche `>_ ⌘K`, bouton carré 40px au logo de JungleDiff (mascotte 32px, filet
+  `border-base`, nom en `aria-label` et `title`, même onglet ; dès `sm:`, le pied de page porte
+  `[ JUNGLEDIFF ↗ ]` sur téléphone), bascule thème. La recherche est un bouton à l'allure de champ
   (`surface-sunken`, filet `border-base`, mono 12px `text-ter`) : `>_ chercher un joueur` puis la
   touche `⌘K` (ou `Ctrl K` hors Apple, lue après montage) ; libellé masqué entre `md:` et `lg:`, bouton
   absent sur mobile.

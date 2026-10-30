@@ -76,6 +76,8 @@ export default defineNuxtConfig({
     // --- Public (exposed to the browser) ---
     public: {
       appVersion: pkg.version,
+      // The crew's League of Legends twin, linked from the header and the footer.
+      jungleDiffUrl: 'https://www.junglediff.fr',
       // Kept for anonymous image URLs served by the API (<img src>). Data calls go through the
       // `/api/gameon` proxy; game art comes from media.valorant-api.com.
       gameOnApiUrl: '',

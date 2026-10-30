@@ -179,6 +179,7 @@ Copy `.env.example` to `.env`.
 | `NUXT_PUBLIC_KEYCLOAK_REALM` | yes | Keycloak realm name |
 | `NUXT_GAME_ON_API_URL` | no | Overrides the proxy target server-side |
 | `NUXT_KEYCLOAK_CLIENT_SECRET` | no | Only for a confidential Keycloak client |
+| `NUXT_PUBLIC_JUNGLE_DIFF_URL` | no | Target of the header's "JungleDiff" button (default `https://www.junglediff.fr`) |
 
 The Keycloak client must allow `<origin>/api/auth/callback` as a redirect URI.
 
@@ -232,8 +233,8 @@ Toutes) and smurfs, kept in the URL. Linked from the header, the search palette 
 held by another account is refused, and nothing is saved).
 
 **Done — navigation:** the crew search palette (⌘K / Ctrl K, "/", or the header's `>_` button) that
-finds a member by Riot ID, nickname or full name, and a mobile bottom bar (Crew, Parties, Recherche,
-Profil).
+finds a member by Riot ID, nickname or full name, a mobile bottom bar (Crew, Parties, Recherche,
+Profil), and a button with JungleDiff's logo in the header (a text link in the footer on phones) to the League of Legends twin.
 
 **Done — agent roles:** every agent icon carries the 2px rule of its role (duelliste, initiateur,
 contrôleur, sentinelle), the agent lists of the profile and the records show a role chip, and the

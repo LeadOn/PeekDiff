@@ -135,6 +135,11 @@ admin space.
   after mount). The footer pads its bottom on phones to clear it. The header's search button is hidden
   on phones.
 - **Theme** — dark by default, "Bone" (light) through the header toggle.
+- **JungleDiff link** — a square button with JungleDiff's logo in the header (from `sm:`;
+  `app/assets/img/JungleDiff_Logo.png`, a 128px copy of JungleDiff's own) and a `[ JungleDiff ↗ ]`
+  cell in the footer (phones included) lead to the League of Legends twin in the same tab
+  (`runtimeConfig.public.jungleDiffUrl`). JungleDiff has no silent sign-on of its own: a visitor
+  signs in there with one click, which Keycloak's SSO session answers without a password.
 - **Sign-in** — the header's "Se connecter" starts the OIDC flow; signed in, the header shows the
   player's card (a link to `playerStore.profilePath`: their profile, else `/settings`), a settings
   button and a sign-out button (hidden on phones, where `/settings` carries it), and the ladder and
@@ -525,7 +530,8 @@ Each of these is easy to reintroduce and hard to diagnose.
 Required: `NUXT_PUBLIC_GAME_ON_API_URL`, `NUXT_PUBLIC_KEYCLOAK_AUTHORITY`,
 `NUXT_PUBLIC_KEYCLOAK_CLIENT_ID`, `NUXT_PUBLIC_KEYCLOAK_REALM`.
 Optional: `NUXT_GAME_ON_API_URL` (overrides the proxy target server-side),
-`NUXT_KEYCLOAK_CLIENT_SECRET` (only for a confidential Keycloak client; empty means public + PKCE).
+`NUXT_KEYCLOAK_CLIENT_SECRET` (only for a confidential Keycloak client; empty means public + PKCE),
+`NUXT_PUBLIC_JUNGLE_DIFF_URL` (the header's "JungleDiff" button, `https://www.junglediff.fr` by default).
 The Keycloak client must allow `<origin>/api/auth/callback` as a redirect URI.
 
 Silent single sign-on depends on the realm (`gameon`) and on the client shared with JungleDiff:

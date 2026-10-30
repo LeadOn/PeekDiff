@@ -13,6 +13,9 @@
       <div class="mx-auto flex max-w-[1280px] flex-wrap items-center gap-y-1 px-4 py-2 font-mono text-[11px] uppercase tracking-[0.06em] md:px-6">
         <span class="mr-3 bg-brand-red-fill px-2 py-0.5 font-bold text-white">PeekDiff</span>
         <span class="status-cell">v{{ config.public.appVersion }}</span>
+        <a :href="config.public.jungleDiffUrl" class="status-cell transition-colors hover:text-on-night">
+          [ JungleDiff ↗ ]
+        </a>
         <a href="https://www.paypal.me/ValentinVirot" target="_blank" rel="noopener noreferrer" class="status-cell transition-colors hover:text-on-night">
           [ Soutenir le projet ]
         </a>
