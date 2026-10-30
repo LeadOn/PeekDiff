@@ -2,6 +2,8 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { refreshNuxtData, useAsyncData } from '#app'
 import { useValStore } from '~/stores/val'
+import { useGameOnVal } from '~/composables/useGameOnVal'
+import { isAbortError } from '~/lib/types/error'
 import { cacheOnlyDuringHydration } from '~/utils/async-data'
 import { buildLadder } from '~/utils/val-ladder'
 import { timeAgo } from '~/utils/date'
@@ -19,6 +21,7 @@ import ValMapList from '~/components/val/ValMapList.vue'
 import { isSmurf } from '~/utils/val-smurf'
 
 const store = useValStore()
+const client = useGameOnVal()
 
 /**
  * Owned by the page because it governs the whole dashboard, not just the ladder. Two mechanisms answer
@@ -32,12 +35,18 @@ const includeSmurfs = ref(false)
 const now = ref<number | null>(null)
 let clock: ReturnType<typeof setInterval> | undefined
 
+// A crew sync takes about a minute upstream: leaving the page cancels it.
+const syncController = new AbortController()
+
 // Lifecycle hooks go before the first top-level `await`, or they are silently dropped.
 onMounted(() => {
   now.value = Date.now()
   clock = setInterval(() => { now.value = Date.now() }, 60_000)
 })
-onBeforeUnmount(() => clearInterval(clock))
+onBeforeUnmount(() => {
+  clearInterval(clock)
+  syncController.abort()
+})
 
 // The handlers replay on every return to the home page (see cacheOnlyDuringHydration); the store's
 // freshness windows decide whether the API actually needs to be called again. The three run in
@@ -121,6 +130,30 @@ const reload = async () => {
   }
 }
 
+const syncing = ref(false)
+const syncError = ref<string | null>(null)
+
+/**
+ * Asks the API to re-read every crew member's profile and rank from Riot (`PATCH /val/player/ranks`,
+ * anonymous upstream, so open to every visitor), then re-reads the dashboard. A failed sync still
+ * re-reads: some members may have been refreshed before it failed.
+ */
+const syncCrew = async () => {
+  if (syncing.value || reloading.value) return
+  syncing.value = true
+  syncError.value = null
+  try {
+    await client.refreshAllValRanks(syncController.signal)
+  } catch (e) {
+    if (isAbortError(e)) return
+    console.error('[home] Crew sync failed:', e)
+    syncError.value = 'La synchronisation avec Riot a échoué. Réessayez dans un instant.'
+  } finally {
+    syncing.value = false
+  }
+  await reload()
+}
+
 useSeoMeta({
   title: 'Accueil',
   description: 'Le crew PeekDiff sur Valorant : classement, semaine de classées, dernières parties et records du mois.'
@@ -133,15 +166,18 @@ useSeoMeta({
       <div class="mb-4 flex flex-wrap items-center gap-2">
         <button
           type="button"
-          title="Recharger les données du crew"
-          class="chip cursor-pointer transition-colors duration-150 ease-snap hover:border-border-strong hover:bg-surface-hover"
-          @click="reload"
+          title="Synchroniser les rangs du crew avec Riot"
+          :disabled="syncing || reloading"
+          :aria-busy="syncing || reloading"
+          class="chip cursor-pointer transition-colors duration-150 ease-snap hover:border-border-strong hover:bg-surface-hover disabled:cursor-wait"
+          @click="syncCrew"
         >
-          <Icon name="lucide:refresh-cw" class="size-[13px] text-brand-red" :class="reloading ? 'animate-spin' : ''" />
-          {{ reloading ? 'Chargement…' : syncLabel }}
+          <Icon name="lucide:refresh-cw" class="size-[13px] text-brand-red" :class="syncing || reloading ? 'animate-spin' : ''" />
+          {{ syncing ? 'Synchro…' : reloading ? 'Chargement…' : syncLabel }}
         </button>
         <span class="chip">7 derniers jours</span>
         <span v-if="currentAct" class="chip">Acte {{ currentAct }}</span>
+        <p role="status" class="font-mono text-xs text-brand-red empty:hidden">{{ syncError }}</p>
       </div>
 
       <template v-if="!hasApiError">

@@ -22,7 +22,7 @@ const props = defineProps<{
   /** The main account's name for a smurf, once the crew list has resolved it. */
   mainName: string | null
   isMe: boolean
-  /** The sync action is offered to signed-in crew members only. */
+  /** The sync action is offered to every visitor, once the account has a Valorant PUUID. */
   canSync: boolean
   syncing: boolean
 }>()

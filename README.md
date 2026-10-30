@@ -186,7 +186,8 @@ The Keycloak client must allow `<origin>/api/auth/callback` as a redirect URI.
 **Done — the home page (`/`)**, on live data from `GET /val/player`, `/val/home` and
 `/val/match/last`:
 
-- status chips: reload ("Synchro il y a X min"), "7 derniers jours", the current act;
+- status chips: crew sync ("Synchro il y a X min": re-reads every rank from Riot, open to every
+  visitor), "7 derniers jours", the current act;
 - the week: ranked games against the 7 days before, win rate, net RR and active players, playtime,
   then the week day by day (wins and losses, net RR);
 - the crew ladder: podium of three over each player's card art, "L'échelle des rangs" on the elo axis
@@ -207,7 +208,7 @@ Toutes) and smurfs, kept in the URL. Linked from the header, the search palette 
 **Done — player profiles (`/player/[id]`)**, JungleDiff's profile rebuilt in Protocol:
 
 - a hero over the player card with the main agent's portrait, current and peak ranks, the last ranked
-  results, smurf links, and "Synchroniser" for signed-in users (a Riot re-sync through the API);
+  results, smurf links, and "Synchroniser" for every visitor (a Riot re-sync through the API);
 - performance tiles (games and win rate, ACS / ADR, K/D / KDA, headshots, KAST, rating, first duels,
   playtime) filtered by period (7 j · 30 j · 3 mois · Tout), queue and agent, kept in the URL;
 - the last games grouped by day with the day's record and net RR, 10 at a time;
