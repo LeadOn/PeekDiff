@@ -117,6 +117,11 @@ admin space.
 - **Smurf toggle** — page state in `index.vue`, off by default. It filters the ladder (and the rank
   fallbacks) in place — the store always keeps every account — and re-queries `/val/home` and
   `/val/match/last` with `includeSmurfs`.
+- **"Sans Valorant" toggle** — beside it in `CrewLadder`, page state in `index.vue`, off by default:
+  the crew list (`valPlayers`) is re-queried with `includeWithoutValorant`, so the ladder and the rank
+  fallbacks also list the crew members without Valorant data (League of Legends players with a Riot
+  ID). It reaches only that list; the recap and the feed are made of games. The palette reuses
+  whatever list the store holds, the profile asks for the default.
 - **Crew search** — `ValPlayerPalette`, mounted once by the layout and opened from the header's
   `>_ chercher un joueur ⌘K` button (from `md:`), the mobile bar, ⌘K / Ctrl K or "/". It matches
   Riot ID, nickname and full name locally (`filterPlayersByName` in `app/utils/val-search.ts`: the API
@@ -255,6 +260,7 @@ admin space.
   120 s is `UPSTREAM_TIMEOUT_MS` in the proxy, and **the two must move together** — whichever is
   lower is the one that actually cuts the call.
 - `GameOnClient` (`app/lib/api/GameOnClient.ts`) exposes `getValPlayers` (`GET /val/player`, crew only,
+  with Valorant data when `includeWithoutValorant: false`,
   smurfs included), `getValPlayerById` (`GET /val/player/{id}?period=&queues=`, with the performance
   recap, smurfs and main agent), `refreshValPlayer` (`PATCH /val/player/{id}`, a Riot re-sync that also
   imports the last 10 games), `getValRankHistory` (`GET /val/player/{id}/rank`, raw or bucketed by
@@ -431,9 +437,14 @@ Each of these is easy to reintroduce and hard to diagnose.
   at least 7 days ago. The ladder prints `—`, the scale draws no trail, the net-RR tile only counts
   players with a value ("N joueurs comparables"). Rank history was introduced on 2026-10-28 (the
   API's migration date), so expect `null` for everyone during the first week.
-- **`GET /val/player` returns crew members without any Valorant data.** The API keeps players that
-  have a Riot ID even when they never played Valorant: `valorantCurrentRank` is `null` and they land in
-  the unranked rows. That is expected, not a sync failure.
+- **`GET /val/player` returns crew members without any Valorant data unless told not to.** By default
+  the API keeps every account with a Riot ID, League of Legends players included. The `val` store asks
+  for `includeWithoutValorant=false` by default (API 7.12.0): only accounts with a Valorant PUUID and a
+  stored rank or game reach the ladder, the palette and the profile, unless the home page's "Sans
+  Valorant" switch asks for the others; the store caches the list per flag value. The admin space must not pass it — it
+  exists to give those accounts a Riot ID or link them as smurfs. An older API ignores the parameter:
+  those players then land in the unranked rows, which is expected, not a sync failure. A smurf whose
+  main has no Valorant data names it "son compte principal": the main is not in the list.
 - **Tier 0 is "unranked", not "no data", and it can carry a match.** A placement game produces an
   entry with `tierId` 0, a `matchId` and a `lastChange`; `LastRankedGames` lists it ("Non classé").
   Only tiers 3–27 count on the ladder (`isRankedTier`); 1 and 2 are unused.

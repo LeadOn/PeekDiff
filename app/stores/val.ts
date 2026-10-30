@@ -33,19 +33,29 @@ export const useValStore = defineStore('val', () => {
    */
   const homeStatsIncludeSmurfs = ref<boolean | null>(null)
   const lastMatchesIncludeSmurfs = ref<boolean | null>(null)
+  /** Same guard for the crew list and the home page's "Sans Valorant" switch. */
+  const playersIncludeWithoutValorant = ref<boolean | null>(null)
 
   const isFresh = (fetchedAt: number) => fetchedAt > 0 && Date.now() - fetchedAt < FRESHNESS_MS
 
   /**
+   * The crew list behind the ladder and its fallbacks, the search palette and a smurf's main on a
+   * profile. By default only the members with Valorant data: League of Legends players without a
+   * Valorant account are left out unless the home page's "Sans Valorant" switch asks for them. The
+   * admin space reads its own list.
+   *
    * Propagates its errors: swallowing them would let `useAsyncData` see no error at all and the UI
    * render an empty ladder as though the crew had no ranks.
    */
-  const fetchPlayers = async (signal?: AbortSignal): Promise<ValPlayerDto[]> => {
-    if (players.value.length > 0 && isFresh(playersFetchedAt.value)) return players.value
+  const fetchPlayers = async (includeWithoutValorant = false, signal?: AbortSignal): Promise<ValPlayerDto[]> => {
+    if (players.value.length > 0 && playersIncludeWithoutValorant.value === includeWithoutValorant && isFresh(playersFetchedAt.value)) {
+      return players.value
+    }
 
-    const data = await useGameOnVal().getValPlayers(false, signal)
+    const data = await useGameOnVal().getValPlayers({ includeWithoutValorant }, signal)
     players.value = data
     playersFetchedAt.value = Date.now()
+    playersIncludeWithoutValorant.value = includeWithoutValorant
     return data
   }
 
@@ -96,6 +106,7 @@ export const useValStore = defineStore('val', () => {
     lastMatchesFetchedAt,
     homeStatsIncludeSmurfs,
     lastMatchesIncludeSmurfs,
+    playersIncludeWithoutValorant,
     fetchPlayers,
     fetchHomeStats,
     fetchLastMatches,

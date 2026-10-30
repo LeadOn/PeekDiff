@@ -192,7 +192,8 @@ The Keycloak client must allow `<origin>/api/auth/callback` as a redirect URI.
 - the week: ranked games against the 7 days before, win rate, net RR and active players, playtime,
   then the week day by day (wins and losses, net RR);
 - the crew ladder: podium of three over each player's card art, "L'échelle des rangs" on the elo axis
-  with a 7-day trail, then every other player with rank, peak, gap and 7-day move; a smurf toggle;
+  with a 7-day trail, then every other player with rank, peak, gap and 7-day move; a smurf toggle
+  and a "Sans Valorant" toggle (crew members without Valorant data, hidden by default);
 - the rail: player of the week (the API's best net RR, with games and win streak), the crew's last
   games (each opens its match page), the all-time peaks;
 - the month's records: the crew's awards over 30 days of competitive, the most played agents and maps;
@@ -256,6 +257,11 @@ too, on purpose.
   (2026-10-30) — crew, archive and smurf routes, the `409` on a taken Riot ID, the per-round economy
   (`roundPlayerStats`) and `matchStored` on the rank history. Its database needs the
   `Added_ValGameRoundPlayerStats` migration, or `/val/match/{id}/rounds` answers 500.
+- **Not deployed yet either:** API 7.12.0's `includeWithoutValorant` on `GET /val/player`. The
+  ladder (unless its "Sans Valorant" toggle is on), the search palette and the profile already send
+  `false`; until it ships, League of Legends players without a Valorant account still show as
+  unranked on the ladder. The admin space
+  leaves it out on purpose and keeps listing every account.
 - **Anonymous upstream:** the sync routes (every rank, one player) and the game import are anonymous
   on the API; the admin space is where PeekDiff calls them, not what protects them.
 - **Not served:** live games (the "en partie" strip), headshots per kill (the kill

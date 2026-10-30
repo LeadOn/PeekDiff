@@ -8,13 +8,15 @@ import LadderRow from '~/components/home/LadderRow.vue'
 import RankTrack from '~/components/home/RankTrack.vue'
 
 const props = withDefaults(defineProps<{
-  /** Built by the page, which owns the smurf flag (it also drives the week tiles and the rail). */
+  /** Built by the page, which owns both flags (the smurf one also drives the week tiles and the rail). */
   ladder: Ladder
   includeSmurfs?: boolean
-}>(), { includeSmurfs: false })
+  /** Also list the crew members without Valorant data. */
+  includeWithoutValorant?: boolean
+}>(), { includeSmurfs: false, includeWithoutValorant: false })
 
 const emit = defineEmits<{
-  (e: 'update:includeSmurfs', value: boolean): void
+  (e: 'update:includeSmurfs' | 'update:includeWithoutValorant', value: boolean): void
 }>()
 
 const playerStore = usePlayerStore()
@@ -55,9 +57,27 @@ const podiumColumns = computed(() => ({
 
 onMounted(() => { isMounted.value = true })
 
-const toggleSmurfs = () => {
+/** The two view switches over the ladder, both off by default. */
+const switches = computed(() => [
+  {
+    key: 'smurfs',
+    label: 'Smurfs',
+    title: 'Inclure les comptes secondaires',
+    checked: props.includeSmurfs,
+    toggle: () => emit('update:includeSmurfs', !props.includeSmurfs),
+  },
+  {
+    key: 'without-valorant',
+    label: 'Sans Valorant',
+    title: 'Inclure les membres du crew sans profil Valorant',
+    checked: props.includeWithoutValorant,
+    toggle: () => emit('update:includeWithoutValorant', !props.includeWithoutValorant),
+  },
+])
+
+const flip = (toggle: () => void) => {
   hoveredId.value = null
-  emit('update:includeSmurfs', !props.includeSmurfs)
+  toggle()
 }
 </script>
 
@@ -72,18 +92,23 @@ const toggleSmurfs = () => {
           <span v-if="meText" class="border border-brand-red/40 bg-brand-red-soft px-2 py-[3px] text-xs text-text-main">{{ meText }}</span>
         </p>
       </div>
-      <button
-        type="button"
-        role="switch"
-        :aria-checked="includeSmurfs"
-        class="group inline-flex h-11 cursor-pointer items-center gap-2 border border-border-strong px-3.5 font-mono text-[13px] font-medium uppercase tracking-[0.06em] transition-colors duration-150 ease-snap hover:bg-surface-hover"
-        @click="toggleSmurfs"
-      >
-        <span aria-hidden="true" class="text-text-ter">[</span>
-        <span aria-hidden="true" class="w-[1ch] text-center" :class="includeSmurfs ? 'text-brand-red' : 'text-text-ter'">{{ includeSmurfs ? 'x' : ' ' }}</span>
-        <span aria-hidden="true" class="text-text-ter">]</span>
-        Smurfs
-      </button>
+      <div class="flex flex-wrap gap-2">
+        <button
+          v-for="item in switches"
+          :key="item.key"
+          type="button"
+          role="switch"
+          :aria-checked="item.checked"
+          :title="item.title"
+          class="group inline-flex h-11 cursor-pointer items-center gap-2 border border-border-strong px-3.5 font-mono text-[13px] font-medium uppercase tracking-[0.06em] transition-colors duration-150 ease-snap hover:bg-surface-hover"
+          @click="flip(item.toggle)"
+        >
+          <span aria-hidden="true" class="text-text-ter">[</span>
+          <span aria-hidden="true" class="w-[1ch] text-center" :class="item.checked ? 'text-brand-red' : 'text-text-ter'">{{ item.checked ? 'x' : ' ' }}</span>
+          <span aria-hidden="true" class="text-text-ter">]</span>
+          {{ item.label }}
+        </button>
+      </div>
     </div>
 
     <div v-if="podium.length > 0" class="grid items-start gap-4" :class="podiumColumns">

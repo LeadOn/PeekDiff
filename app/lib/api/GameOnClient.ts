@@ -32,9 +32,15 @@ export class GameOnClient extends BaseApiService {
    * pinned even though it is the API's default today: every consumer assumes crew membership. Smurfs
    * are NOT filtered here (`includeSmurfs` defaults to `true`): the ladder hides them with a view
    * filter of its own and still needs them to resolve a smurf's main.
+   *
+   * `includeWithoutValorant=false` keeps only accounts with Valorant data (a Valorant PUUID and a
+   * stored rank or game); the API defaults to `true`, every account with a Riot ID, League of Legends
+   * players included. Sent only when given. An API older than 7.12.0 ignores it.
    */
-  public getValPlayers(archived: boolean = false, signal?: AbortSignal) {
-    return this.get<ValPlayerDto[]>(`/val/player?archived=${archived}&includeOutOfCrew=false`, GameOnClient.opts(signal))
+  public getValPlayers(filters: { archived?: boolean, includeWithoutValorant?: boolean } = {}, signal?: AbortSignal) {
+    const params = new URLSearchParams({ archived: String(filters.archived ?? false), includeOutOfCrew: 'false' })
+    if (filters.includeWithoutValorant !== undefined) params.set('includeWithoutValorant', String(filters.includeWithoutValorant))
+    return this.get<ValPlayerDto[]>(`/val/player?${params.toString()}`, GameOnClient.opts(signal))
   }
 
   /**
@@ -141,7 +147,11 @@ export class GameOnClient extends BaseApiService {
     return this.get<PlayerAccountDto[]>(`/player?archived=${archived}`, GameOnClient.opts(signal))
   }
 
-  /** The Valorant side of every account with a Riot ID, crew or not, smurfs included: ranks and cards. */
+  /**
+   * The Valorant side of every account with a Riot ID, crew or not, smurfs included: ranks and cards.
+   * Leaves `includeWithoutValorant` to the API's default on purpose: the admin must still see accounts
+   * without Valorant data, to give them a Riot ID or link them as smurfs.
+   */
   public getValAccounts(archived: boolean, signal?: AbortSignal) {
     return this.get<ValPlayerDto[]>(`/val/player?archived=${archived}&includeOutOfCrew=true&includeSmurfs=true`, GameOnClient.opts(signal))
   }
