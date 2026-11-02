@@ -1,6 +1,6 @@
 import { BaseApiService, encodePathSegment as segment } from './BaseApiService'
 import type { RequestOptions } from './BaseApiService'
-import type { LinkSmurfAccountResultDto, PlayerAccountDto, PlayerUpdateDto, SetCrewMembershipResultDto, ValGameDto, ValGameTimelineDto, ValGlobalStatsDto, ValHomeStatsDto, ValHomeWindow, ValListResultDto, ValPlayerDto, ValRankHistoryDto, ValRankHistoryGranularity, ValStatsPeriod } from '../types'
+import type { LinkSmurfAccountResultDto, PlayerAccountDto, PlayerUpdateDto, SetCrewMembershipResultDto, ValAccoladeSummaryDto, ValAgentMasteryDto, ValBackgroundQueueStatusDto, ValGameDto, ValGameTimelineDto, ValGlobalStatsDto, ValHeatmapDto, ValHeatmapType, ValHomeStatsDto, ValHomeWindow, ValListResultDto, ValPlayerDto, ValPremierTeamDto, ValRankHistoryDto, ValRankHistoryGranularity, ValSeasonResultDto, ValSide, ValStatsPeriod } from '../types'
 
 /**
  * Filters of the profile's performance recap and match history. `queues` are API queue ids;
@@ -90,6 +90,45 @@ export class GameOnClient extends BaseApiService {
     if (options.limit !== undefined) params.set('limit', String(options.limit))
     const query = params.toString()
     return this.get<ValRankHistoryDto[]>(`/val/player/${segment(id)}/rank${query ? `?${query}` : ''}`, GameOnClient.opts(signal))
+  }
+
+  /**
+   * End-of-act results, oldest act first. Added on 2026-11: an older API answers 404, which means
+   * "nothing to show", not a failure.
+   */
+  public getValPlayerSeasons(id: string | number, signal?: AbortSignal) {
+    return this.get<ValSeasonResultDto[]>(`/val/player/${segment(id)}/seasons`, GameOnClient.opts(signal))
+  }
+
+  /** Agent mastery, highest level first; refreshed once a day upstream. 404 on an API older than 2026-11. */
+  public getValPlayerMastery(id: string | number, signal?: AbortSignal) {
+    return this.get<ValAgentMasteryDto[]>(`/val/player/${segment(id)}/mastery`, GameOnClient.opts(signal))
+  }
+
+  /** End-of-game stars, all-time rows first, then per act. 404 on an API older than 2026-11. */
+  public getValPlayerAccolades(id: string | number, signal?: AbortSignal) {
+    return this.get<ValAccoladeSummaryDto[]>(`/val/player/${segment(id)}/accolades`, GameOnClient.opts(signal))
+  }
+
+  /**
+   * Where the player killed from (`Kills`) or fell (`Deaths`) on one map, by its English name
+   * ("Ascent"); without `side`, both sides. 404 on an API older than 2026-11, 400 without a map.
+   */
+  public getValPlayerHeatmap(
+    id: string | number,
+    filters: { map: string, type: ValHeatmapType, side?: ValSide, period?: ValStatsPeriod, queues?: string[] },
+    signal?: AbortSignal,
+  ) {
+    const params = new URLSearchParams({ map: filters.map, type: filters.type })
+    if (filters.side) params.set('side', filters.side)
+    if (filters.period) params.set('period', filters.period)
+    if (filters.queues?.length) params.set('queues', filters.queues.join(','))
+    return this.get<ValHeatmapDto>(`/val/player/${segment(id)}/heatmap?${params.toString()}`, GameOnClient.opts(signal))
+  }
+
+  /** A Premier team, by the `valorantPremierTeamId` of one of its members. 404 when unknown. */
+  public getValPremierTeam(teamId: string, signal?: AbortSignal) {
+    return this.get<ValPremierTeamDto>(`/val/premier/${segment(teamId)}`, GameOnClient.opts(signal))
   }
 
   /**
@@ -210,6 +249,44 @@ export class GameOnClient extends BaseApiService {
   public importValMatch(matchId: string, region?: string, signal?: AbortSignal) {
     const query = region ? `?region=${encodeURIComponent(region)}` : ''
     return this.post<ValGameDto>(`/val/match/${segment(matchId)}/update${query}`, null, GameOnClient.opts(signal))
+  }
+
+  // --- Valorant data maintenance (`gameon_admin`). The three queuing routes answer `202` with the
+  // state of the API's background queue, which lives in memory: a redeploy empties it. ---
+
+  /** Queues the import of the history HenrikDev stored, for one account or, without one, all. Long. */
+  public queueValBackfill(playerId?: number, signal?: AbortSignal) {
+    const query = playerId === undefined ? '' : `?playerId=${playerId}`
+    return this.post<ValBackgroundQueueStatusDto>(`/val/admin/backfill${query}`, null, GameOnClient.opts(signal))
+  }
+
+  /** Queues the reimport of stored games (one HenrikDev call each), since `since` (ISO, UTC) when given. */
+  public queueValReimport(options: { playerId?: number, since?: string } = {}, signal?: AbortSignal) {
+    const params = new URLSearchParams()
+    if (options.playerId !== undefined) params.set('playerId', String(options.playerId))
+    if (options.since) params.set('since', options.since)
+    const query = params.toString()
+    return this.post<ValBackgroundQueueStatusDto>(`/val/admin/reimport${query ? `?${query}` : ''}`, null, GameOnClient.opts(signal))
+  }
+
+  /** Queues the refresh of accolades, agent mastery and Premier team; it also runs daily on its own. */
+  public queueValExtras(playerId?: number, signal?: AbortSignal) {
+    const query = playerId === undefined ? '' : `?playerId=${playerId}`
+    return this.post<ValBackgroundQueueStatusDto>(`/val/admin/extras${query}`, null, GameOnClient.opts(signal))
+  }
+
+  /**
+   * Recomputes every derived figure of the stored games from the database alone, since `since` when
+   * given. Synchronous and slow; answers the number of games recomputed.
+   */
+  public recomputeValStats(since?: string, signal?: AbortSignal) {
+    const query = since ? `?since=${encodeURIComponent(since)}` : ''
+    return this.post<number>(`/val/admin/recompute-stats${query}`, null, GameOnClient.opts(signal))
+  }
+
+  /** The background queue: what runs, what waits, the latest results. */
+  public getValBackgroundQueue(signal?: AbortSignal) {
+    return this.get<ValBackgroundQueueStatusDto>('/val/admin/queue', GameOnClient.opts(signal))
   }
 
   /** The signed-in user's GameOn account (`GET /player/me`), for the header and the "Vous" badges. */

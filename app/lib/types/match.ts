@@ -1,4 +1,5 @@
 import type { ValPlayerDto } from './player'
+import type { ValMapTransformDto } from './stats'
 
 /** A page of results, as the API's `ListResultDto<T>` returns it. */
 export interface ValListResultDto<T> {
@@ -17,6 +18,14 @@ export interface ValGameTeamDto {
   won: boolean;
   roundsWon: number;
   roundsLost: number;
+  // Optional below: added by the API on 2026-11 (`features/valorant/full-data`), absent before.
+  placement?: number | null;
+  /** The team MVP Riot elected, not our `aceParticipantId`. */
+  riotMvpPuuid?: string | null;
+  /** Premier games only. */
+  premierRosterId?: string | null;
+  premierTeamName?: string | null;
+  premierTeamTag?: string | null;
 }
 
 /** Stats the API derives per participant (`ValGameParticipantStat`). */
@@ -43,6 +52,81 @@ export interface ValGameParticipantStatDto {
   econRating: number;
   /** Out of 10; it is what elects the game's MVP. */
   rating: number;
+  // Optional below: added by the API on 2026-11 (`features/valorant/full-data`). `null` = unknown.
+  attackRounds?: number | null;
+  attackRoundsWon?: number | null;
+  attackKills?: number | null;
+  attackDeaths?: number | null;
+  attackScore?: number | null;
+  defenseRounds?: number | null;
+  defenseRoundsWon?: number | null;
+  defenseKills?: number | null;
+  defenseDeaths?: number | null;
+  defenseScore?: number | null;
+  pistolRounds?: number | null;
+  pistolRoundsWon?: number | null;
+  ecoRounds?: number | null;
+  ecoRoundsWon?: number | null;
+  forceBuyRounds?: number | null;
+  forceBuyRoundsWon?: number | null;
+  fullBuyRounds?: number | null;
+  fullBuyRoundsWon?: number | null;
+  tradeKills?: number;
+  tradedDeaths?: number;
+  clutchAttempts?: number;
+  clutch1v1Won?: number;
+  clutch1v2Won?: number;
+  clutch1v3Won?: number;
+  clutch1v4Won?: number;
+  clutch1v5Won?: number;
+  averageKillDistanceMeters?: number | null;
+  longestKillDistanceMeters?: number | null;
+}
+
+/** One of Riot's performance ratings, from far below to far above expectations. */
+export type ValPerformanceRating = 'double_down' | 'down' | 'neutral' | 'up' | 'double_up'
+
+/**
+ * Riot's own performance breakdown of a participant. `null` in skirmish, customs and older games.
+ * Per-round values are averages per round.
+ */
+export interface ValGameParticipantPerformanceDto {
+  /** Riot's performance score, about 100–320. Provisional on Riot's side. */
+  score: number | null;
+  /** Only "pass" seen so far. */
+  grade: string | null;
+  combatKillImpact: ValPerformanceRating | null;
+  combatDeathImpact: ValPerformanceRating | null;
+  combatDamage: ValPerformanceRating | null;
+  combatTrades: ValPerformanceRating | null;
+  utilityAssists: ValPerformanceRating | null;
+  utilityPlants: ValPerformanceRating | null;
+  utilityDefuses: ValPerformanceRating | null;
+  utilityUsage: ValPerformanceRating | null;
+  adjustedKills: number | null;
+  /** Negative. */
+  adjustedDeaths: number | null;
+  assists: number | null;
+  damage: number | null;
+  trades: number | null;
+  utilityUsagePerRound: number | null;
+  plants: number | null;
+  defuses: number | null;
+}
+
+/**
+ * An end-of-game star (`ValGameAccolade`). Read once a day: a very recent game may have none yet. Only
+ * `GET /val/match/{id}` fills them.
+ */
+export interface ValGameAccoladeDto {
+  id: number;
+  valGameParticipantId: number;
+  accoladeId: string;
+  /** "kills", "first_blood", "clutches"… worded by `accoladeLabel`. */
+  type: string;
+  value: number;
+  /** The player's best of the act. */
+  isActRecord: boolean;
 }
 
 /** One of the ten players of a game (`ValGameParticipant`). Only the fields the UI reads. */
@@ -78,6 +162,19 @@ export interface ValGameParticipantDto {
   stats: ValGameParticipantStatDto | null;
   /** Filled when `playerId` is set. */
   player?: ValPlayerDto | null;
+  // Optional below: added by the API on 2026-11 (`features/valorant/full-data`), absent before.
+  teamNumber?: number | null;
+  /** The party's RR gain factor, e.g. 0.25 for a party too far apart in rank. */
+  partyRrPenalty?: number | null;
+  /** Riot's MVP of the game, not our `mvpParticipantId`. */
+  isRiotMatchMvp?: boolean;
+  isRiotTeamMvp?: boolean;
+  /** Agent mastery level shown in game. */
+  bloomlineLevel?: number | null;
+  preferredLevelBorderId?: string | null;
+  performance?: ValGameParticipantPerformanceDto | null;
+  /** Only `GET /val/match/{id}` fills them. */
+  accolades?: ValGameAccoladeDto[];
 }
 
 /** A Valorant game (`ValGame`) with its teams and participants, as `/val/match/...` returns it. */
@@ -103,6 +200,9 @@ export interface ValGameDto {
   mvpParticipantId: number | null;
   /** Best rating of the losing team ("MVP d'équipe"), despite its name: it is not a five-kill round. */
   aceParticipantId: number | null;
+  /** Riot's MVP of the game, not ours. Absent from an API older than 2026-11. */
+  riotMvpPuuid?: string | null;
+  premierInfoJson?: string | null;
   valorantGameTeams: ValGameTeamDto[];
   valorantGameParticipants: ValGameParticipantDto[];
 }
@@ -129,6 +229,16 @@ export interface ValGameRoundDto {
   plantPlayerPuuid: string | null;
   defuseTimeMs: number | null;
   defusePlayerPuuid: string | null;
+  // Optional below: added by the API on 2026-11 (`features/valorant/full-data`), absent before.
+  /** The team on attack this round. */
+  attackingTeam?: 'Red' | 'Blue' | null;
+  /** Game coordinates; project them with `projectToMinimap`. */
+  plantX?: number | null;
+  plantY?: number | null;
+  defuseX?: number | null;
+  defuseY?: number | null;
+  /** The callout, e.g. "B Site". */
+  plantZone?: string | null;
 }
 
 /** One kill of a game (`ValGameKill`). There is no headshot flag per kill. */
@@ -149,6 +259,17 @@ export interface ValGameKillDto {
   weaponName: string | null;
   /** "Weapon", "Ability" or "Bomb" (the spike). */
   weaponType: string | null;
+  // Optional below: added by the API on 2026-11 (`features/valorant/full-data`), absent before.
+  victimX?: number | null;
+  victimY?: number | null;
+  killerX?: number | null;
+  killerY?: number | null;
+  /** Where the killer looked, in game radians. */
+  killerViewRadians?: number | null;
+  distanceMeters?: number | null;
+  /** The callout, e.g. "A Main". */
+  victimZone?: string | null;
+  killerZone?: string | null;
 }
 
 /**
@@ -182,6 +303,38 @@ export interface ValGameRoundPlayerStatDto {
   /** Total damage dealt in the round, over every player hit. */
   damage: number;
   wasAfk: boolean;
+  // Optional below: added by the API on 2026-11.
+  receivedPenalty?: boolean;
+  stayedInSpawn?: boolean;
+}
+
+/** Where one living player stood, and looked, at a kill, a plant or a defuse. */
+export interface ValGamePlayerLocationDto {
+  id: number;
+  matchId: string;
+  roundNumber: number;
+  eventType: 'Kill' | 'Plant' | 'Defuse';
+  /** The kill (`ValGameKillDto.id`) for a `Kill` event. */
+  valGameKillId: number | null;
+  puuid: string;
+  /** "Red" or "Blue". */
+  team: string | null;
+  x: number;
+  y: number;
+  viewRadians: number | null;
+}
+
+/** Damage one player dealt another over a round. */
+export interface ValGameDamageDto {
+  id: number;
+  matchId: string;
+  roundNumber: number;
+  attackerPuuid: string;
+  receiverPuuid: string;
+  damage: number;
+  headshots: number;
+  bodyshots: number;
+  legshots: number;
 }
 
 /** `GET /val/match/{id}/rounds`: the round timeline and every kill, in order. */
@@ -195,4 +348,9 @@ export interface ValGameTimelineDto {
    * never drawn at zero.
    */
   roundPlayerStats?: ValGameRoundPlayerStatDto[];
+  // Optional below: added by the API on 2026-11. Empty for games imported before it.
+  playerLocations?: ValGamePlayerLocationDto[];
+  damages?: ValGameDamageDto[];
+  /** `null` on a map without a minimap (skirmish). */
+  mapTransform?: ValMapTransformDto | null;
 }

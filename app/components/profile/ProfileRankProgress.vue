@@ -4,12 +4,13 @@ import type { ValRankHistoryDto } from '~/lib/types'
 import { DIVISION_ELO, isRankedTier, rankElo, tierInfo } from '~/utils/val-tier'
 import { formatDayMonth } from '~/utils/date'
 import { formatSigned } from '~/utils/number'
+import { rrMove, rrMoveDetail } from '~/utils/val-rr'
 import FrameHead from '~/components/ui/FrameHead.vue'
 
 /**
  * "Progression" card of a profile: the elo curve over the period (one snapshot per bucket, from
  * `GET /val/player/{id}/rank?granularity=…`), and under it one bar per ranked game with the RR it
- * moved (the raw entries that carry a `matchId`). A bar opens its match page only when the API says
+ * moved (the raw entries that carry a `matchId`): the RR applied (`rrDelta`), not the one Riot announced. A bar opens its match page only when the API says
  * the game is stored (`matchStored`): the MMR history also knows ranked games that were never imported.
  *
  * Elo, not RR, is the axis: RR resets at every division while elo runs on (100 per division).
@@ -96,14 +97,14 @@ const chartLabel = computed(() => {
   return `Progression ${props.periodPhrase} : ${formatSigned(net.value)} RR, aujourd'hui ${lastTier.value}`
 })
 
-/** The ranked games with their RR move; the 20 latest. */
+/** The ranked games with the RR they really moved; the 20 latest. */
 const games = computed(() => props.changes
-  .filter(entry => entry.matchId !== null && (isRankedTier(entry.tierId) || entry.lastChange !== 0))
+  .filter(entry => entry.matchId !== null && (isRankedTier(entry.tierId) || rrMove(entry) !== 0))
   .slice(-20)
   .map(entry => ({
     id: entry.id,
-    change: entry.lastChange,
-    title: `${formatDayMonth(entry.createdOn)} · ${entry.mapName ?? 'Carte inconnue'} · ${formatSigned(entry.lastChange)} RR${entry.wasDerankProtected ? ' (protégé)' : ''}`,
+    change: rrMove(entry),
+    title: `${formatDayMonth(entry.createdOn)} · ${entry.mapName ?? 'Carte inconnue'} · ${rrMoveDetail(entry)}`,
     href: entry.matchStored ? `/match/${entry.matchId}?player=${props.playerId}` : null,
   })))
 

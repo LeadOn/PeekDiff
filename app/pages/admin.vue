@@ -102,6 +102,7 @@ function onChanged(message?: string) {
 
 const rows = computed(() => buildAdminRows(accounts.value, valAccounts.value))
 const counts = computed(() => countAdminRows(rows.value))
+const names = computed(() => Object.fromEntries(rows.value.map(row => [row.id, row.nickname])))
 
 const status = ref<AdminAccountStatus>('crew')
 const statusOptions = computed(() => [
@@ -136,7 +137,7 @@ useSeoMeta({
 
     <section aria-labelledby="admin-actions-title">
       <h2 id="admin-actions-title" class="sr-only">Actions</h2>
-      <AdminActions :signal="session.signal" @changed="onChanged()" />
+      <AdminActions :signal="session.signal" :names="names" @changed="onChanged()" />
     </section>
 
     <section aria-labelledby="admin-accounts-title" class="mt-12">

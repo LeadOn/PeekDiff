@@ -6,6 +6,7 @@ import { mapImageUrl } from '~/utils/val-assets'
 import { tierInfo } from '~/utils/val-tier'
 import { timeAgo } from '~/utils/date'
 import { formatSigned } from '~/utils/number'
+import { rrMove, rrMoveDetail } from '~/utils/val-rr'
 import { useNow } from '~/composables/useNow'
 import FrameHead from '~/components/ui/FrameHead.vue'
 
@@ -32,7 +33,9 @@ const games = computed(() => props.players
       name: playerDisplayName(player),
       map: rank.mapName ?? 'Carte inconnue',
       bannerUrl: mapImageUrl(rank.mapId),
-      change: rank.lastChange,
+      // The RR applied, not the one Riot announced (`rrDelta ?? lastChange`).
+      change: rrMove(rank),
+      detail: rrMoveDetail(rank),
       shielded: rank.wasDerankProtected,
       tierLabel: tierInfo(rank.tierId).label,
       at: rank.createdOn,
@@ -67,7 +70,7 @@ const changeClass = (change: number) => (change > 0 ? 'text-win' : change < 0 ? 
           </span>
         </span>
         <span class="flex shrink-0 flex-col items-end">
-          <span class="font-mono text-sm font-medium" :class="changeClass(game.change)">{{ formatSigned(game.change) }} RR</span>
+          <span class="relative z-[1] font-mono text-sm font-medium" :class="changeClass(game.change)" :title="game.detail">{{ formatSigned(game.change) }} RR</span>
           <span class="relative z-[1] font-mono text-[10px] text-text-ter" :title="game.shielded ? 'Protection de rang activée' : undefined">{{ game.shielded ? '◈ protégé' : game.tierLabel }}</span>
         </span>
       </li>

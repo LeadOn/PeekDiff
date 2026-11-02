@@ -5,6 +5,7 @@ import type { ValAgentStatDto, ValGameDto, ValRankHistoryDto } from '~/lib/types
 import { AppError, errorStatusCode, isAbortError } from '~/lib/types/error'
 import { useGameOnVal } from '~/composables/useGameOnVal'
 import { useNow } from '~/composables/useNow'
+import { useProfileExtras } from '~/composables/useProfileExtras'
 import { usePlayerStore } from '~/stores/player'
 import { useValStore } from '~/stores/val'
 import { cacheOnlyDuringHydration } from '~/utils/async-data'
@@ -22,6 +23,12 @@ import ProfileRankProgress from '~/components/profile/ProfileRankProgress.vue'
 import ProfileAgents from '~/components/profile/ProfileAgents.vue'
 import ValMapList from '~/components/val/ValMapList.vue'
 import ProfileDuos from '~/components/profile/ProfileDuos.vue'
+import ProfilePlaystyle from '~/components/profile/ProfilePlaystyle.vue'
+import ProfileWeapons from '~/components/profile/ProfileWeapons.vue'
+import ProfileHeatmap from '~/components/profile/ProfileHeatmap.vue'
+import ProfileSeasons from '~/components/profile/ProfileSeasons.vue'
+import ProfileMastery from '~/components/profile/ProfileMastery.vue'
+import ProfileAccolades from '~/components/profile/ProfileAccolades.vue'
 import ValAgentIcon from '~/components/val/ValAgentIcon.vue'
 import ValMatchRow from '~/components/val/ValMatchRow.vue'
 
@@ -73,6 +80,10 @@ const restartRequests = () => {
 const now = useNow()
 const isMounted = ref(false)
 
+// Seasons, mastery, accolades and the Premier team: not tied to a filter, read after mount. Called
+// before the first `await`: it registers its own unmount hook.
+const { seasons, mastery, accolades, premier, load: loadExtras } = useProfileExtras(playerId)
+
 // Lifecycle hooks go before the first top-level `await`, or they are silently dropped.
 // `loadSecondaryData` is a hoisted function declaration, so referencing it here is safe.
 onMounted(() => {
@@ -105,6 +116,12 @@ if (errorStatusCode(error.value) === 404 || (!player.value && !error.value)) {
 const hasError = computed(() => error.value != null || !player.value)
 const name = computed(() => (player.value ? playerDisplayName(player.value) : 'Joueur'))
 const hasValorant = computed(() => !!player.value?.valorantPuuid)
+/**
+ * Whether the API serves the full Valorant data (2026-11): it then sends the new player fields, `null`
+ * when unknown, where an older build leaves them out. The heatmap and career sections hide otherwise,
+ * rather than announcing routes that do not exist yet.
+ */
+const hasFullData = computed(() => player.value?.valorantExtrasRefreshedOn !== undefined)
 
 // Declared after `player`: it dereferences it, and above the `useAsyncData` call it would hit the
 // temporal dead zone and take hydration down with it.
@@ -131,6 +148,11 @@ const mainName = computed(() => {
 // --- Performance recap ---
 const statsLoading = ref(false)
 const stats = computed(() => player.value?.valorantPerformanceStats ?? null)
+/** The recap carries the play-style figures (API 2026-11 and later). */
+const hasPlaystyle = computed(() => {
+  const s = stats.value
+  return !!s && (s.attack !== undefined || s.buyTypes !== undefined || s.clutches !== undefined || s.trades !== undefined || s.averageRiotPerformanceScore !== undefined)
+})
 
 async function reloadStats(signal: AbortSignal) {
   statsLoading.value = true
@@ -260,6 +282,7 @@ function loadSecondaryData() {
   loadRank(signal)
   loadGames(signal)
   loadAgentOptions(signal)
+  loadExtras(player.value.valorantPremierTeamId)
 }
 
 function updateQuery() {
@@ -387,6 +410,7 @@ async function sync() {
         :is-me="isMe"
         :can-sync="canSync"
         :syncing="syncing"
+        :premier="premier"
         @sync="sync"
       />
       <p v-if="syncError" role="alert" class="mt-3 border border-brand-red/40 bg-brand-red-soft px-4 py-3 text-sm">{{ syncError }}</p>
@@ -436,9 +460,29 @@ async function sync() {
           <ProfileKpis :stats="stats" :loading="statsLoading" :period-phrase="filterPhrase" />
         </section>
 
+        <section v-if="hasPlaystyle && stats" aria-labelledby="profile-playstyle" class="mt-12">
+          <SectionIndex index="02" label="Style de jeu" />
+          <h2 id="profile-playstyle" class="mb-5 mt-3 font-display text-[40px] font-extrabold uppercase leading-[0.95] tracking-[0.01em] md:text-5xl">Style de jeu</h2>
+          <ProfilePlaystyle :stats="stats" :loading="statsLoading" :period-phrase="filterPhrase" />
+          <ProfileWeapons v-if="stats.weapons" :weapons="stats.weapons" :period-phrase="filterPhrase" class="mt-3 md:mt-4" />
+        </section>
+
+        <section v-if="hasFullData" aria-labelledby="profile-heatmap" class="mt-12">
+          <SectionIndex index="03" label="Heatmap" />
+          <h2 id="profile-heatmap" class="mb-5 mt-3 font-display text-[40px] font-extrabold uppercase leading-[0.95] tracking-[0.01em] md:text-5xl">Heatmap</h2>
+          <ProfileHeatmap
+            :player-id="playerId"
+            :maps="stats?.mapStats ?? []"
+            :period="periodOption.api"
+            :queues="queueList"
+            :period-phrase="periodOption.phrase"
+            :agent="agent"
+          />
+        </section>
+
         <div class="mt-12 grid items-start gap-10 rail:grid-cols-[minmax(0,1fr)_340px]">
           <section aria-labelledby="profile-history" class="min-w-0">
-            <SectionIndex index="02" label="Historique" />
+            <SectionIndex index="04" label="Historique" />
             <h2 id="profile-history" class="mt-3 font-display text-[40px] font-extrabold uppercase leading-[0.95] tracking-[0.01em] md:text-5xl">Dernières parties</h2>
             <p class="mt-2 font-mono text-[13px] text-text-sec">{{ historySubtitle }}</p>
 
@@ -483,7 +527,7 @@ async function sync() {
           </section>
 
           <aside class="min-w-0" aria-label="Détails du joueur">
-            <SectionIndex index="03" label="Détails" class="mb-4" />
+            <SectionIndex index="05" label="Détails" class="mb-4" />
             <div class="grid items-start gap-4 md:max-rail:grid-cols-2">
               <ProfileRankProgress
                 :snapshots="rankSnapshots"
@@ -499,6 +543,16 @@ async function sync() {
             </div>
           </aside>
         </div>
+
+        <section v-if="hasFullData" aria-labelledby="profile-career" class="mt-12">
+          <SectionIndex index="06" label="Carrière" />
+          <h2 id="profile-career" class="mb-5 mt-3 font-display text-[40px] font-extrabold uppercase leading-[0.95] tracking-[0.01em] md:text-5xl">Carrière</h2>
+          <ProfileSeasons :seasons="seasons" />
+          <div class="mt-3 grid items-start gap-3 md:mt-4 md:grid-cols-2 md:gap-4">
+            <ProfileMastery :mastery="mastery" />
+            <ProfileAccolades :accolades="accolades" />
+          </div>
+        </section>
       </template>
     </template>
   </div>

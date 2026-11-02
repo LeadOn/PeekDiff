@@ -55,7 +55,8 @@ export function playerPeak(player: ValPlayerDto): LadderPeak | null {
   return {
     tierId,
     label: tierInfo(tierId).label,
-    rr: player.valorantPeakRr,
+    // Riot's peak RR is wrong and HenrikDev neutralises it to 0: unknown, so never printed.
+    rr: null,
     season: player.valorantPeakSeasonShort,
     iconUrl: player.valorantPeakRankIconUrl ?? rankIconUrl(tierId, 'large'),
   }

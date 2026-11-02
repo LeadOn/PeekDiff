@@ -68,4 +68,133 @@ export interface ValPerformanceStatsDto {
   agentStats: ValAgentStatDto[];
   mapStats: ValMapStatDto[];
   duoStats: ValDuoStatDto[];
+  // Optional below: added by the API on 2026-11 (`features/valorant/full-data`), absent before.
+  /**
+   * Average of Riot's own performance score (about 100–320). Provisional on Riot's side: printed beside
+   * `averageRating`, never instead of it. `null` without any scored game.
+   */
+  averageRiotPerformanceScore?: number | null;
+  attack?: ValSideStatsDto | null;
+  defense?: ValSideStatsDto | null;
+  /** Competitive, unrated and Premier only; `null` otherwise. */
+  buyTypes?: ValBuyTypeStatsDto | null;
+  clutches?: ValClutchStatsDto | null;
+  /** Trades within 5 seconds. */
+  trades?: ValTradeStatsDto | null;
+  /** Most kills first. */
+  weapons?: ValWeaponStatDto[];
+}
+
+/** One side's rounds of a recap: attack or defense. */
+export interface ValSideStatsDto {
+  rounds: number;
+  roundsWon: number;
+  roundWinRatePercent: number;
+  kills: number;
+  deaths: number;
+  kdRatio: number;
+  acs: number;
+}
+
+/**
+ * Rounds by buy, from the player's team loadout: eco under 2 000 credits, force buy 2 000–3 899, full
+ * buy from 3 900; pistol rounds apart.
+ */
+export interface ValBuyTypeStatsDto {
+  pistolRounds: number;
+  pistolRoundsWon: number;
+  pistolWinRatePercent: number;
+  ecoRounds: number;
+  ecoRoundsWon: number;
+  ecoWinRatePercent: number;
+  forceBuyRounds: number;
+  forceBuyRoundsWon: number;
+  forceBuyWinRatePercent: number;
+  fullBuyRounds: number;
+  fullBuyRoundsWon: number;
+  fullBuyWinRatePercent: number;
+}
+
+export interface ValClutchStatsDto {
+  attempts: number;
+  won: number;
+  winRatePercent: number;
+  won1v1: number;
+  won1v2: number;
+  won1v3: number;
+  won1v4: number;
+  won1v5: number;
+}
+
+export interface ValTradeStatsDto {
+  /** Kills avenging a teammate within 5 seconds. */
+  tradeKills: number;
+  /** Deaths avenged by a teammate within 5 seconds. */
+  tradedDeaths: number;
+  deaths: number;
+  tradedDeathPercent: number;
+}
+
+export type ValWeaponType = 'Weapon' | 'Ability' | 'Bomb' | 'Melee' | 'Fall'
+
+export interface ValWeaponStatDto {
+  weaponId: string | null;
+  /** English, as the game names it: "Vandal", an ability's name. */
+  weaponName: string | null;
+  weaponType: ValWeaponType | string | null;
+  kills: number;
+  killSharePercent: number;
+  averageDistanceMeters: number | null;
+  longestDistanceMeters: number | null;
+  iconUrl: string | null;
+}
+
+/** Projection of game coordinates on the minimap image (valorant-api.com's map transform). */
+export interface ValMapTransformDto {
+  minimapUrl: string | null;
+  xMultiplier: number;
+  yMultiplier: number;
+  xScalarToAdd: number;
+  yScalarToAdd: number;
+}
+
+export type ValSide = 'Attack' | 'Defense'
+export type ValHeatmapType = 'Kills' | 'Deaths'
+
+/** One kill or death of a heatmap. */
+export interface ValHeatmapPointDto {
+  matchId: string;
+  roundNumber: number;
+  x: number;
+  y: number;
+  /** Already projected, 0 (left) to 1 (right); `null` when the map has no transform. */
+  minimapX: number | null;
+  /** 0 (top) to 1 (bottom). */
+  minimapY: number | null;
+  /** The callout, e.g. "A Main". */
+  zone: string | null;
+  side: ValSide | null;
+  weaponName: string | null;
+  distanceMeters: number | null;
+}
+
+export interface ValZoneCountDto {
+  zone: string;
+  count: number;
+  sharePercent: number;
+}
+
+/**
+ * `GET /val/player/{id}/heatmap`: where the player stood when they killed (`Kills`), or where they fell
+ * (`Deaths`), on one map.
+ */
+export interface ValHeatmapDto {
+  mapId: string | null;
+  mapName: string;
+  type: ValHeatmapType;
+  /** `null` on a map without a minimap (skirmish). */
+  mapTransform: ValMapTransformDto | null;
+  points: ValHeatmapPointDto[];
+  /** Most first. */
+  zones: ValZoneCountDto[];
 }

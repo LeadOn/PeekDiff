@@ -6,12 +6,13 @@ import { AppError, errorStatusCode, isAbortError } from '~/lib/types/error'
 import { useGameOnVal } from '~/composables/useGameOnVal'
 import { usePlayerStore } from '~/stores/player'
 import { cacheOnlyDuringHydration } from '~/utils/async-data'
-import { buildEconomy, buildRoundDetail, buildRoundLoadouts, buildRounds, buildScoreboard, resolvePerspective } from '~/utils/val-game'
+import { buildDamageMatrix, buildEconomy, buildRoundDetail, buildRoundLoadouts, buildRoundMinimap, buildRounds, buildScoreboard, hasPositions, resolvePerspective } from '~/utils/val-game'
 import SectionIndex from '~/components/ui/SectionIndex.vue'
 import MatchHero from '~/components/match/MatchHero.vue'
 import MatchScoreboard from '~/components/match/MatchScoreboard.vue'
 import MatchTimeline from '~/components/match/MatchTimeline.vue'
 import MatchEconomy from '~/components/match/MatchEconomy.vue'
+import MatchDamageMatrix from '~/components/match/MatchDamageMatrix.vue'
 
 const route = useRoute()
 const client = useGameOnVal()
@@ -123,6 +124,23 @@ const roundLoadouts = computed(() => (game.value
   ? buildRoundLoadouts(game.value, roundPlayerStats.value, economy.value.find(round => round.index === activeRound.value), perspective.value)
   : []))
 
+// --- Positions and damages (API 2026-11): absent from an older build, empty for older games ---
+const positions = computed<'ok' | 'none' | 'no-map'>(() => {
+  if (!timeline.value || !hasPositions(timeline.value)) return 'none'
+  return timeline.value.mapTransform ? 'ok' : 'no-map'
+})
+const roundMinimap = computed(() => {
+  const round = timeline.value?.rounds.find(entry => entry.roundNumber === activeRound.value)
+  if (!game.value || !timeline.value || !round || positions.value !== 'ok') return null
+  return buildRoundMinimap(game.value, timeline.value, round, perspective.value)
+})
+
+const damageScope = ref<'game' | 'round'>('game')
+const activeRoundNumber = computed(() => cells.value.find(cell => cell.index === activeRound.value)?.number ?? null)
+const damageMatrix = computed(() => (game.value
+  ? buildDamageMatrix(game.value, timeline.value?.damages ?? [], perspective.value, damageScope.value === 'round' ? activeRound.value : null)
+  : null))
+
 const retrying = ref(false)
 
 async function retry() {
@@ -196,6 +214,8 @@ async function retry() {
           :detail="roundDetail"
           :loading="timelinePending"
           :failed="timelineFailed"
+          :minimap="roundMinimap"
+          :positions="positions"
           @update:selected="selectedRound = $event"
         />
       </section>
@@ -211,6 +231,19 @@ async function retry() {
           :failed="timelineFailed"
           :has-rounds="cells.length > 0"
           @update:selected="selectedRound = $event"
+        />
+      </section>
+
+      <section aria-labelledby="match-damages" class="mt-12">
+        <SectionIndex index="04" label="Dégâts" />
+        <h2 id="match-damages" class="mb-5 mt-3 font-display text-[40px] font-extrabold uppercase leading-[0.95] tracking-[0.01em] md:text-5xl">Qui a touché qui</h2>
+        <MatchDamageMatrix
+          :matrix="damageMatrix"
+          :scope="damageScope"
+          :round-number="activeRoundNumber"
+          :loading="timelinePending"
+          :failed="timelineFailed"
+          @update:scope="damageScope = $event"
         />
       </section>
     </template>

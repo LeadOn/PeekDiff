@@ -1,8 +1,11 @@
-import type { ValGameDto, ValGameKillDto, ValGameParticipantDto, ValGameRoundDto, ValGameRoundPlayerStatDto } from '~/lib/types'
+import type { ValGameDamageDto, ValGameDto, ValGameKillDto, ValGameParticipantDto, ValGameParticipantPerformanceDto, ValGameRoundDto, ValGameRoundPlayerStatDto, ValGameTimelineDto } from '~/lib/types'
 import type { GameResult } from '~/utils/val-match'
 import { playerDisplayName } from '~/utils/val-ladder'
-import { agentImageUrl, playerCardUrl } from '~/utils/val-assets'
+import { agentImageUrl, mapImageUrl, playerCardUrl, valorantCdnUrl } from '~/utils/val-assets'
 import { tierInfo } from '~/utils/val-tier'
+import { accoladeLabel, accoladeUnit, isPerformanceRating, PERFORMANCE_DIMENSIONS, PERFORMANCE_RATINGS, RIOT_SCORE_BETA, RIOT_SCORE_LABEL } from '~/utils/val-labels'
+import type { MinimapPoint } from '~/utils/val-minimap'
+import { isOnMinimap, minimapDirection, projectToMinimap, viewConePath } from '~/utils/val-minimap'
 
 /**
  * A game seen whole, for the match page: the two teams, their scoreboard, the round timeline and the
@@ -72,6 +75,17 @@ export interface ScoreboardRow {
   isMvp: boolean
   isTeamMvp: boolean
   isFocus: boolean
+  /** Riot's performance score (beta on Riot's side), `null` when Riot did not score the game. */
+  riotScore: number | null
+  /** Riot's ratings spelled out, for the score's tooltip. */
+  riotDetail: string | null
+  /** Riot's own MVP elections, apart from ours. */
+  isRiotMvp: boolean
+  isRiotTeamMvp: boolean
+  /** End-of-game stars; empty when none or not read yet (once a day upstream). */
+  accolades: { key: string, label: string, title: string, actRecord: boolean }[]
+  /** The party's RR gain factor when one applied (e.g. 0.25), `null` otherwise. */
+  partyPenalty: number | null
 }
 
 export interface ScoreboardTeam {
@@ -84,8 +98,19 @@ export interface ScoreboardTeam {
   rows: ScoreboardRow[]
 }
 
+/** "Note Riot (bêta) 214 · Impact des kills ▲ au-dessus · Dégâts ■ dans la moyenne…", for a tooltip. */
+export function riotPerformanceDetail(performance: ValGameParticipantPerformanceDto | null | undefined): string | null {
+  if (!performance || performance.score === null) return null
+  const ratings = PERFORMANCE_DIMENSIONS.flatMap(({ key, label }) => {
+    const rating = performance[key]
+    return isPerformanceRating(rating) ? [`${label} ${PERFORMANCE_RATINGS[rating].glyph} ${PERFORMANCE_RATINGS[rating].label}`] : []
+  })
+  return [`${RIOT_SCORE_LABEL} (${RIOT_SCORE_BETA}) ${Math.round(performance.score)}`, ...ratings].join(' · ')
+}
+
 function scoreboardRow(game: ValGameDto, participant: ValGameParticipantDto, perspective: GamePerspective): ScoreboardRow {
   const stats = participant.stats
+  const penalty = participant.partyRrPenalty
   return {
     id: participant.id,
     playerId: participant.playerId,
@@ -111,6 +136,21 @@ function scoreboardRow(game: ValGameDto, participant: ValGameParticipantDto, per
     isMvp: game.mvpParticipantId === participant.id,
     isTeamMvp: game.aceParticipantId === participant.id,
     isFocus: perspective.focusId === participant.id,
+    riotScore: participant.performance?.score ?? null,
+    riotDetail: riotPerformanceDetail(participant.performance),
+    isRiotMvp: participant.isRiotMatchMvp === true || (!!game.riotMvpPuuid && game.riotMvpPuuid === participant.puuid),
+    isRiotTeamMvp: participant.isRiotTeamMvp === true,
+    accolades: (participant.accolades ?? []).map((accolade) => {
+      const unit = accoladeUnit(accolade.type)
+      const value = `${Math.round(accolade.value * 10) / 10}${unit ? ` ${unit}` : ''}`
+      return {
+        key: `${accolade.id}`,
+        label: accoladeLabel(accolade.type),
+        title: `${accoladeLabel(accolade.type)} : ${value}${accolade.isActRecord ? ' · record de l\'acte' : ''}`,
+        actRecord: accolade.isActRecord,
+      }
+    }),
+    partyPenalty: penalty != null && penalty > 0 && penalty !== 1 ? penalty : null,
   }
 }
 
@@ -172,6 +212,8 @@ export interface RoundCell {
   label: string
   /** A separator goes before this round: the half-time swap, or the start of overtime. */
   breakBefore: 'half' | 'overtime' | null
+  /** The allies' side this round, from `attackingTeam`; `null` when the API does not say. */
+  allyRole: 'attack' | 'defense' | null
 }
 
 /** Red's role in a round, read off who won it and on which side. */
@@ -200,6 +242,9 @@ export function buildRounds(rounds: ValGameRoundDto[], perspective: GamePerspect
     if (role) previousRole = role
 
     const side = sideOf(round.winningTeam, perspective)
+    const allyRole: RoundCell['allyRole'] = round.attackingTeam && perspective.allyTeamId
+      ? (round.attackingTeam === perspective.allyTeamId ? 'attack' : 'defense')
+      : null
     const end = (round.result ? ROUND_ENDS[round.result] : undefined) ?? TIMER_END
     const ceremonyLabel = round.ceremony ? CEREMONIES[round.ceremony] ?? null : null
     const roleLabel = round.winningTeamRole ? ROLES[round.winningTeamRole] : undefined
@@ -211,10 +256,17 @@ export function buildRounds(rounds: ValGameRoundDto[], perspective: GamePerspect
       glyph: end.glyph,
       endLabel: end.label,
       ceremonyLabel,
-      label: [`Manche ${round.roundNumber + 1}`, `${SIDE_LABELS[side]}${roleLabel ? ` ${roleLabel}` : ''}`, end.label, ceremonyLabel]
+      label: [
+        `Manche ${round.roundNumber + 1}`,
+        `${SIDE_LABELS[side]}${roleLabel ? ` ${roleLabel}` : ''}`,
+        end.label,
+        ceremonyLabel,
+        allyRole && !roleLabel ? `alliés en ${allyRole === 'attack' ? 'attaque' : 'défense'}` : null,
+      ]
         .filter(Boolean)
         .join(' · '),
       breakBefore,
+      allyRole,
     }
   })
 }
@@ -239,6 +291,10 @@ export interface FeedLine {
   weapon: string
   assists: number
   isFirstBlood: boolean
+  /** Where the victim fell, e.g. "A Main"; `null` for games imported before positions. */
+  zone: string | null
+  /** "23 m", `null` when unknown. */
+  distance: string | null
 }
 
 export interface RoundDetail {
@@ -285,7 +341,9 @@ export function buildRoundDetail(
   const events: string[] = []
   if (round.plantTimeMs !== null) {
     const planter = nameOf(round.plantPlayerPuuid)
-    events.push(`Spike posé${round.plantSite ? ` en ${round.plantSite}` : ''}${planter ? ` par ${participantName(planter)}` : ''} à ${formatRoundClock(round.plantTimeMs)}`)
+    // The site letter when there is one ("en B"), else the callout the positions give ("en B Site").
+    const where = round.plantSite ?? round.plantZone
+    events.push(`Spike posé${where ? ` en ${where}` : ''}${planter ? ` par ${participantName(planter)}` : ''} à ${formatRoundClock(round.plantTimeMs)}`)
   }
   if (round.defuseTimeMs !== null) {
     const defuser = nameOf(round.defusePlayerPuuid)
@@ -307,6 +365,8 @@ export function buildRoundDetail(
       weapon: weaponLabel(kill),
       assists: kill.assistantsCount,
       isFirstBlood: index === 0,
+      zone: kill.victimZone ?? null,
+      distance: kill.distanceMeters != null ? `${Math.round(kill.distanceMeters)} m` : null,
     })),
   }
 }
@@ -478,4 +538,209 @@ export function buildRoundLoadouts(
     economy: round[side],
     lines: lines.filter(line => line.side === side),
   }))
+}
+
+// --- Minimap ---
+
+export interface MinimapActor {
+  puuid: string
+  name: string
+  side: Side
+  agentName: string
+  point: MinimapPoint
+  /** SVG path of where they looked, in a 0–100 box; `null` when the view is unknown. */
+  cone: string | null
+  isFocus: boolean
+}
+
+export interface MinimapKill {
+  /** `ValGameKillDto.id`, shared with the kill feed line. */
+  id: number
+  killer: MinimapPoint | null
+  victim: MinimapPoint | null
+  killerSide: Side | null
+  victimSide: Side | null
+  killerCone: string | null
+  /** Every living player at the time of the kill, the victim included. */
+  players: MinimapActor[]
+}
+
+export interface RoundMinimap {
+  imageUrl: string | null
+  kills: MinimapKill[]
+  plant: MinimapPoint | null
+  defuse: MinimapPoint | null
+  /** "Kills et positions de la manche 4 : 7 kills, spike posé en B Site", for the image's label. */
+  label: string
+}
+
+/**
+ * Whether a game has any position at all: games imported before the API stored them have none, and
+ * the page says "Positions indisponibles pour cette partie" rather than drawing an empty map.
+ */
+export function hasPositions(timeline: ValGameTimelineDto): boolean {
+  return (timeline.playerLocations?.length ?? 0) > 0 || timeline.kills.some(kill => kill.victimX != null)
+}
+
+/**
+ * One round on the minimap: where each kill happened and, for each, where every living player stood
+ * and looked (`playerLocations` of that kill), plus the spike. `null` without a map transform.
+ */
+export function buildRoundMinimap(game: ValGameDto, timeline: ValGameTimelineDto, round: ValGameRoundDto, perspective: GamePerspective): RoundMinimap | null {
+  const transform = timeline.mapTransform
+  if (!transform) return null
+  const byPuuid = new Map(game.valorantGameParticipants.map(entry => [entry.puuid, entry]))
+  const project = (x: number | null | undefined, y: number | null | undefined) => {
+    const point = projectToMinimap(transform, x, y)
+    return point && isOnMinimap(point) ? point : null
+  }
+  const cone = (point: MinimapPoint | null, radians: number | null | undefined) => {
+    const direction = minimapDirection(transform, radians)
+    return point && direction ? viewConePath(point, direction) : null
+  }
+  const sideOfPuuid = (puuid: string | null) => {
+    const participant = puuid ? byPuuid.get(puuid) : undefined
+    return participant ? sideOf(participant.teamId, perspective) : null
+  }
+
+  const locationsByKill = new Map<number, NonNullable<ValGameTimelineDto['playerLocations']>>()
+  for (const location of timeline.playerLocations ?? []) {
+    if (location.eventType !== 'Kill' || location.valGameKillId === null) continue
+    const list = locationsByKill.get(location.valGameKillId) ?? []
+    list.push(location)
+    locationsByKill.set(location.valGameKillId, list)
+  }
+
+  const kills = timeline.kills
+    .filter(kill => kill.roundNumber === round.roundNumber)
+    .sort((a, b) => a.timeInRoundMs - b.timeInRoundMs)
+    .map((kill): MinimapKill => {
+      const killer = project(kill.killerX, kill.killerY)
+      const players = (locationsByKill.get(kill.id) ?? []).flatMap((location): MinimapActor[] => {
+        const point = project(location.x, location.y)
+        const participant = byPuuid.get(location.puuid)
+        if (!point || !participant) return []
+        return [{
+          puuid: location.puuid,
+          name: participantName(participant),
+          side: sideOf(participant.teamId, perspective),
+          agentName: participant.agentName ?? 'Agent inconnu',
+          point,
+          cone: cone(point, location.viewRadians),
+          isFocus: participant.id === perspective.focusId,
+        }]
+      })
+      return {
+        id: kill.id,
+        killer,
+        victim: project(kill.victimX, kill.victimY),
+        killerSide: sideOfPuuid(kill.killerPuuid),
+        victimSide: sideOfPuuid(kill.victimPuuid),
+        killerCone: cone(killer, kill.killerViewRadians),
+        players,
+      }
+    })
+
+  const plant = project(round.plantX, round.plantY)
+  const placed = kills.filter(kill => kill.victim).length
+  const label = [
+    `Positions de la manche ${round.roundNumber + 1}`,
+    `${placed} kill${placed > 1 ? 's' : ''} placé${placed > 1 ? 's' : ''}`,
+    plant ? `spike posé${round.plantZone ? ` en ${round.plantZone}` : ''}` : null,
+  ].filter(Boolean).join(' · ')
+
+  return {
+    imageUrl: valorantCdnUrl(transform.minimapUrl) ?? mapImageUrl(game.mapId, 'minimap'),
+    kills,
+    plant,
+    defuse: project(round.defuseX, round.defuseY),
+    label,
+  }
+}
+
+// --- Damage matrix ---
+
+export interface DamagePlayer {
+  puuid: string
+  name: string
+  agentName: string
+  agentIconUrl: string | null
+  isFocus: boolean
+}
+
+export interface DamageCell {
+  /** Damage the ally (row) dealt the enemy (column). */
+  dealt: number
+  /** Damage the enemy (column) dealt the ally (row). */
+  received: number
+  /** Both directions with their hits, for the cell's `title` and its screen reader text. */
+  label: string
+}
+
+export interface DamageMatrix {
+  allies: DamagePlayer[]
+  enemies: DamagePlayer[]
+  /** `cells[ally][enemy]`. */
+  cells: DamageCell[][]
+  /** Per ally: dealt to every enemy, received from them. */
+  allyTotals: { dealt: number, received: number }[]
+  enemyTotals: { dealt: number, received: number }[]
+  /** The largest single figure, to scale the cells' shading. */
+  max: number
+}
+
+/**
+ * Who hit whom, allies in rows and enemies in columns, over the whole game or one round (`round`,
+ * 0-based). Empty damages (a game imported before the API stored them) give `null`.
+ */
+export function buildDamageMatrix(game: ValGameDto, damages: ValGameDamageDto[], perspective: GamePerspective, round: number | null): DamageMatrix | null {
+  if (damages.length === 0) return null
+  const player = (participant: ValGameParticipantDto): DamagePlayer => ({
+    puuid: participant.puuid,
+    name: participantName(participant),
+    agentName: participant.agentName ?? 'Agent inconnu',
+    agentIconUrl: participant.agentIconUrl ?? agentImageUrl(participant.agentId),
+    isFocus: participant.id === perspective.focusId,
+  })
+  const byAcs = (a: ValGameParticipantDto, b: ValGameParticipantDto) => (b.stats?.acs ?? b.kills) - (a.stats?.acs ?? a.kills)
+  const allies = game.valorantGameParticipants.filter(entry => sideOf(entry.teamId, perspective) === 'ally').sort(byAcs).map(player)
+  const enemies = game.valorantGameParticipants.filter(entry => sideOf(entry.teamId, perspective) === 'enemy').sort(byAcs).map(player)
+
+  type Hits = { damage: number, headshots: number, bodyshots: number, legshots: number }
+  const totals = new Map<string, Hits>()
+  for (const entry of damages) {
+    if (round !== null && entry.roundNumber !== round) continue
+    const key = `${entry.attackerPuuid}>${entry.receiverPuuid}`
+    const hits = totals.get(key) ?? { damage: 0, headshots: 0, bodyshots: 0, legshots: 0 }
+    hits.damage += entry.damage
+    hits.headshots += entry.headshots
+    hits.bodyshots += entry.bodyshots
+    hits.legshots += entry.legshots
+    totals.set(key, hits)
+  }
+  const hitsOf = (from: string, to: string): Hits => totals.get(`${from}>${to}`) ?? { damage: 0, headshots: 0, bodyshots: 0, legshots: 0 }
+  const describe = (from: DamagePlayer, to: DamagePlayer, hits: Hits) => {
+    const parts = [hits.headshots && `${hits.headshots} tête`, hits.bodyshots && `${hits.bodyshots} corps`, hits.legshots && `${hits.legshots} jambes`].filter(Boolean)
+    return `${from.name} → ${to.name} : ${hits.damage} dégâts${parts.length ? ` (${parts.join(', ')})` : ''}`
+  }
+
+  let max = 0
+  const cells = allies.map(ally => enemies.map((enemy): DamageCell => {
+    const out = hitsOf(ally.puuid, enemy.puuid)
+    const back = hitsOf(enemy.puuid, ally.puuid)
+    max = Math.max(max, out.damage, back.damage)
+    return { dealt: out.damage, received: back.damage, label: `${describe(ally, enemy, out)} · ${describe(enemy, ally, back)}` }
+  }))
+
+  return {
+    allies,
+    enemies,
+    cells,
+    allyTotals: cells.map(row => ({ dealt: row.reduce((sum, cell) => sum + cell.dealt, 0), received: row.reduce((sum, cell) => sum + cell.received, 0) })),
+    enemyTotals: enemies.map((_enemy, column) => ({
+      dealt: cells.reduce((sum, row) => sum + (row[column]?.received ?? 0), 0),
+      received: cells.reduce((sum, row) => sum + (row[column]?.dealt ?? 0), 0),
+    })),
+    max,
+  }
 }

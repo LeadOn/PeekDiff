@@ -58,6 +58,19 @@ admin space.
   removable chip beside the switches; it restricts the tiles, the maps, the duos and the history,
   never the rank progression (a rank is the account's, not an agent's). A crew member with no
   `valorantPuuid` gets a notice instead of the stats. Each history row opens its match page.
+  With the full-data API (detected by `valorantExtrasRefreshedOn` being present, even `null`), the
+  profile adds: in the hero, a Premier badge (`GET /val/premier/{id}` after mount; HenrikDev's icon is
+  refused by the CSP, so the team colour stands in), the rank-protection shields on a protected tier,
+  the leaderboard rank and the lifetime prestige (`parsePrestige`); "Style de jeu"
+  (`ProfilePlaystyle`: attack vs defense with the gap, rounds won by buy, clutches 1v1→1v5, trades
+  within 5 s, our rating beside Riot's score marked "bêta") and "Armes" (`ProfileWeapons`), both from
+  the recap so they follow every filter; "Heatmap" (`ProfileHeatmap`, `GET /val/player/{id}/heatmap`,
+  loaded after mount: map from the recap's `mapStats`, Kills / Morts, Attaque / Défense / Les deux,
+  the period and queue but never the agent, points teal on attack and red on defense, the zones list as
+  its text equivalent, an empty state that says why); and "Carrière" (`ProfileSeasons`,
+  `ProfileMastery`, `ProfileAccolades` — seasons, mastery and accolades loaded after mount by
+  `useProfileExtras`, each with its own "indisponible"). Every RR of a ranked game is `rrMove`
+  (`rrDelta ?? lastChange`, `val-rr.ts`), its tooltip `rrMoveDetail`.
 - `/match/[id]` — one game, told from one side: "Alliés" (teal) is the team of the player in
   `?player=` (the profile's links set it), else the viewer's once mounted if they played it, else the
   side with the most crew members. `MatchHero` (the map's splash under the night veil, the score from
@@ -72,7 +85,15 @@ admin space.
   and each team's buy — pistolets, éco, semi, achat complet, `buyType` in `val-game.ts` — under its
   bar; the selected round, shared with the frieze, lists each player's weapon, armor, loadout, bank,
   damage and kills). A game imported before the API stored per-round stats says "Économie
-  indisponible pour cette partie" instead of drawing zeros. The game is rendered on the server;
+  indisponible pour cette partie" instead of drawing zeros. The scoreboard adds Riot's score column
+  (tooltip: its ratings), Riot's MVP badges, the end-of-game accolades as chips and the party RR
+  penalty; the frieze marks the allies' side per round (A / D, from `attackingTeam`); the selected
+  round shows `MatchMinimap` beside its kill feed (deaths and the spike, or — on a hovered, focused or
+  picked kill — every living player from `playerLocations` with the killer's line and view cone), and
+  each kill line its zone and distance. "Qui a touché qui" (`MatchDamageMatrix`, from `damages`):
+  allies in rows, enemies in columns, dealt above and received below, over the game or the selected
+  round. A game without positions says "Positions indisponibles pour cette partie", without damages
+  "Dégâts indisponibles". The game is rendered on the server;
   rounds, kills and round stats (`/rounds`) load after mount. A non-uuid id is a 404 without calling
   the API.
 - `/stats` — "Records du crew", the home page's records with filters, from `GET /val/stats/global`:
@@ -110,7 +131,13 @@ admin space.
   after mount; one write at a time per row; every write re-reads the whole list (one write can move
   several accounts), invalidates the `val` store and says what happened in a live region. Refusals
   are worded from the status (`adminErrorMessage`, `linkSmurfErrorMessage` in `val-admin.ts`), the
-  API's English sentence only telling two 404s or two 409s apart. Linked from the header ("Admin",
+  API's English sentence only telling two 404s or two 409s apart. "Données Valorant"
+  (`AdminValorantData`, under the actions): backfill of every account, reimport (optionally since a
+  date), accolades / mastery / Premier, and the stats recomputation (`POST /val/admin/...`); backfill,
+  reimport and recompute take a second click. The background queue (`GET /val/admin/queue`, shared
+  through `useValAdminQueue`) shows what runs, waits and finished (the API's English `summary` printed
+  as a log line), re-read every 5 s while it has work, then left alone. "Gérer" also queues a backfill
+  or the extras for that account alone. Linked from the header ("Admin",
   client-only), the palette and `/settings`.
 - **Smurf toggle** — page state in `index.vue`, off by default. It filters the ladder (and the rank
   fallbacks) in place — the store always keeps every account — and re-queries `/val/home` and
@@ -153,7 +180,8 @@ admin space.
 - `app/components/home/` — the home page's business components.
 - `app/components/profile/` — the profile page's business components (`Profile*`).
 - `app/components/match/` — the match page's business components (`Match*`).
-- `app/components/admin/` — the admin space's components (`AdminActions`, `AdminAccountRow`).
+- `app/components/admin/` — the admin space's components (`AdminActions`, `AdminAccountRow`,
+  `AdminValorantData`).
 - `app/components/val/` — components representing a Valorant entity (`ValRankEmblem`,
   `ValPlayerCard`, `ValAgentIcon`, `ValRoleChip`, `ValMatchRow`, `ValMapList`, `ValPlayerPalette`),
   reused across pages.
@@ -183,7 +211,8 @@ admin space.
 - **Composables**: file named after the function — `useGameOnVal.ts` → `useGameOnVal`.
 - **Utils**: kebab-case filenames; Valorant-domain helpers carry a `val-` prefix (`val-tier.ts`,
   `val-ladder.ts`, `val-assets.ts`, `val-smurf.ts`, `val-match.ts`, `val-game.ts`, `val-period.ts`,
-  `val-search.ts`, `val-agents.ts`, `val-profile.ts`, `val-admin.ts`).
+  `val-search.ts`, `val-agents.ts`, `val-profile.ts`, `val-admin.ts`, `val-labels.ts`, `val-minimap.ts`,
+  `val-rr.ts`).
   Generic ones do not (`theme.ts`, `date.ts`, `ascii.ts`).
   Despite `app/utils/` being auto-imported, the codebase **imports these explicitly** — match that.
 - **Types**: Valorant domain types are prefixed `Val` and API payload shapes end in `Dto`
@@ -278,6 +307,14 @@ admin space.
   `updateValRiotId` (`409` when another account holds the Riot ID), `setValCrewMembership`,
   `setPlayerArchived` (never `PATCH /player`, which also rewrites `keycloakId`), `linkValSmurf`,
   `unlinkValSmurf` and `importValMatch`.
+- The full-data API (GameOn-API `features/valorant/full-data`, 2026-11) adds `getValPlayerSeasons`,
+  `getValPlayerMastery`, `getValPlayerAccolades`, `getValPlayerHeatmap`, `getValPremierTeam` and, for
+  the admin space, `queueValBackfill`, `queueValReimport`, `queueValExtras` (all three `202` with the
+  queue), `recomputeValStats` and `getValBackgroundQueue`. Every new field is optional in the types and
+  every new route may answer 404: a section hides or says "indisponible", never fails nor prints 0.
+  Riot's codes (accolade types, performance ratings, Premier roles, weapon kinds) are worded once, in
+  `val-labels.ts`. Minimap positions go through `projectToMinimap` (`val-minimap.ts`, axes swapped:
+  minimap X from game Y), tested in `tests/val-minimap.spec.ts`.
 - The `val` store caches the crew, the home recap and the crew feed behind a 60 s window rather than
   for the whole SPA session, and `index.vue` passes `getCachedData: cacheOnlyDuringHydration`
   (`app/utils/async-data.ts`) so the handlers are replayed on client navigation without breaking
@@ -436,6 +473,15 @@ Each of these is easy to reintroduce and hard to diagnose.
 - **Inline scripts need the CSP nonce.** Nuxt emits inline bootstrap scripts whose content changes
   per render; the nonce is issued in `server/plugins/csp.ts` during the render so it stays in step
   with the SWR-cached HTML.
+- **`lastChange` is the RR Riot announced, not the RR applied.** A loss absorbed at 0 RR is announced
+  −22 for a real −4. Print `rrMove(entry)` (`rrDelta ?? lastChange`) wherever a game's RR shows;
+  `participant.rrChange` and `/val/home`'s net RR already carry the applied value.
+- **`valorantPeakRr` is always 0.** Riot's figure is wrong and HenrikDev neutralises it: `playerPeak`
+  sets `rr` to `null` and nothing prints it.
+- **Only the Valorant CDN may serve images.** The CSP's `img-src` refuses any other host (HenrikDev's
+  Premier icons, for one): pass foreign URLs through `valorantCdnUrl` and draw the fallback.
+- **The heatmap's `map` is a map name, and `agentName` does not apply to it.** It is required (400
+  otherwise); the profile picks it from the recap's `mapStats` and says the agent filter is ignored.
 - **`rrChange7DaysValorant` of `null` is not 0.** It means there is no ranked snapshot both now and
   at least 7 days ago. The ladder prints `—`, the scale draws no trail, the net-RR tile only counts
   players with a value ("N joueurs comparables"). Rank history was introduced on 2026-10-28 (the
@@ -500,6 +546,13 @@ Each of these is easy to reintroduce and hard to diagnose.
   `features/valorant/admin-and-economy` branch (2026-10-30) adds the crew / archive / smurf routes, the
   `409` on a taken Riot ID, `roundPlayerStats` and `matchStored`. Until it runs, those admin actions
   fail upstream, every game says its economy is unavailable, and no rank bar is linked.
+- **The full Valorant data is not deployed yet.** GameOn-API's `features/valorant/full-data` branch
+  (2026-11) adds the play-style recap, weapons, heatmap, seasons, mastery, accolades, Premier, Riot's
+  performance scores, positions, damages and the admin background queue. Until it runs, the profile's
+  new sections stay hidden, the match page says positions and damages are unavailable, and the admin
+  block says its routes are unknown. The view cone reads `viewRadians` from +X towards +Y: check it
+  against a real game once positions exist. `POST /val/admin/recompute-stats` is synchronous and can
+  outlast the proxy's 120 s on the whole base: give it a date.
 - **No per-kill headshots.** HenrikDev does not give them: the design system's `◎` waits, and the
   economy's hits per body part are never turned into one. Matches that are not in the database
   (older than a player's last synchronisations) cannot be opened: only rank history entries flagged
