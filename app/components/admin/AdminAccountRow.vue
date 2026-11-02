@@ -2,8 +2,9 @@
 import { computed, nextTick, onBeforeUnmount, ref } from 'vue'
 import { errorStatusCode, isAbortError } from '~/lib/types/error'
 import { useGameOnVal } from '~/composables/useGameOnVal'
+import { useValAdminQueue } from '~/composables/useValAdminQueue'
 import type { AdminAccountRow } from '~/utils/val-admin'
-import { adminErrorMessage, linkSmurfErrorMessage, smurfCount } from '~/utils/val-admin'
+import { adminErrorMessage, dataMaintenanceErrorMessage, linkSmurfErrorMessage, smurfCount } from '~/utils/val-admin'
 import { timeAgo } from '~/utils/date'
 import { isRankedTier, tierInfo } from '~/utils/val-tier'
 import ValPlayerCard from '~/components/val/ValPlayerCard.vue'
@@ -12,8 +13,9 @@ import ValRankEmblem from '~/components/val/ValRankEmblem.vue'
 /**
  * One account of the admin space: who it is, its Riot ID and status, its rank and last sync, a Riot
  * re-sync, and a "Gérer" panel with what the API lets an admin change on it (`gameon_admin`): its Riot
- * ID, crew membership, archiving and smurf links. Every write tells the page, which re-reads the whole
- * list: one write can move several accounts (a main leaving the crew takes its smurfs along).
+ * ID, crew membership, archiving, smurf links, and the account's own data maintenance (backfill and
+ * extras, queued upstream). Every write tells the page, which re-reads the whole list: one write can
+ * move several accounts (a main leaving the crew takes its smurfs along).
  */
 const props = defineProps<{
   row: AdminAccountRow
@@ -28,6 +30,7 @@ const emit = defineEmits<{
 }>()
 
 const client = useGameOnVal()
+const queue = useValAdminQueue()
 
 const STATUS_LABELS = { crew: 'Crew', out: 'Hors crew', archived: 'Archivé' } as const
 
@@ -38,7 +41,7 @@ const rank = computed(() => {
 const synced = computed(() => (props.row.refreshedOn && props.now ? `Synchro ${timeAgo(props.row.refreshedOn, props.now)}` : null))
 
 /** One write at a time per row: every button is disabled while one runs, so nothing is sent twice. */
-type BusyAction = 'sync' | 'riot' | 'crew' | 'archive' | 'link' | `unlink-${number}`
+type BusyAction = 'sync' | 'riot' | 'crew' | 'archive' | 'link' | 'backfill' | 'extras' | `unlink-${number}`
 const busy = ref<BusyAction | null>(null)
 const error = ref<string | null>(null)
 
@@ -172,6 +175,23 @@ function unlinkSmurf(smurf: { id: number, nickname: string }) {
     await client.unlinkValSmurf(smurf.id, props.signal)
     return `${smurf.nickname} n'est plus un smurf : le compte et son historique sont conservés.`
   }, e => (errorStatusCode(e) === 404 ? 'Ce smurf n\'existe plus.' : adminErrorMessage(e, 'Le compte n\'a pas pu être délié.')))
+}
+
+// --- Data maintenance for this account alone: queued upstream, shown in the "Données Valorant" block ---
+const hasValorant = computed(() => !!props.row.val?.valorantPuuid)
+
+function queueBackfill() {
+  run('backfill', async () => {
+    queue.apply(await client.queueValBackfill(props.row.id, props.signal))
+    return `Backfill de ${props.row.nickname} mis en file : l'historique arrive partie par partie.`
+  }, e => dataMaintenanceErrorMessage(e, 'Le backfill n\'a pas pu être lancé.'))
+}
+
+function queueExtras() {
+  run('extras', async () => {
+    queue.apply(await client.queueValExtras(props.row.id, props.signal))
+    return `Accolades, maîtrise et Premier de ${props.row.nickname} mis en file.`
+  }, e => dataMaintenanceErrorMessage(e, 'La mise à jour n\'a pas pu être lancée.'))
 }
 
 const armedLabel = (key: string, label: string) => (armed.value === key ? 'Confirmer ?' : label)
@@ -328,6 +348,34 @@ const armedLabel = (key: string, label: string) => (armed.value === key ? 'Confi
             </p>
           </form>
         </template>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2 border-t border-dashed border-border-base pt-3">
+        <p class="panel-label basis-full">Données Valorant</p>
+        <button
+          type="button"
+          :disabled="!!busy || !hasValorant"
+          :aria-busy="busy === 'backfill'"
+          :title="hasValorant ? 'Importer l\'historique que HenrikDev garde pour ce compte' : 'Aucun compte Valorant relié'"
+          class="row-action border border-border-strong"
+          @click="queueBackfill"
+        >
+          <template v-if="busy === 'backfill'"><span aria-hidden="true" class="ascii">[■■□]</span> Envoi…</template>
+          <template v-else><span aria-hidden="true" class="text-text-ter">[</span>Backfill<span aria-hidden="true" class="text-text-ter">]</span></template>
+        </button>
+        <button
+          type="button"
+          :disabled="!!busy || !hasValorant"
+          :aria-busy="busy === 'extras'"
+          class="row-action border border-border-strong"
+          @click="queueExtras"
+        >
+          <template v-if="busy === 'extras'"><span aria-hidden="true" class="ascii">[■■□]</span> Envoi…</template>
+          <template v-else><span aria-hidden="true" class="text-text-ter">[</span>Accolades / maîtrise / Premier<span aria-hidden="true" class="text-text-ter">]</span></template>
+        </button>
+        <p class="basis-full text-pretty text-xs text-text-sec">
+          Mis en file sur l'API ; l'avancement s'affiche dans « Données Valorant », en haut de la page.
+        </p>
       </div>
 
       <p class="border-t border-dashed border-border-base pt-3 font-mono text-[11px] text-text-ter">

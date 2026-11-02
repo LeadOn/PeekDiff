@@ -101,3 +101,17 @@ export function mapImageUrl(mapId: string | null | undefined, variant: keyof typ
   const id = resolveMap(mapId)
   return id ? `${MEDIA}/maps/${id}/${MAP_FILES[variant]}.png` : null
 }
+
+/**
+ * The URL when it is served by the Valorant CDN, `null` otherwise. Images from anywhere else are
+ * refused by the CSP's `img-src` (HenrikDev's Premier icons, for one): render the fallback instead of
+ * a broken image.
+ */
+export function valorantCdnUrl(url: string | null | undefined): string | null {
+  return url?.startsWith(`${MEDIA}/`) ? url : null
+}
+
+/** A colour the API sends as hexadecimal without `#` ("FF4655"), ready for an inline style; `null` when malformed. */
+export function hexColor(value: string | null | undefined): string | null {
+  return value && /^[0-9a-f]{6}([0-9a-f]{2})?$/i.test(value) ? `#${value}` : null
+}

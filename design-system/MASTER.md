@@ -256,6 +256,24 @@ icône 24px, nom en mono MAJ., `×` en `text-ter`, filet bas rouge 2px ; un clic
   ou `enemy`, `◎` pour headshot — l'API ne fournit pas encore le headshot par kill, le `◎` attend.
   Une manche à la fois (celle de la frise), avec pose et désamorçage du spike en tête ; le joueur
   suivi est souligné.
+- **Camp par manche** : sous chaque case de la frise, une lettre mono 9px `text-ter` dit le camp des
+  alliés (`A` attaque, `D` défense, d'après `attackingTeam`), légendée au-dessus.
+- **Minimap de manche** : à droite du kill feed dès `lg:` (au-dessus sur mobile), carré `night` 420px
+  max, image de la minimap à 75 %. Vue d'ensemble : un `✕` par mort à la couleur du camp tombé, le
+  trait du tireur à 25 %, le spike en losange `spike`. Un kill survolé, focalisé ou choisi (la ligne du
+  feed devient un bouton `aria-pressed`, filet gauche `text-main` sur `surface-high`) montre chaque
+  joueur vivant à cet instant (carré `ally` / `enemy`, le joueur suivi cerclé `on-night`, cône de vue
+  à 12 %), le trait pointillé du tireur à la victime et son cône à 30 %. Le feed reste l'équivalent
+  texte : chaque ligne porte la zone et la distance. Sans positions : une ligne
+  `// Positions indisponibles pour cette partie`.
+- **Qui a touché qui** : matrice alliés en lignes × ennemis en colonnes (icône d'agent 24px), chaque
+  case deux chiffres mono — infligés en `ally` au-dessus, reçus en `enemy` dessous, gras au-delà de
+  60 % du maximum, `·` pour zéro ; totaux en colonne et en pied. Sélecteur `PARTIE · MANCHE N`
+  (celle de la frise). Colonne alliés collante, défilement horizontal sur mobile, chaque case détaillée
+  en `title` et pour les lecteurs d'écran.
+- **Données Riot** : la note Riot est toujours dite « bêta » et posée à côté de la nôtre, jamais à sa
+  place ; badges `RIOT ★` / `RIOT ☆` à filet `mvp` / `mvp-team` à côté de nos MVP ; accolades en
+  puces mono 9px à filet `border-strong` (`mvp` pour un record d'acte), trois au plus puis `+N`.
 - **Tableau des scores** : en-tête `surface-high` mono MAJ. ; joueur connecté en
   `surface-selected` + filet rouge ; colonnes ACS · K · D · A · +/− · ADR · HS% · KAST · FK · FD
   (libellées PK / PM, premiers kills et premières morts). Un tableau par équipe, filet haut 2px de la
@@ -264,6 +282,17 @@ icône 24px, nom en mono MAJ., `×` en `text-ter`, filet bas rouge 2px ; un clic
   (`win`) sur défaites (`loss`) proportionnelle au nombre de parties, le compte au-dessus, le RR net
   du jour en dessous (`—` sans classée), l'initiale du jour au pied, le jour courant en gras. Une
   légende sous la carte ; chaque colonne porte son résumé en `aria-label`.
+- **Heatmap (profil)** : sélecteurs segmentés carte · `KILLS · MORTS` · `LES DEUX · ATTAQUE ·
+  DÉFENSE`, minimap carrée `night` 560px max, un petit carré par point (`ally` en attaque, `enemy` en
+  défense, 75 %), la liste des zones à droite (part et barre de glyphes) comme équivalent texte. L'état
+  vide dit pourquoi (API trop ancienne, carte sans minimap, parties antérieures aux positions).
+- **Style de jeu (profil)** : cartes de données — attaque (`ally`, filet gauche) contre défense
+  (`enemy`) avec la colonne « Écart », manches gagnées par achat en barres de glyphes, clutchs en
+  colonnes 1v1 → 1v5, échanges, notes PeekDiff et Riot côte à côte. Les côtés gardent leurs libellés :
+  la couleur ne porte jamais seule l'attaque ou la défense.
+- **Carrière (profil)** : frise des actes (cartes 144px qui défilent, badge d'acte, triangle des
+  victoires en carrés de 6px à la couleur du rang), maîtrise (icône, barre, `NIV. N`), accolades
+  (`×N` en display, meilleur résultat en mono, sélecteur `TOUT · E11A6…`).
 - **Records** (accueil, page Records) : une carte par distinction, label `// TITRE`, valeur en display 44px et son
   unité en mono, ce qui a été compté en une ligne, puis sous un filet pointillé le joueur (lien vers
   son profil), la date et `[ LA PARTIE ]` quand le record tient en une partie. Les plus flatteuses

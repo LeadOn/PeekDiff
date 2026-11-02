@@ -20,8 +20,14 @@ export interface ValRankHistoryDto {
   rankedRating: number;
   /** Continuous cross-tier score: 100 per tier, so `elo = (tierId - 3) * 100 + rankedRating`. */
   elo: number;
-  /** RR won or lost on `matchId`. Meaningless on a snapshot. */
+  /**
+   * RR Riot *announced* for `matchId`, not the RR applied: a loss absorbed at 0 RR is announced −22 for a
+   * real −4, a promotion announced +16 brings +22. Print `rrMove(entry)` (`rrDelta ?? lastChange`).
+   * Meaningless on a snapshot.
+   */
   lastChange: number;
+  /** RR actually won or lost, `null` when unknown (older API, standalone snapshot). */
+  rrDelta?: number | null;
   refundedRr: number;
   wasDerankProtected: boolean;
   /** The map's game path (`/Game/Maps/Ascent/Ascent`) or uuid; `resolveMap` accepts both. */
@@ -38,6 +44,21 @@ export interface ValRankHistoryDto {
   /** Emblem URLs on media.valorant-api.com, `null` for tiers without one. */
   smallIconUrl: string | null;
   largeIconUrl: string | null;
+  // Optional below: added by the API on 2026-11 (`features/valorant/full-data`), absent before.
+  queueId?: string | null;
+  matchLengthMs?: number | null;
+  /** The tier before the game, to tell a promotion or a demotion. */
+  tierBeforeId?: number | null;
+  tierBeforeName?: string | null;
+  rrBeforeUpdate?: number | null;
+  /** RR added for a good performance, part of `rrDelta`. */
+  rrPerformanceBonus?: number | null;
+  /** RR gain factor of an unbalanced party, e.g. 0.25. */
+  rrPenalty?: number | null;
+  afkPenalty?: number | null;
+  newMapIncentiveRrForgiven?: number | null;
+  isPlacementMatch?: boolean | null;
+  wasDerankProtectionReplenished?: boolean | null;
 }
 
 /**
@@ -95,6 +116,118 @@ export interface ValPlayerDto {
    * `null` when the account has no counted game in them.
    */
   valorantPerformanceStats?: ValPerformanceStatsDto | null;
+  // Optional and nullable below: added by the API on 2026-11 (`features/valorant/full-data`). `null`
+  // means unknown, never 0.
+  /** Derank protection shields left. */
+  valorantRankProtectionShields?: number | null;
+  /** "Empty", "Full"… */
+  valorantRankProtectionStatus?: string | null;
+  /** True on a tier where a loss cannot demote (the shields are in play). */
+  valorantIsAtRankProtectedTier?: boolean | null;
+  valorantGamesNeededForRating?: number | null;
+  valorantGamesNeededForLeaderboard?: number | null;
+  valorantLeaderboardRank?: number | null;
+  valorantLeaderboardUpdatedOn?: string | null;
+  valorantIsActRankBadgeHidden?: boolean | null;
+  valorantIsLeaderboardAnonymized?: boolean | null;
+  /** "base" or "ascendant": the tier table of the peak. */
+  valorantPeakRankingSchema?: string | null;
+  /** Raw JSON, `{"DIAMOND":{"count":6}}`: read it with `parsePrestige`. */
+  valorantLifetimePrestigeJson?: string | null;
+  /** Read the team with `GET /val/premier/{id}`. */
+  valorantPremierTeamId?: string | null;
+  /** "OWNER", "MEMBER"… */
+  valorantPremierRole?: string | null;
+  valorantPremierJoinedOn?: string | null;
+  /** When accolades, mastery and Premier were last read (once a day). */
+  valorantExtrasRefreshedOn?: string | null;
+}
+
+/** `GET /val/player/{id}/seasons`: one act's end result (`ValorantSeasonResult`), oldest act first. */
+export interface ValSeasonResultDto {
+  id: number;
+  playerId: number;
+  seasonId: string;
+  /** "e11a6". */
+  seasonShort: string | null;
+  /** The act rank badge: the best rank of the act's top wins. */
+  actRankTierId: number | null;
+  actRankTierName: string | null;
+  actRankIconUrl: string | null;
+  /** The rank the act ended on. */
+  endTierId: number | null;
+  endTierName: string | null;
+  endRr: number;
+  games: number;
+  wins: number;
+  winsWithPlacements: number;
+  gamesNeededForRating: number;
+  leaderboardRank: number | null;
+  rankingSchema: string | null;
+  /** Raw JSON array of tier ids, the triangle of the act badge: read it with `parseActWins`. */
+  actWinsJson: string | null;
+  prestigeJson: string | null;
+  refreshedOn: string | null;
+}
+
+/** `GET /val/player/{id}/mastery`: one agent's mastery, highest level first. */
+export interface ValAgentMasteryDto {
+  agentId: string;
+  agentName: string | null;
+  agentIconUrl: string | null;
+  /** `null` for an agent never levelled. */
+  level: number | null;
+  tracksJson: string | null;
+  flourishShortLevel: number | null;
+  flourishLongLevel: number | null;
+  hypeId: string | null;
+  backgroundId: string | null;
+  clipId: string | null;
+  borderId: string | null;
+  refreshedOn: string | null;
+}
+
+/**
+ * `GET /val/player/{id}/accolades`: one kind of end-of-game star. Rows without `seasonId` (all-time)
+ * come first, then one set per act.
+ */
+export interface ValAccoladeSummaryDto {
+  seasonId: string | null;
+  seasonShort: string | null;
+  accoladeId: string;
+  /** "kills", "first_blood", "clutches"… worded by `accoladeLabel`. */
+  type: string;
+  count: number;
+  bestValue: number;
+  refreshedOn: string | null;
+}
+
+/** `GET /val/premier/{teamId}`: a Premier team. 404 when unknown. */
+export interface ValPremierTeamDto {
+  id: string;
+  name: string | null;
+  tag: string | null;
+  iconId: string | null;
+  /** The team icon, already coloured. */
+  imageUrl: string | null;
+  /** Hexadecimal without `#`. */
+  primaryColor: string | null;
+  secondaryColor: string | null;
+  tertiaryColor: string | null;
+  createdOn: string | null;
+  currentSeasonId: string | null;
+  currentSeasonName: string | null;
+  enrolled: boolean | null;
+  conference: string | null;
+  division: number | null;
+  points: number | null;
+  wins: number | null;
+  losses: number | null;
+  roundsWon: number | null;
+  roundsLost: number | null;
+  membersJson: string | null;
+  seasonsJson: string | null;
+  refreshedOn: string | null;
 }
 
 /**

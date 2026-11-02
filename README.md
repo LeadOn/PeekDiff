@@ -217,7 +217,12 @@ Toutes) and smurfs, kept in the URL. Linked from the header, the search palette 
 - the last games grouped by day with the day's record and net RR, 10 at a time;
 - a rail: the elo curve over the period with the RR of each ranked game (a bar opens its match when
   the game is stored), agents (a row filters the
-  profile on that agent), maps, duos.
+  profile on that agent), maps, duos;
+- with the full-data API: Premier team, rank-protection shields, leaderboard rank and lifetime
+  prestige in the hero; "Style de jeu" (attack vs defense, rounds won by buy, clutches, trades, our
+  rating beside Riot's beta score) and the weapons, both following the filters; a kill / death
+  heatmap per map with its zones; "Carrière" (acts, agent mastery, accolades). The RR of a ranked game
+  is the RR applied (`rrDelta`), not the one Riot announced.
 
 **Done — match pages (`/match/[id]`)**, opened from any row of a profile's history:
 
@@ -227,7 +232,11 @@ Toutes) and smurfs, kept in the URL. Linked from the header, the search palette 
   selected round, the plant / defuse and the kill feed;
 - the economy: each team's loadout per round with its buy (pistolets, éco, semi, achat complet) and,
   for the selected round, every player's weapon, armor, credits and damage — or "économie
-  indisponible" for a game imported before the API kept it.
+  indisponible" for a game imported before the API kept it;
+- with the full-data API: Riot's score, MVPs and accolades on the scoreboard, the party RR penalty,
+  the allies' side per round, the selected round on the minimap (every player's position at a hovered
+  kill, the killer's view, the spike) with zones and distances in the kill feed, and "Qui a touché
+  qui", the damage matrix over the game or one round.
 
 **Done — settings (`/settings`)**, signed-in only: name, nickname and Riot ID (a Riot ID already
 held by another account is refused, and nothing is saved).
@@ -245,7 +254,11 @@ refresh every crew rank, import a game from HenrikDev, and every GameOn account 
 crew, archived; those without a Riot ID first) with its Riot ID, rank and last sync, to re-sync,
 point at another Riot ID, move in or out of the crew, archive, and link or unlink smurfs. Crew,
 archiving and smurfs are fields of the GameOn account: changing them here changes them in JungleDiff
-too, on purpose.
+too, on purpose. "Données Valorant" queues a backfill, a reimport, the accolades / mastery / Premier
+refresh (for everyone or one account) and recomputes the stats, and follows the API's background
+queue every 5 s while it has work.
+
+**Done — crew records:** "Roi du clutch" and "Plus long kill" join the awards when the API sends them.
 
 ## 🧩 Backend Gaps
 
@@ -263,6 +276,12 @@ too, on purpose.
   `false`; until it ships, League of Legends players without a Valorant account still show as
   unranked on the ladder. The admin space
   leaves it out on purpose and keeps listing every account.
+- **Not deployed yet either:** the GameOn-API branch `features/valorant/full-data` (2026-11) — the
+  play-style recap, weapons, heatmap, seasons, mastery, accolades, Premier, Riot's performance score,
+  positions, damages, `rrDelta` and the admin background queue (`/val/admin/...`). Until it ships the
+  profile's new sections stay hidden, matches say positions and damages are unavailable and the admin
+  block says its routes are unknown. Premier icons come from HenrikDev, a host the CSP refuses: the
+  team colour stands in for them.
 - **Anonymous upstream:** the sync routes (every rank, one player) and the game import are anonymous
   on the API; the admin space is where PeekDiff calls them, not what protects them.
 - **Not served:** live games (the "en partie" strip), headshots per kill (the kill

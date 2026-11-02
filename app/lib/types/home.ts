@@ -88,6 +88,10 @@ export interface ValGlobalStatsDto {
   nightOwl: ValFunStatDto | null;
   longestWinStreak: ValFunStatDto | null;
   longestLossStreak: ValFunStatDto | null;
+  /** Most clutches won over the period, without a game. Absent from an API older than 2026-11. */
+  clutchKing?: ValFunStatDto | null;
+  /** Longest kill, `value` in meters, with its game. Absent from an API older than 2026-11. */
+  longestKill?: ValFunStatDto | null;
   topAgents: ValCrewAgentStatDto[];
   /** A game counts once per crew team: a five-stack is one game. */
   topMaps: ValMapStatDto[];

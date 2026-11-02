@@ -1,4 +1,4 @@
-import type { PlayerAccountDto, ValPlayerDto } from '~/lib/types'
+import type { PlayerAccountDto, ValBackgroundQueueStatusDto, ValBackgroundTaskDto, ValBackgroundTaskKind, ValPlayerDto } from '~/lib/types'
 import { AppError, errorStatusCode } from '~/lib/types/error'
 import { hasRiotId, hasValorantProfile } from '~/utils/val-profile'
 import { isSmurf } from '~/utils/val-smurf'
@@ -128,4 +128,43 @@ export function linkSmurfErrorMessage(error: unknown): string {
     return 'Ce lien est refusé : le compte principal est un smurf, ou ce compte Riot appartient déjà à quelqu\'un.'
   }
   return adminErrorMessage(error, 'La liaison a échoué. Réessayez dans un instant.')
+}
+
+// --- Valorant data maintenance (background queue) ---
+
+export const TASK_KIND_LABELS: Record<ValBackgroundTaskKind, string> = {
+  Backfill: 'Backfill de l\'historique',
+  Reimport: 'Réimport des parties',
+  Extras: 'Accolades, maîtrise et Premier',
+}
+
+/** Whether the queue still has work: the page polls it every few seconds until it has none. */
+export function isQueueActive(status: ValBackgroundQueueStatusDto | null): boolean {
+  return !!status && (status.inProgress !== null || status.pending.length > 0)
+}
+
+/**
+ * "Backfill de l'historique · Jett · depuis le 12/10/2026": what a task covers. `nameOf` resolves an
+ * account id to a name; an id it does not know is printed as `#12`.
+ */
+export function describeTask(task: ValBackgroundTaskDto, nameOf: (playerId: number) => string | null): string {
+  const who = task.playerId === null ? 'tous les comptes' : nameOf(task.playerId) ?? `#${task.playerId}`
+  const since = task.since ? `depuis le ${new Date(task.since).toLocaleDateString('fr-FR')}` : null
+  return [TASK_KIND_LABELS[task.kind] ?? task.kind, who, since].filter(Boolean).join(' · ')
+}
+
+/**
+ * A `YYYY-MM-DD` from a date input, as the ISO instant of that midnight on the admin's clock; `null`
+ * for an empty or malformed value.
+ */
+export function dayToIso(day: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return null
+  const date = new Date(`${day}T00:00:00`)
+  return Number.isNaN(date.getTime()) ? null : date.toISOString()
+}
+
+/** The data maintenance routes' failures: a 404 is an API that does not serve them yet. */
+export function dataMaintenanceErrorMessage(error: unknown, fallback: string): string {
+  if (errorStatusCode(error) === 404) return 'L\'API ne connaît pas encore cette route : elle doit d\'abord être déployée.'
+  return adminErrorMessage(error, fallback)
 }

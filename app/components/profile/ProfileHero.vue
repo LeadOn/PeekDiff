@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { ValPlayerDto } from '~/lib/types'
+import type { ValPlayerDto, ValPremierTeamDto } from '~/lib/types'
 import { playerDisplayName, playerPeak } from '~/utils/val-ladder'
-import { AGENT_ROLES, agentIdFromUrl, agentImageUrl, rankIconUrl } from '~/utils/val-assets'
+import { AGENT_ROLES, agentIdFromUrl, agentImageUrl, hexColor, rankIconUrl, valorantCdnUrl } from '~/utils/val-assets'
 import { agentRole } from '~/utils/val-agents'
-import { isRankedTier, tierInfo } from '~/utils/val-tier'
+import { familyBaseTier, familyLabel, isRankedTier, tierColor, tierInfo } from '~/utils/val-tier'
+import { parsePrestige, premierRoleLabel, protectionStatusLabel } from '~/utils/val-labels'
 import { timeAgo } from '~/utils/date'
 import { formatSigned } from '~/utils/number'
 import { RESULT_LABELS } from '~/utils/val-match'
@@ -25,6 +26,8 @@ const props = defineProps<{
   /** The sync action is offered to every visitor, once the account has a Valorant PUUID. */
   canSync: boolean
   syncing: boolean
+  /** The player's Premier team, read after mount from `valorantPremierTeamId`; `null` until then or when unknown. */
+  premier: ValPremierTeamDto | null
 }>()
 
 const emit = defineEmits<{
@@ -79,6 +82,50 @@ const form = computed(() => (props.player.recentFormValorant ?? []).map(win => (
 
 const smurfs = computed(() => props.player.smurfAccounts ?? [])
 const smurf = computed(() => isSmurf(props.player))
+
+// --- Fields added by the API on 2026-11: each one shows only when it is known ---
+
+/** The Premier badge: the team's name and tag once `GET /val/premier/{id}` answered, the role meanwhile. */
+const premierBadge = computed(() => {
+  if (!props.player.valorantPremierTeamId) return null
+  const team = props.premier
+  const name = team?.name ? `${team.name}${team.tag ? `#${team.tag}` : ''}` : 'Équipe Premier'
+  return {
+    name,
+    role: premierRoleLabel(props.player.valorantPremierRole),
+    // HenrikDev serves the team icon from a host the CSP refuses: the team colour stands in for it.
+    imageUrl: valorantCdnUrl(team?.imageUrl),
+    color: hexColor(team?.primaryColor),
+    division: team?.division ?? null,
+  }
+})
+
+/** Derank protection: only on a protected tier, with the shields left when the API knows them. */
+const protection = computed(() => {
+  if (props.player.valorantIsAtRankProtectedTier !== true) return null
+  const shields = props.player.valorantRankProtectionShields
+  const status = protectionStatusLabel(props.player.valorantRankProtectionStatus)
+  const count = shields == null ? null : `${shields} bouclier${shields > 1 ? 's' : ''}`
+  return {
+    text: count ?? 'Protégé',
+    title: ['Protection de rang : une défaite ne fait pas descendre de division', count, status].filter(Boolean).join(' · '),
+  }
+})
+
+const leaderboardRank = computed(() => {
+  const rank = props.player.valorantLeaderboardRank
+  return rank != null && rank > 0 ? rank : null
+})
+
+/** Acts finished in each rank family, over the account's lifetime. */
+const prestige = computed(() => parsePrestige(props.player.valorantLifetimePrestigeJson).map(entry => ({
+  ...entry,
+  tierId: familyBaseTier(entry.family),
+  label: `${entry.count} acte${entry.count > 1 ? 's' : ''} fini${entry.count > 1 ? 's' : ''} en ${familyLabel(entry.family)}`,
+  color: tierColor(entry.family),
+})))
+
+const hasBadges = computed(() => !!premierBadge.value || !!protection.value || leaderboardRank.value !== null || prestige.value.length > 0)
 
 const syncedLabel = computed(() => {
   if (!props.player.valorantRefreshedOn) return 'Jamais synchronisé'
@@ -173,6 +220,42 @@ const syncedLabel = computed(() => {
         </ol>
       </div>
     </div>
+
+    <ul v-if="hasBadges" class="mt-5 flex flex-wrap items-center gap-2 font-mono text-xs" aria-label="Distinctions du compte">
+      <li v-if="premierBadge" class="flex h-8 items-center gap-2 border border-on-night/25 bg-night/60 pl-1 pr-2.5">
+        <img v-if="premierBadge.imageUrl" :src="premierBadge.imageUrl" alt="" width="24" height="24" class="size-6 object-contain">
+        <span v-else aria-hidden="true" class="grid size-6 place-items-center text-on-night-2" :style="premierBadge.color ? { color: premierBadge.color } : undefined">◆</span>
+        <span class="text-[10px] uppercase tracking-[0.08em] text-on-night-2">Premier</span>
+        <b class="font-medium">{{ premierBadge.name }}</b>
+        <span v-if="premierBadge.role" class="text-on-night-2">· {{ premierBadge.role }}</span>
+        <span v-if="premierBadge.division !== null" class="text-on-night-2">· div. {{ premierBadge.division }}</span>
+      </li>
+      <li v-if="protection" :title="protection.title" class="flex h-8 items-center gap-1.5 border border-on-night/25 bg-night/60 px-2.5">
+        <span aria-hidden="true" class="text-on-night-win">◈</span>
+        <span>{{ protection.text }}</span>
+        <span class="sr-only">{{ protection.title }}</span>
+      </li>
+      <li v-if="leaderboardRank !== null" class="flex h-8 items-center gap-1.5 border border-on-night/25 bg-night/60 px-2.5">
+        <span class="text-[10px] uppercase tracking-[0.08em] text-on-night-2">Leaderboard</span>
+        <b class="font-medium">#{{ leaderboardRank.toLocaleString('fr-FR') }}</b>
+      </li>
+      <li v-if="prestige.length" class="flex h-8 items-center gap-2 border border-on-night/25 bg-night/60 pl-2.5 pr-1.5">
+        <span class="text-[10px] uppercase tracking-[0.08em] text-on-night-2">Prestige</span>
+        <ul class="flex items-center gap-1">
+          <li
+            v-for="entry in prestige"
+            :key="entry.family"
+            :title="entry.label"
+            class="flex h-6 items-center gap-0.5 border-b-2 pr-1"
+            :style="{ borderBottomColor: entry.color }"
+          >
+            <ValRankEmblem :tier-id="entry.tierId" alt="" class="size-5" />
+            <span aria-hidden="true">×{{ entry.count }}</span>
+            <span class="sr-only">{{ entry.label }}</span>
+          </li>
+        </ul>
+      </li>
+    </ul>
 
     <div class="mt-6 flex flex-wrap items-center gap-3">
       <ClientOnly>

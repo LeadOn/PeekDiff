@@ -5,14 +5,18 @@ import { useGameOnVal } from '~/composables/useGameOnVal'
 import { formatClock } from '~/utils/date'
 import { isMatchId } from '~/utils/val-admin'
 import FrameHead from '~/components/ui/FrameHead.vue'
+import AdminValorantData from '~/components/admin/AdminValorantData.vue'
 
 /**
- * The admin space's crew-wide actions: re-read every rank from Riot, and import one game from
- * HenrikDev by its id. Both are slow upstream calls; each button stays busy until its answer.
+ * The admin space's crew-wide actions: re-read every rank from Riot, import one game from HenrikDev
+ * by its id, and the maintenance of stored Valorant data ("Données Valorant"). The first two are slow
+ * upstream calls; each button stays busy until its answer.
  */
 const props = defineProps<{
   /** The admin session's signal: leaving the page cancels whatever is in flight. */
   signal: AbortSignal
+  /** Account names by id, for the background queue's tasks. */
+  names: Record<number, string>
 }>()
 
 const emit = defineEmits<{
@@ -158,6 +162,8 @@ async function importMatch() {
         </div>
       </form>
     </section>
+
+    <AdminValorantData :signal="signal" :names="names" class="md:col-span-2" @changed="emit('changed')" />
   </div>
 </template>
 

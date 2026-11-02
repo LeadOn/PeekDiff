@@ -21,6 +21,7 @@ const props = defineProps<{
 type AwardKey =
   | 'highestCombatScore' | 'entryKing' | 'sharpshooter' | 'longestWinStreak' | 'spikeCarrier' | 'nightOwl'
   | 'knifeAssassin' | 'biggestInter' | 'firstBloodVictim' | 'bodyshotEnjoyer' | 'longestLossStreak'
+  | 'clutchKing' | 'longestKill'
 
 /**
  * In display order: the flattering ones first. `unit` follows the value; `what` says what was counted,
@@ -29,7 +30,9 @@ type AwardKey =
 const AWARDS: { key: AwardKey, title: string, unit: string, what: (value: number, period: string) => string, decimals?: boolean, minimum?: number }[] = [
   { key: 'highestCombatScore', title: 'Meilleur ACS', unit: 'ACS', what: () => 'en une partie' },
   { key: 'entryKing', title: 'Roi de l\'entrée', unit: 'PK', what: value => `premier${value > 1 ? 's' : ''} kill${value > 1 ? 's' : ''} en une partie` },
+  { key: 'clutchKing', title: 'Roi du clutch', unit: '', what: (value, period) => `clutch${value > 1 ? 's' : ''} gagné${value > 1 ? 's' : ''} ${period}` },
   { key: 'sharpshooter', title: 'Tireur d\'élite', unit: '%', what: (_value, period) => `de headshots ${period}`, decimals: true },
+  { key: 'longestKill', title: 'Plus long kill', unit: 'm', what: () => 'entre le tireur et sa cible' },
   { key: 'longestWinStreak', title: 'Série de victoires', unit: 'V', what: () => 'd\'affilée', minimum: 2 },
   { key: 'spikeCarrier', title: 'Porteur de spike', unit: '', what: value => `pose${value > 1 ? 's' : ''} et désamorçage${value > 1 ? 's' : ''} en une partie` },
   { key: 'nightOwl', title: 'Oiseau de nuit', unit: '', what: value => `partie${value > 1 ? 's' : ''} entre minuit et 6 h` },
@@ -41,7 +44,8 @@ const AWARDS: { key: AwardKey, title: string, unit: string, what: (value: number
 ]
 
 const awards = computed(() => AWARDS.flatMap((award) => {
-  const stat: ValFunStatDto | null = props.records[award.key]
+  // `clutchKing` and `longestKill` are absent from an API older than 2026-11: no card then.
+  const stat: ValFunStatDto | null | undefined = props.records[award.key]
   // A "streak" of one game is not one: the API hands it out whenever anybody won or lost at all.
   if (!stat?.player || stat.value < (award.minimum ?? 0)) return []
   return [{
