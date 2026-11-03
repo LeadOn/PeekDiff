@@ -50,7 +50,7 @@ function onIconError(key: string) {
 
 <template>
   <section class="border border-border-base bg-surface-base p-4">
-    <FrameHead title="Armes" :aside="periodPhrase" as="h3" />
+    <FrameHead title="Armes" as="h3" />
     <ol v-if="rows.length" class="grid gap-x-8 lg:grid-cols-2">
       <li
         v-for="row in rows"

@@ -5,7 +5,9 @@ import { useAnimatedNumber } from '~/composables/useAnimatedNumber'
 import { dayRange, describeDay, formatPlaytime, parisDayKey } from '~/utils/date'
 import { formatPercent, formatSigned } from '~/utils/number'
 import { glyphBar } from '~/utils/ascii'
+import { STAT_HINTS } from '~/utils/val-glossary'
 import FrameHead from '~/components/ui/FrameHead.vue'
+import InfoTip from '~/components/ui/InfoTip.vue'
 
 /**
  * The crew's competitive week (`GET /val/home`, last 7 days): four tiles, then the week day by day.
@@ -64,13 +66,13 @@ const days = computed(() => props.activity.days.map((day) => {
   <div class="flex flex-col gap-3 md:gap-4">
     <div class="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
       <div class="ticks animate-enter border border-border-base bg-surface-base p-4 md:p-5">
-        <span class="font-mono text-[11px] uppercase tracking-[0.08em] text-text-ter">// Classées · 7 j</span>
+        <span class="font-mono text-[11px] uppercase tracking-[0.08em] text-text-ter">// <InfoTip v-bind="STAT_HINTS.rankedGames">Classées</InfoTip> · 7 j</span>
         <div class="mt-2 font-display text-[56px] font-black leading-[0.9] md:text-[64px]">{{ Math.round(games) }}</div>
         <div class="mt-2 font-mono text-xs text-text-sec">{{ gamesDeltaText }}</div>
       </div>
 
       <div class="animate-enter border border-border-base bg-surface-base p-4 [animation-delay:40ms] md:p-5">
-        <span class="font-mono text-[11px] uppercase tracking-[0.08em] text-text-ter">// Victoires</span>
+        <span class="font-mono text-[11px] uppercase tracking-[0.08em] text-text-ter">// <InfoTip v-bind="STAT_HINTS.winRate">Victoires</InfoTip></span>
         <div class="mt-2 font-display text-[56px] font-black leading-[0.9] md:text-[64px]">
           {{ Math.round(activity.winRateThisWeek) }}<span class="ml-1 font-mono text-xs font-medium text-text-ter">%</span>
         </div>
@@ -81,13 +83,13 @@ const days = computed(() => props.activity.days.map((day) => {
       </div>
 
       <div class="animate-enter border border-border-base bg-surface-base p-4 [animation-delay:80ms] md:p-5">
-        <span class="font-mono text-[11px] uppercase tracking-[0.08em] text-text-ter">// RR net</span>
+        <span class="font-mono text-[11px] uppercase tracking-[0.08em] text-text-ter">// <InfoTip v-bind="STAT_HINTS.rrNetCrew" /></span>
         <div class="mt-2 font-display text-[56px] font-black leading-[0.9] md:text-[64px]" :class="netClass">{{ formatSigned(Math.round(net)) }}</div>
         <div class="mt-2 font-mono text-xs text-text-sec">{{ activeCount }} joueur{{ activeCount > 1 ? 's' : '' }} actif{{ activeCount > 1 ? 's' : '' }} sur {{ crewSize }}</div>
       </div>
 
       <div class="animate-enter border border-border-base bg-surface-base p-4 [animation-delay:120ms] md:p-5">
-        <span class="font-mono text-[11px] uppercase tracking-[0.08em] text-text-ter">// Temps de jeu</span>
+        <span class="font-mono text-[11px] uppercase tracking-[0.08em] text-text-ter">// <InfoTip v-bind="STAT_HINTS.crewPlaytime" /></span>
         <div class="mt-2 whitespace-nowrap font-display text-[44px] font-black leading-[0.9] md:text-[56px]">{{ formatPlaytime(activity.totalPlaytimeMinutesThisWeek * 60) }}</div>
         <div class="mt-2 font-mono text-xs text-text-sec">{{ Math.round(activity.averageGameDurationMinutesThisWeek) }} min par partie</div>
       </div>

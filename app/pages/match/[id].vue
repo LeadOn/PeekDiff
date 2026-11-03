@@ -1,13 +1,16 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { useAsyncData, useRoute } from '#app'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useAsyncData, useRoute, useRouter } from '#app'
 import type { ValGameTimelineDto } from '~/lib/types'
 import { AppError, errorStatusCode, isAbortError } from '~/lib/types/error'
 import { useGameOnVal } from '~/composables/useGameOnVal'
 import { usePlayerStore } from '~/stores/player'
 import { cacheOnlyDuringHydration } from '~/utils/async-data'
-import { buildDamageMatrix, buildEconomy, buildRoundDetail, buildRoundLoadouts, buildRoundMinimap, buildRounds, buildScoreboard, hasPositions, resolvePerspective } from '~/utils/val-game'
-import SectionIndex from '~/components/ui/SectionIndex.vue'
+import { buildDamageMatrix, buildEconomy, buildRoundDetail, buildRoundLoadouts, buildRoundMinimap, buildRounds, buildScoreboard, DEFAULT_MATCH_TAB, hasPositions, MATCH_TABS, parseMatchTab, resolvePerspective } from '~/utils/val-game'
+import type { MatchTab } from '~/utils/val-game'
+import { RESULT_LABELS } from '~/utils/val-match'
+import SectionTitle from '~/components/ui/SectionTitle.vue'
+import TabBar from '~/components/ui/TabBar.vue'
 import MatchHero from '~/components/match/MatchHero.vue'
 import MatchScoreboard from '~/components/match/MatchScoreboard.vue'
 import MatchTimeline from '~/components/match/MatchTimeline.vue'
@@ -15,6 +18,7 @@ import MatchEconomy from '~/components/match/MatchEconomy.vue'
 import MatchDamageMatrix from '~/components/match/MatchDamageMatrix.vue'
 
 const route = useRoute()
+const router = useRouter()
 const client = useGameOnVal()
 const playerStore = usePlayerStore()
 
@@ -27,6 +31,9 @@ const isValidMatchId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
  * viewer once mounted if they played this game, otherwise the side with the most crew members.
  */
 const queryPlayerId = /^\d+$/.test(String(route.query.player ?? '')) ? Number(route.query.player) : null
+
+/** The sticky header's height, which the page's sticky bar sits under. */
+const HEADER_HEIGHT = 60
 
 const isMounted = ref(false)
 const timelineRequest = new AbortController()
@@ -78,6 +85,27 @@ useSeoMeta({
     ? `Tableau des scores, manches et kills de la partie sur ${game.value.mapName ?? 'une carte inconnue'} jouée par le crew.`
     : 'Tableau des scores, manches et kills d\'une partie Valorant du crew.'),
 })
+
+const allyResult = computed(() => teams.value.find(team => team.side === 'ally')?.result ?? null)
+
+// --- Tabs: the round picked in one stays picked in the others ---
+const tab = ref<MatchTab>(parseMatchTab(route.query.tab))
+const toolbar = ref<HTMLElement | null>(null)
+
+async function onTabChange(next: MatchTab) {
+  if (next === tab.value) return
+  tab.value = next
+  const query = { ...route.query }
+  if (next !== DEFAULT_MATCH_TAB) query.tab = next
+  else delete query.tab
+  router.replace({ query })
+  // Scrolled down a long panel, the next one opens at its top, under the sticky bar.
+  await nextTick()
+  const bar = toolbar.value
+  if (!bar) return
+  const top = bar.getBoundingClientRect().top + window.scrollY - HEADER_HEIGHT
+  if (window.scrollY > top) window.scrollTo({ top })
+}
 
 const back = computed(() => (queryPlayerId !== null && focusRow.value
   ? { to: `/player/${queryPlayerId}`, label: `Profil de ${focusRow.value.name}` }
@@ -194,9 +222,27 @@ async function retry() {
         :focus-rr-change="focusParticipant?.rrChange ?? null"
       />
 
-      <section aria-labelledby="match-scoreboard" class="mt-12">
-        <SectionIndex index="01" label="Tableau des scores" />
-        <h2 id="match-scoreboard" class="mb-5 mt-3 font-display text-[40px] font-extrabold uppercase leading-[0.95] tracking-[0.01em] md:text-5xl">Tableau des scores</h2>
+      <!-- The tabs, kept in view with the score while a long panel scrolls. -->
+      <div ref="toolbar" class="-mx-4 mt-8 bg-header px-4 backdrop-blur-[10px] md:sticky md:top-[60px] md:z-10 md:-mx-6 md:px-6">
+        <div class="flex flex-wrap items-center justify-between gap-x-6 border-b border-border-base">
+          <TabBar :model-value="tab" :tabs="MATCH_TABS" label="Sections de la partie" id-prefix="match" @update:model-value="onTabChange" />
+          <p class="hidden items-center gap-2 py-2 font-mono text-xs uppercase tracking-[0.06em] md:flex">
+            <span class="text-ally">Alliés</span>
+            <b class="font-display text-xl font-extrabold leading-none">{{ allyScore }}<span aria-hidden="true">–</span><span class="sr-only"> à </span>{{ enemyScore }}</b>
+            <span class="text-enemy">Ennemis</span>
+            <span v-if="allyResult" class="sr-only">, {{ RESULT_LABELS[allyResult] }}</span>
+          </p>
+        </div>
+      </div>
+
+      <section
+        v-if="tab === 'scoreboard'"
+        id="match-panel-scoreboard"
+        role="tabpanel"
+        aria-labelledby="match-tab-scoreboard"
+        class="mt-8"
+      >
+        <SectionTitle id="match-scoreboard" title="Tableau des scores" aside="trié par ACS" />
         <p v-if="game.isRemake" class="mb-4 border border-border-base bg-surface-base px-4 py-3 text-sm text-text-sec">
           Partie annulée (remake) : elle ne compte dans aucune statistique.
         </p>
@@ -205,9 +251,14 @@ async function retry() {
         </div>
       </section>
 
-      <section aria-labelledby="match-timeline" class="mt-12">
-        <SectionIndex index="02" label="Déroulé" />
-        <h2 id="match-timeline" class="mb-5 mt-3 font-display text-[40px] font-extrabold uppercase leading-[0.95] tracking-[0.01em] md:text-5xl">Manche par manche</h2>
+      <section
+        v-else-if="tab === 'rounds'"
+        id="match-panel-rounds"
+        role="tabpanel"
+        aria-labelledby="match-tab-rounds"
+        class="mt-8"
+      >
+        <SectionTitle id="match-timeline" title="Manche par manche" :aside="cells.length ? `${cells.length} manches` : null" />
         <MatchTimeline
           :selected="activeRound"
           :cells="cells"
@@ -220,9 +271,14 @@ async function retry() {
         />
       </section>
 
-      <section aria-labelledby="match-economy" class="mt-12">
-        <SectionIndex index="03" label="Économie" />
-        <h2 id="match-economy" class="mb-5 mt-3 font-display text-[40px] font-extrabold uppercase leading-[0.95] tracking-[0.01em] md:text-5xl">Économie</h2>
+      <section
+        v-else-if="tab === 'economy'"
+        id="match-panel-economy"
+        role="tabpanel"
+        aria-labelledby="match-tab-economy"
+        class="mt-8"
+      >
+        <SectionTitle id="match-economy" title="Économie" aside="valeur d'équipement par manche" />
         <MatchEconomy
           :selected="activeRound"
           :rounds="economy"
@@ -234,9 +290,14 @@ async function retry() {
         />
       </section>
 
-      <section aria-labelledby="match-damages" class="mt-12">
-        <SectionIndex index="04" label="Dégâts" />
-        <h2 id="match-damages" class="mb-5 mt-3 font-display text-[40px] font-extrabold uppercase leading-[0.95] tracking-[0.01em] md:text-5xl">Qui a touché qui</h2>
+      <section
+        v-else
+        id="match-panel-damages"
+        role="tabpanel"
+        aria-labelledby="match-tab-damages"
+        class="mt-8"
+      >
+        <SectionTitle id="match-damages" title="Qui a touché qui" aside="alliés en lignes · ennemis en colonnes" />
         <MatchDamageMatrix
           :matrix="damageMatrix"
           :scope="damageScope"

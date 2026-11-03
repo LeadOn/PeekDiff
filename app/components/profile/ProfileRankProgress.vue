@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import type { ValRankHistoryDto } from '~/lib/types'
 import { DIVISION_ELO, isRankedTier, rankElo, tierInfo } from '~/utils/val-tier'
 import { formatDayMonth } from '~/utils/date'
@@ -24,6 +24,8 @@ const props = defineProps<{
   playerId: string
   loading: boolean
   periodPhrase: string
+  /** The card title's aside: what the card does not filter on, when the page says the rest. */
+  aside?: string | null
 }>()
 
 const WIDTH = 300
@@ -31,7 +33,7 @@ const HEIGHT = 96
 
 const toPoints = (entries: ValRankHistoryDto[]) => entries.flatMap((entry) => {
   const elo = rankElo(entry)
-  return elo === null ? [] : [{ elo, at: entry.createdOn, tierId: entry.tierId }]
+  return elo === null ? [] : [{ elo, at: entry.createdOn, tierId: entry.tierId, rr: entry.rankedRating }]
 })
 
 /**
@@ -104,6 +106,8 @@ const games = computed(() => props.changes
   .map(entry => ({
     id: entry.id,
     change: rrMove(entry),
+    heading: `${formatDayMonth(entry.createdOn)} · ${entry.mapName ?? 'Carte inconnue'}`,
+    detail: rrMoveDetail(entry),
     title: `${formatDayMonth(entry.createdOn)} · ${entry.mapName ?? 'Carte inconnue'} · ${rrMoveDetail(entry)}`,
     href: entry.matchStored ? `/match/${entry.matchId}?player=${props.playerId}` : null,
   })))
@@ -120,12 +124,74 @@ const average = (values: number[]) => (values.length ? Math.round(values.reduce(
 const averageGain = computed(() => average(games.value.filter(game => game.change > 0).map(game => game.change)))
 const averageLoss = computed(() => average(games.value.filter(game => game.change < 0).map(game => game.change)))
 
+// --- Hover: the value under the pointer, or under the arrows once the chart has the focus ---
+const hoveredPoint = ref<number | null>(null)
+const hoveredGame = ref<number | null>(null)
+
+/** Horizontal anchor of a tooltip: centred on its target, kept inside the card near the edges. */
+const anchor = (fraction: number) => ({
+  left: `${fraction * 100}%`,
+  transform: fraction < 0.2 ? 'translateX(0)' : fraction > 0.8 ? 'translateX(-100%)' : 'translateX(-50%)',
+})
+
+function onChartPointer(event: PointerEvent) {
+  const box = (event.currentTarget as HTMLElement).getBoundingClientRect()
+  const fraction = Math.min(1, Math.max(0, (event.clientX - box.left) / box.width))
+  hoveredPoint.value = points.value.length > 1 ? Math.round(fraction * (points.value.length - 1)) : 0
+}
+
+function onChartKey(event: KeyboardEvent) {
+  const last = points.value.length - 1
+  const current = hoveredPoint.value ?? last
+  const next = { ArrowLeft: Math.max(0, current - 1), ArrowRight: Math.min(last, current + 1), Home: 0, End: last }[event.key]
+  if (next === undefined) return
+  event.preventDefault()
+  hoveredPoint.value = next
+}
+
+const pointTip = computed(() => {
+  const index = hoveredPoint.value
+  const point = index === null ? undefined : points.value[index]
+  if (index === null || !point) return null
+  const previous = points.value[index - 1]
+  const change = previous ? point.elo - previous.elo : null
+  return {
+    x: toX(index),
+    y: toY(point.elo),
+    date: formatDayMonth(point.at),
+    tier: isRankedTier(point.tierId) ? tierInfo(point.tierId).label : 'Non classé',
+    rr: `${point.rr} RR`,
+    change: change === null ? null : formatSigned(change),
+    changeClass: change === null || change === 0 ? 'text-text-sec' : change > 0 ? 'text-win' : 'text-loss',
+    // Above a point in the lower half, below one in the upper half: the curve stays readable.
+    style: {
+      ...anchor(toX(index) / WIDTH),
+      ...(toY(point.elo) / HEIGHT > 0.5
+        ? { bottom: `calc(${(1 - toY(point.elo) / HEIGHT) * 100}% + 10px)` }
+        : { top: `calc(${(toY(point.elo) / HEIGHT) * 100}% + 10px)` }),
+    },
+  }
+})
+
+const gameTip = computed(() => {
+  const index = hoveredGame.value
+  const game = index === null ? undefined : bars.value[index]
+  if (index === null || !game) return null
+  return { ...game, style: anchor((index + 0.5) / bars.value.length) }
+})
+
+/** What the tooltips say, for screen readers too. */
+const tipAnnouncement = computed(() => {
+  if (pointTip.value) return `${pointTip.value.date} : ${pointTip.value.tier}, ${pointTip.value.rr}${pointTip.value.change ? `, ${pointTip.value.change} depuis le point précédent` : ''}`
+  return gameTip.value?.title ?? ''
+})
+
 const netClass = computed(() => (net.value === null || net.value === 0 ? 'text-text-main' : net.value > 0 ? 'text-win' : 'text-loss'))
 </script>
 
 <template>
   <section class="border border-border-base bg-surface-base p-4">
-    <FrameHead title="Progression" :aside="periodPhrase" as="h2" />
+    <FrameHead title="Progression" :aside="aside" as="h2" />
 
     <div v-if="loading && points.length === 0" aria-busy="true" class="h-[176px] animate-pulse bg-surface-high" />
 
@@ -136,7 +202,18 @@ const netClass = computed(() => (net.value === null || net.value === 0 ? 'text-t
           <span class="truncate font-mono text-xs text-text-sec">{{ lastTier }}</span>
         </p>
 
-        <div class="relative mt-3">
+        <!-- The chart's value under the pointer, or under the arrows once the chart has the focus. -->
+        <div
+          class="relative mt-3 cursor-crosshair outline-offset-4"
+          role="group"
+          tabindex="0"
+          :aria-label="`${chartLabel}. Flèches gauche et droite pour lire chaque point.`"
+          @pointermove="onChartPointer"
+          @pointerleave="hoveredPoint = null"
+          @focus="hoveredPoint = points.length - 1"
+          @blur="hoveredPoint = null"
+          @keydown="onChartKey"
+        >
           <svg :viewBox="`0 0 ${WIDTH} ${HEIGHT}`" preserveAspectRatio="none" role="img" :aria-label="chartLabel" class="block h-24 w-full overflow-visible">
             <line
               v-for="line in gridLines"
@@ -151,9 +228,34 @@ const netClass = computed(() => (net.value === null || net.value === 0 ? 'text-t
             />
             <path :d="areaPath" class="fill-brand-red/10" />
             <path :d="linePath" fill="none" class="stroke-brand-red" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round" />
+            <line
+              v-if="pointTip"
+              :x1="pointTip.x"
+              :x2="pointTip.x"
+              y1="0"
+              :y2="HEIGHT"
+              class="stroke-border-strong"
+              vector-effect="non-scaling-stroke"
+            />
           </svg>
           <span
-            v-if="lastPoint"
+            v-if="pointTip"
+            aria-hidden="true"
+            class="absolute size-2.5 -translate-x-1/2 -translate-y-1/2 border-2 border-brand-red bg-surface-base"
+            :style="{ left: `${(pointTip.x / WIDTH) * 100}%`, top: `${(pointTip.y / HEIGHT) * 100}%` }"
+          />
+          <div
+            v-if="pointTip"
+            aria-hidden="true"
+            class="pointer-events-none absolute z-[1] whitespace-nowrap border border-border-strong bg-surface-high px-2 py-1.5 font-mono text-[11px] shadow-float"
+            :style="pointTip.style"
+          >
+            <span class="block uppercase tracking-[0.06em] text-text-ter">{{ pointTip.date }}</span>
+            <span class="block text-text-main"><b class="font-medium">{{ pointTip.tier }}</b> · {{ pointTip.rr }}</span>
+            <span v-if="pointTip.change" class="block" :class="pointTip.changeClass">{{ pointTip.change }} RR depuis le point précédent</span>
+          </div>
+          <span
+            v-if="lastPoint && !pointTip"
             aria-hidden="true"
             class="absolute size-2 -translate-x-1/2 -translate-y-1/2 bg-brand-red"
             :style="{ left: `${(lastPoint.x / WIDTH) * 100}%`, top: `${(lastPoint.y / HEIGHT) * 100}%` }"
@@ -174,9 +276,29 @@ const netClass = computed(() => (net.value === null || net.value === 0 ? 'text-t
             <template v-if="averageLoss !== null">Perte moy. <b class="font-medium text-loss">{{ formatSigned(averageLoss) }}</b></template>
           </span>
         </p>
-        <ol class="mt-2 flex h-16 items-stretch gap-0.5" aria-label="RR gagnés ou perdus par partie classée, de la plus ancienne à la plus récente">
-          <li v-for="game in bars" :key="game.id" :title="game.title" class="relative flex-1">
-            <NuxtLink v-if="game.href" :to="game.href" class="absolute inset-0 hover:bg-surface-hover focus-visible:outline-offset-[-2px]">
+        <div class="relative mt-2">
+          <div
+            v-if="gameTip"
+            aria-hidden="true"
+            class="pointer-events-none absolute -top-1 z-[1] w-max max-w-[240px] -translate-y-full border border-border-strong bg-surface-high px-2 py-1.5 font-mono text-[11px] shadow-float"
+            :style="gameTip.style"
+          >
+            <span class="block uppercase tracking-[0.06em] text-text-ter">{{ gameTip.heading }}</span>
+            <span class="block text-pretty" :class="gameTip.change > 0 ? 'text-win' : gameTip.change < 0 ? 'text-loss' : 'text-text-main'">{{ gameTip.detail }}</span>
+            <span v-if="gameTip.href" class="block text-text-ter">Clic : ouvrir la partie</span>
+          </div>
+        <ol class="flex h-16 items-stretch gap-0.5" aria-label="RR gagnés ou perdus par partie classée, de la plus ancienne à la plus récente">
+          <li
+            v-for="(game, index) in bars"
+            :key="game.id"
+            class="relative flex-1"
+            :class="hoveredGame === index ? 'bg-surface-hover' : ''"
+            @pointerenter="hoveredGame = index"
+            @pointerleave="hoveredGame = null"
+            @focusin="hoveredGame = index"
+            @focusout="hoveredGame = null"
+          >
+            <NuxtLink v-if="game.href" :to="game.href" class="absolute inset-0 focus-visible:outline-offset-[-2px]">
               <span
                 aria-hidden="true"
                 class="absolute inset-x-0"
@@ -196,7 +318,9 @@ const netClass = computed(() => (net.value === null || net.value === 0 ? 'text-t
             </template>
           </li>
         </ol>
+        </div>
       </div>
+      <p class="sr-only" aria-live="polite">{{ tipAnnouncement }}</p>
     </template>
   </section>
 </template>

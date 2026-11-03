@@ -35,7 +35,7 @@ const strong = (value: number) => !!props.matrix && props.matrix.max > 0 && valu
 
 <template>
   <div class="border border-border-base bg-surface-base p-4 md:p-5">
-    <FrameHead title="Dégâts infligés et reçus" :aside="matrix ? 'alliés en lignes · ennemis en colonnes' : null" />
+    <FrameHead title="Dégâts infligés et reçus" />
 
     <div v-if="loading && !matrix" aria-busy="true" class="h-56 animate-pulse bg-surface-high" />
     <p v-else-if="failed" class="font-mono text-xs text-text-ter">Les dégâts n'ont pas pu être chargés.</p>

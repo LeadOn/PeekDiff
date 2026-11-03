@@ -38,6 +38,23 @@ export function resolvePerspective(game: ValGameDto, focusPlayerId: number | nul
 
 export const SIDE_LABELS: Record<Side, string> = { ally: 'Alliés', enemy: 'Ennemis' }
 
+/** The match page's tabs. The scoreboard is the default and never reaches the query string. */
+export type MatchTab = 'scoreboard' | 'rounds' | 'economy' | 'damages'
+
+export const MATCH_TABS: { value: MatchTab, label: string }[] = [
+  { value: 'scoreboard', label: 'Tableau des scores' },
+  { value: 'rounds', label: 'Manches' },
+  { value: 'economy', label: 'Économie' },
+  { value: 'damages', label: 'Dégâts' },
+]
+
+export const DEFAULT_MATCH_TAB: MatchTab = 'scoreboard'
+
+/** `?tab=` as the match page reads it: anything unknown is the scoreboard. */
+export function parseMatchTab(value: unknown): MatchTab {
+  return MATCH_TABS.some(tab => tab.value === value) ? value as MatchTab : DEFAULT_MATCH_TAB
+}
+
 const sideOf = (teamId: string | null | undefined, perspective: GamePerspective): Side =>
   teamId && teamId === perspective.allyTeamId ? 'ally' : 'enemy'
 

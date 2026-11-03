@@ -68,7 +68,7 @@ const minimapNote = computed(() => (props.positions === 'none'
 
 <template>
   <div class="border border-border-base bg-surface-base p-4 md:p-5">
-    <FrameHead title="Frise des manches" :aside="cells.length ? `${cells.length} manches` : null" />
+    <FrameHead title="Frise des manches" />
 
     <div v-if="loading && cells.length === 0" aria-busy="true" class="flex animate-pulse flex-col gap-3">
       <span class="h-8 bg-surface-high" />
@@ -109,7 +109,7 @@ const minimapNote = computed(() => (props.positions === 'none'
 
       <div v-if="detail" class="mt-5 border-t border-dashed border-border-strong pt-4">
         <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <h4 class="font-display text-[32px] font-extrabold uppercase leading-none">Manche {{ detail.cell.number }}</h4>
+          <h4 class="font-display text-2xl font-extrabold uppercase leading-none">Manche {{ detail.cell.number }}</h4>
           <span class="font-mono text-xs font-bold uppercase tracking-[0.06em]" :class="detailSideClass">{{ SIDE_LABELS[detail.cell.side] }}</span>
           <span class="font-mono text-xs text-text-sec">{{ detail.cell.endLabel }}</span>
           <span v-if="detail.cell.allyRole" class="font-mono text-xs text-text-ter">Alliés en {{ detail.cell.allyRole === 'attack' ? 'attaque' : 'défense' }}</span>

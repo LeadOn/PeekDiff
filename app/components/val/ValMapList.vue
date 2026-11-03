@@ -3,7 +3,9 @@ import { computed } from 'vue'
 import type { ValMapStatDto } from '~/lib/types'
 import { formatPercent } from '~/utils/number'
 import { mapImageUrl } from '~/utils/val-assets'
+import { STAT_HINTS } from '~/utils/val-glossary'
 import FrameHead from '~/components/ui/FrameHead.vue'
+import InfoTip from '~/components/ui/InfoTip.vue'
 
 /**
  * Most played maps, each over its banner under the veil: a profile's recap, or the crew's records on
@@ -15,7 +17,9 @@ const props = withDefaults(defineProps<{
   limit?: number
   /** The card title's level: `h2` in the profile's rail, `h3` under the home page's records. */
   as?: 'h2' | 'h3'
-}>(), { limit: 5, as: 'h2' })
+  /** Prints the period beside the title; off where the page already says it above the card. */
+  showPeriod?: boolean
+}>(), { limit: 5, as: 'h2', showPeriod: true })
 
 const rows = computed(() => props.maps.slice(0, props.limit).map(map => ({
   ...map,
@@ -25,7 +29,7 @@ const rows = computed(() => props.maps.slice(0, props.limit).map(map => ({
 
 <template>
   <section class="border border-border-base bg-surface-base p-4">
-    <FrameHead title="Cartes" :aside="periodPhrase" :as="as" />
+    <FrameHead title="Cartes" :aside="showPeriod ? periodPhrase : null" :as="as" />
     <ul v-if="rows.length" class="flex flex-col gap-1.5">
       <li
         v-for="map in rows"
@@ -41,7 +45,7 @@ const rows = computed(() => props.maps.slice(0, props.limit).map(map => ({
         <div aria-hidden="true" class="bg-scrim-night absolute inset-0 -z-10" />
         <span class="flex min-w-0 flex-col">
           <b class="truncate font-display text-[22px] font-extrabold uppercase leading-none">{{ map.mapName }}</b>
-          <span class="mt-1 font-mono text-[11px] text-on-night-2">{{ map.gamesPlayed }} partie{{ map.gamesPlayed > 1 ? 's' : '' }} · ACS {{ Math.round(map.acs) }}</span>
+          <span class="mt-1 font-mono text-[11px] text-on-night-2">{{ map.gamesPlayed }} partie{{ map.gamesPlayed > 1 ? 's' : '' }} · <InfoTip v-bind="STAT_HINTS.acs" :focusable="false">ACS</InfoTip> {{ Math.round(map.acs) }}</span>
         </span>
         <span class="shrink-0 font-mono text-[13px] font-medium" :class="map.winRate >= 50 ? 'text-on-night-win' : 'text-on-night'">
           {{ formatPercent(map.winRate) }} <span class="text-[11px] font-normal text-on-night-2">vict.</span>

@@ -19,3 +19,20 @@ export function hasValorantProfile(player: ProfileCandidate): boolean {
 export function hasRiotId(player: Pick<ProfileCandidate, 'riotGamesNickname' | 'riotGamesTagLine'>): boolean {
   return !!player.riotGamesNickname && !!player.riotGamesTagLine
 }
+
+/** The profile's tabs. The overview is the default and never reaches the query string. */
+export type ProfileTab = 'overview' | 'style' | 'heatmap' | 'career'
+
+export const PROFILE_TABS: { value: ProfileTab, label: string }[] = [
+  { value: 'overview', label: 'Aperçu' },
+  { value: 'style', label: 'Style de jeu' },
+  { value: 'heatmap', label: 'Heatmap' },
+  { value: 'career', label: 'Carrière' },
+]
+
+export const DEFAULT_PROFILE_TAB: ProfileTab = 'overview'
+
+/** `?tab=` as the profile reads it: anything unknown is the overview. */
+export function parseProfileTab(value: unknown): ProfileTab {
+  return PROFILE_TABS.some(tab => tab.value === value) ? value as ProfileTab : DEFAULT_PROFILE_TAB
+}

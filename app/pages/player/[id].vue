@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useAsyncData, useRoute, useRouter } from '#app'
 import type { ValAgentStatDto, ValGameDto, ValRankHistoryDto } from '~/lib/types'
 import { AppError, errorStatusCode, isAbortError } from '~/lib/types/error'
@@ -15,8 +15,11 @@ import { buildGameLine, groupGamesByDay, QUEUE_FILTERS } from '~/utils/val-match
 import type { GameLine } from '~/utils/val-match'
 import { DEFAULT_PROFILE_PERIOD, PROFILE_PERIODS, parseProfilePeriod, profilePeriod } from '~/utils/val-period'
 import type { ProfilePeriod } from '~/utils/val-period'
-import SectionIndex from '~/components/ui/SectionIndex.vue'
+import { DEFAULT_PROFILE_TAB, PROFILE_TABS, parseProfileTab } from '~/utils/val-profile'
+import type { ProfileTab } from '~/utils/val-profile'
+import SectionTitle from '~/components/ui/SectionTitle.vue'
 import SegmentSwitch from '~/components/ui/SegmentSwitch.vue'
+import TabBar from '~/components/ui/TabBar.vue'
 import ProfileHero from '~/components/profile/ProfileHero.vue'
 import ProfileKpis from '~/components/profile/ProfileKpis.vue'
 import ProfileRankProgress from '~/components/profile/ProfileRankProgress.vue'
@@ -46,6 +49,8 @@ const playerId = String(route.params.id)
 const isValidPlayerId = /^\d+$/.test(playerId)
 
 const HISTORY_PAGE_SIZE = 10
+/** The sticky header's height, which the profile's sticky bar sits under. */
+const HEADER_HEIGHT = 60
 const RANK_CHANGES_LIMIT = 50
 
 /** An agent name as the API stores it ("Jett", "KAY/O"); anything else in `?agent=` is ignored. */
@@ -63,6 +68,14 @@ const queueList = computed(() => (queue.value ? [queue.value] : undefined))
 const recapFilters = computed(() => ({ period: periodOption.value.api, queues: queueList.value, agentName: agent.value ?? undefined }))
 /** For sentences and card asides: "sur 30 jours avec Jett". */
 const filterPhrase = computed(() => (agent.value ? `${periodOption.value.phrase} avec ${agent.value}` : periodOption.value.phrase))
+/** Beside a section title, once for the cards under it: "sur 30 jours · Compétition · avec Jett". */
+const scopePhrase = computed(() => [
+  periodOption.value.phrase,
+  queue.value ? QUEUE_FILTERS.find(option => option.value === queue.value)?.label : null,
+  agent.value ? `avec ${agent.value}` : null,
+].filter(Boolean).join(' · '))
+/** The rail's cards that ignore the agent filter say so; the others follow the section's scope. */
+const allAgentsAside = computed(() => (agent.value ? 'tous agents' : null))
 
 /**
  * Secondary requests (stats on a filter change, rank history, games) are cancelled when the page is
@@ -153,6 +166,29 @@ const hasPlaystyle = computed(() => {
   const s = stats.value
   return !!s && (s.attack !== undefined || s.buyTypes !== undefined || s.clutches !== undefined || s.trades !== undefined || s.averageRiotPerformanceScore !== undefined)
 })
+
+// --- Tabs ---
+/**
+ * The overview always exists; the other tabs only when the API serves what they show. A `?tab=` the
+ * API cannot fill falls back to the overview rather than an empty panel.
+ */
+const tabs = computed(() => PROFILE_TABS.filter(entry => entry.value === 'overview'
+  || (entry.value === 'style' ? hasPlaystyle.value : hasFullData.value)))
+const requestedTab = ref<ProfileTab>(parseProfileTab(route.query.tab))
+const tab = computed<ProfileTab>(() => (tabs.value.some(entry => entry.value === requestedTab.value) ? requestedTab.value : DEFAULT_PROFILE_TAB))
+const toolbar = ref<HTMLElement | null>(null)
+
+async function onTabChange(next: ProfileTab) {
+  if (next === tab.value) return
+  requestedTab.value = next
+  updateQuery()
+  // Scrolled down a long panel, the next one opens at its top, under the sticky bar.
+  await nextTick()
+  const bar = toolbar.value
+  if (!bar) return
+  const top = bar.getBoundingClientRect().top + window.scrollY - HEADER_HEIGHT
+  if (window.scrollY > top) window.scrollTo({ top })
+}
 
 async function reloadStats(signal: AbortSignal) {
   statsLoading.value = true
@@ -263,7 +299,7 @@ const historySubtitle = computed(() => {
   if (historyLoading.value) return 'Chargement des parties…'
   if (historyTotal.value === 0) return 'Aucune partie'
   const agentPart = agent.value ? ` · avec ${agent.value}` : ''
-  return `${games.value.length} partie${games.value.length > 1 ? 's' : ''} sur ${historyTotal.value}${agentPart} · toutes périodes`
+  return `${games.value.length} sur ${historyTotal.value}${agentPart} · toutes périodes`
 })
 
 async function loadCrew() {
@@ -293,6 +329,8 @@ function updateQuery() {
   else delete query.queue
   if (agent.value) query.agent = agent.value
   else delete query.agent
+  if (requestedTab.value !== DEFAULT_PROFILE_TAB) query.tab = requestedTab.value
+  else delete query.tab
   router.replace({ query })
 }
 
@@ -437,11 +475,21 @@ async function sync() {
       </div>
 
       <template v-else>
-        <section aria-labelledby="profile-performance" class="mt-12">
-          <SectionIndex index="01" label="Performances" />
-          <div class="mb-5 mt-3 flex flex-wrap items-end justify-between gap-x-5 gap-y-3.5">
-            <h2 id="profile-performance" class="font-display text-[40px] font-extrabold uppercase leading-[0.95] tracking-[0.01em] md:text-5xl">Performances</h2>
-            <div class="flex flex-wrap gap-2">
+        <!-- One bar for the tabs and the filters they share, kept in view while a long panel scrolls. -->
+        <div
+          ref="toolbar"
+          class="-mx-4 mt-8 bg-header px-4 backdrop-blur-[10px] md:sticky md:top-[60px] md:z-10 md:-mx-6 md:px-6"
+        >
+          <div class="flex flex-wrap items-center justify-between gap-x-6 border-b border-border-base">
+            <TabBar
+              v-if="tabs.length > 1"
+              :model-value="tab"
+              :tabs="tabs"
+              label="Sections du profil"
+              id-prefix="profile"
+              @update:model-value="onTabChange"
+            />
+            <div v-if="tab !== 'career'" class="flex flex-wrap items-center gap-2 py-2">
               <SegmentSwitch :model-value="period" :options="PROFILE_PERIODS" label="Période" @update:model-value="onPeriodChange" />
               <SegmentSwitch :model-value="queue" :options="QUEUE_FILTERS" label="File de jeu" @update:model-value="onQueueChange" />
               <button
@@ -456,20 +504,103 @@ async function sync() {
                 <span aria-hidden="true" class="text-text-ter">×</span>
               </button>
             </div>
+            <p v-else class="py-3 font-mono text-[11px] text-text-ter">// Toutes saisons : la carrière ne suit pas les filtres.</p>
           </div>
-          <ProfileKpis :stats="stats" :loading="statsLoading" :period-phrase="filterPhrase" />
-        </section>
+        </div>
 
-        <section v-if="hasPlaystyle && stats" aria-labelledby="profile-playstyle" class="mt-12">
-          <SectionIndex index="02" label="Style de jeu" />
-          <h2 id="profile-playstyle" class="mb-5 mt-3 font-display text-[40px] font-extrabold uppercase leading-[0.95] tracking-[0.01em] md:text-5xl">Style de jeu</h2>
+        <div
+          v-if="tab === 'overview'"
+          id="profile-panel-overview"
+          :role="tabs.length > 1 ? 'tabpanel' : undefined"
+          :aria-labelledby="tabs.length > 1 ? 'profile-tab-overview' : undefined"
+          class="mt-8"
+        >
+          <section aria-labelledby="profile-performance">
+            <SectionTitle id="profile-performance" title="Performances" :aside="scopePhrase" />
+            <ProfileKpis :stats="stats" :loading="statsLoading" :period-phrase="filterPhrase" />
+          </section>
+
+          <div class="mt-12 grid items-start gap-10 rail:grid-cols-[minmax(0,1fr)_340px]">
+            <section aria-labelledby="profile-history" class="min-w-0">
+              <SectionTitle id="profile-history" title="Dernières parties" :aside="historySubtitle" />
+
+              <div v-if="historyLoading && games.length === 0" aria-busy="true" aria-label="Chargement des parties" class="flex animate-pulse flex-col gap-2">
+                <span class="h-4 w-36 bg-surface-high" />
+                <span v-for="i in 5" :key="i" class="h-[92px] border border-border-base bg-surface-base" />
+              </div>
+
+              <p v-else-if="lines.length === 0" class="ticks border border-border-base bg-surface-base p-6 text-sm text-text-sec">
+                Aucune partie enregistrée<template v-if="queue"> dans cette file</template><template v-if="agent"> avec {{ agent }}</template>. Une synchronisation récupère les 10 dernières.
+              </p>
+
+              <div v-else class="transition-opacity duration-200" :class="historyLoading ? 'opacity-60' : ''">
+                <div v-for="(day, index) in days" :key="day.key" :class="index > 0 ? 'mt-6' : ''">
+                  <div class="mb-3 flex flex-wrap items-center gap-2.5 font-mono text-xs font-medium uppercase tracking-[0.08em]">
+                    <span aria-hidden="true" class="text-brand-red">//</span>
+                    <h3 class="text-text-main">{{ day.label }}</h3>
+                    <span aria-hidden="true" class="h-px min-w-5 flex-1 bg-border-base" />
+                    <span class="text-text-sec">{{ day.record }}</span>
+                    <span
+                      v-if="day.rrText"
+                      class="px-2 py-[3px] normal-case"
+                      :class="day.rrClass"
+                    >{{ day.rrText }}</span>
+                  </div>
+                  <div class="flex flex-col gap-2">
+                    <ValMatchRow v-for="line in day.lines" :key="line.matchId" :line="line" />
+                  </div>
+                </div>
+
+                <button
+                  v-if="hasMoreGames"
+                  type="button"
+                  :disabled="loadingMore"
+                  :aria-busy="loadingMore"
+                  class="mt-5 flex h-11 w-full cursor-pointer items-center justify-center gap-2 border border-border-strong font-mono text-[13px] font-medium uppercase tracking-[0.06em] transition-colors duration-150 ease-snap hover:bg-surface-hover disabled:cursor-wait disabled:opacity-40"
+                  @click="loadMoreGames"
+                >
+                  <span aria-hidden="true" class="text-text-ter">[</span>{{ loadingMore ? 'Chargement…' : `${HISTORY_PAGE_SIZE} parties de plus` }}<span aria-hidden="true" class="text-text-ter">]</span>
+                </button>
+              </div>
+            </section>
+
+            <aside class="grid min-w-0 items-start gap-4 md:max-rail:grid-cols-2" aria-label="Détails du joueur">
+              <ProfileRankProgress
+                :snapshots="rankSnapshots"
+                :changes="rankChanges"
+                :player-id="playerId"
+                :loading="rankLoading"
+                :period-phrase="periodOption.phrase"
+                :aside="allAgentsAside"
+                class="md:max-rail:col-span-2"
+              />
+              <ProfileAgents :agents="agentList" :period-phrase="periodOption.phrase" :aside="allAgentsAside" :selected="agent" @select="onAgentChange" />
+              <ValMapList :maps="stats?.mapStats ?? []" :period-phrase="filterPhrase" :show-period="false" />
+              <ProfileDuos :duos="stats?.duoStats ?? []" :period-phrase="filterPhrase" />
+            </aside>
+          </div>
+        </div>
+
+        <section
+          v-else-if="tab === 'style' && stats"
+          id="profile-panel-style"
+          role="tabpanel"
+          aria-labelledby="profile-tab-style"
+          class="mt-8"
+        >
+          <SectionTitle id="profile-playstyle" title="Style de jeu" :aside="scopePhrase" />
           <ProfilePlaystyle :stats="stats" :loading="statsLoading" :period-phrase="filterPhrase" />
           <ProfileWeapons v-if="stats.weapons" :weapons="stats.weapons" :period-phrase="filterPhrase" class="mt-3 md:mt-4" />
         </section>
 
-        <section v-if="hasFullData" aria-labelledby="profile-heatmap" class="mt-12">
-          <SectionIndex index="03" label="Heatmap" />
-          <h2 id="profile-heatmap" class="mb-5 mt-3 font-display text-[40px] font-extrabold uppercase leading-[0.95] tracking-[0.01em] md:text-5xl">Heatmap</h2>
+        <section
+          v-else-if="tab === 'heatmap'"
+          id="profile-panel-heatmap"
+          role="tabpanel"
+          aria-labelledby="profile-tab-heatmap"
+          class="mt-8"
+        >
+          <SectionTitle id="profile-heatmap" title="Heatmap" :aside="periodOption.phrase" />
           <ProfileHeatmap
             :player-id="playerId"
             :maps="stats?.mapStats ?? []"
@@ -480,73 +611,14 @@ async function sync() {
           />
         </section>
 
-        <div class="mt-12 grid items-start gap-10 rail:grid-cols-[minmax(0,1fr)_340px]">
-          <section aria-labelledby="profile-history" class="min-w-0">
-            <SectionIndex index="04" label="Historique" />
-            <h2 id="profile-history" class="mt-3 font-display text-[40px] font-extrabold uppercase leading-[0.95] tracking-[0.01em] md:text-5xl">Dernières parties</h2>
-            <p class="mt-2 font-mono text-[13px] text-text-sec">{{ historySubtitle }}</p>
-
-            <div v-if="historyLoading && games.length === 0" aria-busy="true" aria-label="Chargement des parties" class="mt-6 flex animate-pulse flex-col gap-2">
-              <span class="h-4 w-36 bg-surface-high" />
-              <span v-for="i in 5" :key="i" class="h-[92px] border border-border-base bg-surface-base" />
-            </div>
-
-            <p v-else-if="lines.length === 0" class="ticks mt-6 border border-border-base bg-surface-base p-6 text-sm text-text-sec">
-              Aucune partie enregistrée<template v-if="queue"> dans cette file</template><template v-if="agent"> avec {{ agent }}</template>. Une synchronisation récupère les 10 dernières.
-            </p>
-
-            <div v-else class="transition-opacity duration-200" :class="historyLoading ? 'opacity-60' : ''">
-              <div v-for="day in days" :key="day.key" class="mt-6">
-                <div class="mb-3 flex flex-wrap items-center gap-2.5 font-mono text-xs font-medium uppercase tracking-[0.08em]">
-                  <span aria-hidden="true" class="text-brand-red">//</span>
-                  <h3 class="text-text-main">{{ day.label }}</h3>
-                  <span aria-hidden="true" class="h-px min-w-5 flex-1 bg-border-base" />
-                  <span class="text-text-sec">{{ day.record }}</span>
-                  <span
-                    v-if="day.rrText"
-                    class="px-2 py-[3px] normal-case"
-                    :class="day.rrClass"
-                  >{{ day.rrText }}</span>
-                </div>
-                <div class="flex flex-col gap-2">
-                  <ValMatchRow v-for="line in day.lines" :key="line.matchId" :line="line" />
-                </div>
-              </div>
-
-              <button
-                v-if="hasMoreGames"
-                type="button"
-                :disabled="loadingMore"
-                :aria-busy="loadingMore"
-                class="mt-5 flex h-11 w-full cursor-pointer items-center justify-center gap-2 border border-border-strong font-mono text-[13px] font-medium uppercase tracking-[0.06em] transition-colors duration-150 ease-snap hover:bg-surface-hover disabled:cursor-wait disabled:opacity-40"
-                @click="loadMoreGames"
-              >
-                <span aria-hidden="true" class="text-text-ter">[</span>{{ loadingMore ? 'Chargement…' : `${HISTORY_PAGE_SIZE} parties de plus` }}<span aria-hidden="true" class="text-text-ter">]</span>
-              </button>
-            </div>
-          </section>
-
-          <aside class="min-w-0" aria-label="Détails du joueur">
-            <SectionIndex index="05" label="Détails" class="mb-4" />
-            <div class="grid items-start gap-4 md:max-rail:grid-cols-2">
-              <ProfileRankProgress
-                :snapshots="rankSnapshots"
-                :changes="rankChanges"
-                :player-id="playerId"
-                :loading="rankLoading"
-                :period-phrase="periodOption.phrase"
-                class="md:max-rail:col-span-2"
-              />
-              <ProfileAgents :agents="agentList" :period-phrase="periodOption.phrase" :selected="agent" @select="onAgentChange" />
-              <ValMapList :maps="stats?.mapStats ?? []" :period-phrase="filterPhrase" />
-              <ProfileDuos :duos="stats?.duoStats ?? []" :period-phrase="filterPhrase" />
-            </div>
-          </aside>
-        </div>
-
-        <section v-if="hasFullData" aria-labelledby="profile-career" class="mt-12">
-          <SectionIndex index="06" label="Carrière" />
-          <h2 id="profile-career" class="mb-5 mt-3 font-display text-[40px] font-extrabold uppercase leading-[0.95] tracking-[0.01em] md:text-5xl">Carrière</h2>
+        <section
+          v-else-if="tab === 'career'"
+          id="profile-panel-career"
+          role="tabpanel"
+          aria-labelledby="profile-tab-career"
+          class="mt-8"
+        >
+          <SectionTitle id="profile-career" title="Carrière" />
           <ProfileSeasons :seasons="seasons" />
           <div class="mt-3 grid items-start gap-3 md:mt-4 md:grid-cols-2 md:gap-4">
             <ProfileMastery :mastery="mastery" />

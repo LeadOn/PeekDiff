@@ -5,6 +5,8 @@ import { RESULT_LABELS } from '~/utils/val-match'
 import { formatClock, formatDuration } from '~/utils/date'
 import { formatDecimal, formatPercent, formatSigned } from '~/utils/number'
 import { glyphBar } from '~/utils/ascii'
+import { STAT_HINTS } from '~/utils/val-glossary'
+import InfoTip from '~/components/ui/InfoTip.vue'
 import ValAgentIcon from '~/components/val/ValAgentIcon.vue'
 
 /**
@@ -64,19 +66,19 @@ const when = computed(() => `${props.line.queueLabel} · ${formatClock(props.lin
           {{ line.roundsFor }}<span aria-hidden="true">–</span><span class="sr-only"> à </span>{{ line.roundsAgainst }}
         </span>
         <NuxtLink :to="line.href" class="text-[15px] font-semibold uppercase tracking-[0.04em] after:absolute after:inset-0 after:content-[''] group-hover:text-brand-red">{{ line.mapName }}<span class="sr-only">, détail de la partie</span></NuxtLink>
-        <span v-if="line.isMvp" title="Meilleure note de la partie" class="relative z-[1] font-mono text-[11px] font-bold uppercase text-mvp">MVP</span>
-        <span v-else-if="line.isTeamMvp" title="Meilleure note de l'équipe perdante" class="relative z-[1] font-mono text-[11px] font-bold uppercase text-mvp-team">MVP équipe</span>
+        <InfoTip v-if="line.isMvp" v-bind="STAT_HINTS.mvp" :focusable="false" class="relative z-[1] font-mono text-[11px] font-bold uppercase text-mvp">MVP</InfoTip>
+        <InfoTip v-else-if="line.isTeamMvp" v-bind="STAT_HINTS.teamMvp" :focusable="false" class="relative z-[1] font-mono text-[11px] font-bold uppercase text-mvp-team">MVP équipe</InfoTip>
         <span class="w-full font-mono text-[11px] text-text-ter sm:ml-auto sm:w-auto">{{ when }}</span>
       </div>
 
       <div class="flex flex-wrap items-center gap-x-[18px] gap-y-1.5 font-mono text-[13px] text-text-sec">
-        <span>K/D/A <b class="font-medium text-text-main">{{ line.kills }}/{{ line.deaths }}/{{ line.assists }}</b></span>
-        <span v-if="line.acs !== null">ACS <b class="font-medium text-text-main">{{ Math.round(line.acs) }}</b></span>
-        <span v-if="line.adr !== null" class="hidden sm:inline">ADR <b class="font-medium text-text-main">{{ Math.round(line.adr) }}</b></span>
+        <span><InfoTip v-bind="STAT_HINTS.kdaLine" :focusable="false" class="relative z-[1]">K/D/A</InfoTip> <b class="font-medium text-text-main">{{ line.kills }}/{{ line.deaths }}/{{ line.assists }}</b></span>
+        <span v-if="line.acs !== null"><InfoTip v-bind="STAT_HINTS.acs" :focusable="false" class="relative z-[1]">ACS</InfoTip> <b class="font-medium text-text-main">{{ Math.round(line.acs) }}</b></span>
+        <span v-if="line.adr !== null" class="hidden sm:inline"><InfoTip v-bind="STAT_HINTS.adr" :focusable="false" class="relative z-[1]">ADR</InfoTip> <b class="font-medium text-text-main">{{ Math.round(line.adr) }}</b></span>
         <span v-if="hsBar && line.headshotPercent !== null" class="ascii" role="img" :aria-label="`Headshots : ${formatPercent(line.headshotPercent)}`">
           <span aria-hidden="true"><span class="text-text-main">{{ hsBar.on }}</span><span class="text-border-ascii">{{ hsBar.off }}</span> </span><b class="font-medium text-text-main">{{ formatPercent(line.headshotPercent) }}</b>
         </span>
-        <span v-if="line.rating !== null" class="hidden md:inline" title="Note de la partie, sur 10">Note <b class="font-medium text-text-main">{{ formatDecimal(line.rating) }}</b></span>
+        <span v-if="line.rating !== null" class="hidden md:inline"><InfoTip v-bind="STAT_HINTS.rating" :focusable="false" class="relative z-[1]">Note</InfoTip> <b class="font-medium text-text-main">{{ formatDecimal(line.rating) }}</b></span>
         <span v-if="line.rrChange !== null" class="relative z-[1] font-medium" :class="rrClass" :title="line.postGameTier ? `Après la partie : ${line.postGameTier}` : undefined">
           {{ line.rrChange === 0 ? '±0' : formatSigned(line.rrChange) }} RR
         </span>

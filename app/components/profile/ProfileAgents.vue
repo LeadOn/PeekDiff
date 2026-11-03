@@ -3,7 +3,9 @@ import { computed, ref } from 'vue'
 import type { ValAgentStatDto } from '~/lib/types'
 import { formatDecimal, formatPercent } from '~/utils/number'
 import { agentRole } from '~/utils/val-agents'
+import { STAT_HINTS } from '~/utils/val-glossary'
 import FrameHead from '~/components/ui/FrameHead.vue'
+import InfoTip from '~/components/ui/InfoTip.vue'
 import ValAgentIcon from '~/components/val/ValAgentIcon.vue'
 import ValRoleChip from '~/components/val/ValRoleChip.vue'
 
@@ -15,10 +17,12 @@ import ValRoleChip from '~/components/val/ValRoleChip.vue'
 const props = withDefaults(defineProps<{
   agents: ValAgentStatDto[]
   periodPhrase: string
+  /** The card title's aside: what the card does not filter on, when the page says the rest. */
+  aside?: string | null
   /** The agent the profile is filtered on, or `null`. */
   selected: string | null
   limit?: number
-}>(), { limit: 6 })
+}>(), { limit: 6, aside: null })
 
 const emit = defineEmits<{
   (e: 'select', agentName: string | null): void
@@ -44,7 +48,7 @@ const toggle = (agentName: string) => emit('select', agentName === props.selecte
 
 <template>
   <section class="border border-border-base bg-surface-base p-4">
-    <FrameHead title="Agents" :aside="periodPhrase" as="h2" />
+    <FrameHead title="Agents" :aside="aside" as="h2" />
     <ol v-if="rows.length" class="flex flex-col">
       <li v-for="agent in rows" :key="agent.agentName" class="border-t border-border-base first:border-t-0">
         <button
@@ -61,11 +65,11 @@ const toggle = (agentName: string) => emit('select', agentName === props.selecte
               <span class="truncate text-sm font-semibold">{{ agent.agentName }}</span>
               <ValRoleChip v-if="agent.role" :role="agent.role" class="hidden sm:inline-flex" />
             </span>
-            <span class="font-mono text-[11px] text-text-sec">{{ agent.gamesPlayed }} partie{{ agent.gamesPlayed > 1 ? 's' : '' }} · {{ agent.wins }}V</span>
+            <span class="truncate font-mono text-[11px] text-text-sec"><InfoTip v-bind="STAT_HINTS.acs" :focusable="false">ACS</InfoTip> {{ Math.round(agent.acs) }} · <InfoTip v-bind="STAT_HINTS.kda" :focusable="false">KDA</InfoTip> {{ formatDecimal(agent.kda) }}</span>
           </span>
           <span class="flex flex-col items-end font-mono text-[11px] text-text-sec">
-            <span><b class="text-[13px] font-medium" :class="agent.winRate >= 50 ? 'text-win' : 'text-text-main'">{{ formatPercent(agent.winRate) }}</b> vict.</span>
-            <span>ACS {{ Math.round(agent.acs) }} · KDA {{ formatDecimal(agent.kda) }}</span>
+            <b class="text-[13px] font-medium" :class="agent.winRate >= 50 ? 'text-win' : 'text-text-main'">{{ formatPercent(agent.winRate) }}</b>
+            <span class="whitespace-nowrap">{{ agent.wins }}V / {{ agent.gamesPlayed }}</span>
           </span>
         </button>
       </li>
