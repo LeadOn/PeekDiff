@@ -3,7 +3,8 @@ import { computed } from 'vue'
 import type { ScoreboardTeam } from '~/utils/val-game'
 import { RESULT_LABELS } from '~/utils/val-match'
 import { formatPercent, formatSigned } from '~/utils/number'
-import { RIOT_SCORE_BETA } from '~/utils/val-labels'
+import { STAT_HINTS } from '~/utils/val-glossary'
+import InfoTip from '~/components/ui/InfoTip.vue'
 import ValAgentIcon from '~/components/val/ValAgentIcon.vue'
 import ValRankEmblem from '~/components/val/ValRankEmblem.vue'
 
@@ -55,17 +56,17 @@ const round = (value: number) => String(Math.round(value))
           <tr>
             <th scope="col" class="sticky left-0 z-[1] w-[240px] bg-surface-high px-3 py-2 font-medium">Joueur</th>
             <th scope="col" class="w-11 px-2 py-2 font-medium"><span class="sr-only">Rang</span></th>
-            <th scope="col" class="px-2 py-2 text-right font-medium" title="Score de combat moyen">ACS</th>
-            <th scope="col" class="px-2 py-2 text-right font-medium" title="Kills">K</th>
-            <th scope="col" class="px-2 py-2 text-right font-medium" title="Morts">D</th>
-            <th scope="col" class="px-2 py-2 text-right font-medium" title="Assistances">A</th>
-            <th scope="col" class="px-2 py-2 text-right font-medium" title="Kills moins morts">+/−</th>
-            <th scope="col" class="px-2 py-2 text-right font-medium" title="Dégâts moyens par manche">ADR</th>
-            <th scope="col" class="px-2 py-2 text-right font-medium" title="Pourcentage de headshots">HS</th>
-            <th scope="col" class="px-2 py-2 text-right font-medium" title="Manches avec kill, assistance, survie ou échange">KAST</th>
-            <th scope="col" class="px-2 py-2 text-right font-medium" title="Premiers kills">PK</th>
-            <th scope="col" class="px-3 py-2 text-right font-medium" title="Premières morts">PM</th>
-            <th v-if="hasRiotScore" scope="col" class="w-16 px-3 py-2 text-right font-medium" :title="`Note de performance Riot (${RIOT_SCORE_BETA}), environ 100 à 320`">Riot</th>
+            <th scope="col" class="px-2 py-2 text-right font-medium"><InfoTip v-bind="STAT_HINTS.acs">ACS</InfoTip></th>
+            <th scope="col" class="px-2 py-2 text-right font-medium"><InfoTip v-bind="STAT_HINTS.kills">K</InfoTip></th>
+            <th scope="col" class="px-2 py-2 text-right font-medium"><InfoTip v-bind="STAT_HINTS.deaths">D</InfoTip></th>
+            <th scope="col" class="px-2 py-2 text-right font-medium"><InfoTip v-bind="STAT_HINTS.assists">A</InfoTip></th>
+            <th scope="col" class="px-2 py-2 text-right font-medium"><InfoTip v-bind="STAT_HINTS.plusMinus">+/−</InfoTip></th>
+            <th scope="col" class="px-2 py-2 text-right font-medium"><InfoTip v-bind="STAT_HINTS.adr">ADR</InfoTip></th>
+            <th scope="col" class="px-2 py-2 text-right font-medium"><InfoTip v-bind="STAT_HINTS.headshots">HS</InfoTip></th>
+            <th scope="col" class="px-2 py-2 text-right font-medium"><InfoTip v-bind="STAT_HINTS.kast">KAST</InfoTip></th>
+            <th scope="col" class="px-2 py-2 text-right font-medium"><InfoTip v-bind="STAT_HINTS.firstKills">PK</InfoTip></th>
+            <th scope="col" class="px-3 py-2 text-right font-medium"><InfoTip v-bind="STAT_HINTS.firstDeaths">PM</InfoTip></th>
+            <th v-if="hasRiotScore" scope="col" class="w-16 px-3 py-2 text-right font-medium"><InfoTip v-bind="STAT_HINTS.riotScore">Riot</InfoTip></th>
           </tr>
         </thead>
         <tbody class="font-mono text-sm text-text-main">
@@ -90,8 +91,8 @@ const round = (value: number) => String(Math.round(value))
                       class="max-w-[150px] truncate text-sm font-semibold underline decoration-border-strong underline-offset-4 transition-colors hover:decoration-brand-red"
                     >{{ row.name }}</NuxtLink>
                     <span v-else class="max-w-[150px] truncate text-sm font-semibold">{{ row.name }}</span>
-                    <span v-if="row.isMvp" title="Meilleure note de la partie" class="font-mono text-[10px] font-bold uppercase text-mvp">MVP</span>
-                    <span v-else-if="row.isTeamMvp" title="Meilleure note de l'équipe perdante" class="font-mono text-[10px] font-bold uppercase text-mvp-team">MVP éq.</span>
+                    <InfoTip v-if="row.isMvp" v-bind="STAT_HINTS.mvp" :focusable="false" class="font-mono text-[10px] font-bold uppercase text-mvp">MVP</InfoTip>
+                    <InfoTip v-else-if="row.isTeamMvp" v-bind="STAT_HINTS.teamMvp" :focusable="false" class="font-mono text-[10px] font-bold uppercase text-mvp-team">MVP éq.</InfoTip>
                     <span v-if="row.isRiotMvp" title="MVP de la partie élu par Riot" class="border border-current px-1 font-mono text-[9px] font-bold uppercase text-mvp">Riot ★</span>
                     <span v-else-if="row.isRiotTeamMvp" title="MVP de l'équipe élu par Riot" class="border border-current px-1 font-mono text-[9px] font-bold uppercase text-mvp-team">Riot ☆</span>
                     <span v-if="row.partyPenalty !== null" :title="penaltyTitle(row.partyPenalty)" class="font-mono text-[10px] text-text-ter">

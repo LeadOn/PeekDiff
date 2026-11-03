@@ -47,36 +47,52 @@ admin space.
   the week derived from the same field, and `LastRankedGames` (read off `valorantCurrentRank`), and
   drops the records. Only a failing `GET /val/player` shows "L'API ne répond pas".
 - `/player/[id]` — a player's profile, JungleDiff's `/summoner/[id]` rebuilt in Protocol.
-  `ProfileHero` (the `wideart` card under the night veil, the main agent's `fullportrait`, current and
-  peak ranks, the last ranked results, smurf links, and a red "Synchroniser", open to every visitor (signed in or not), that
-  calls `PATCH /val/player/{id}`), then "Performances" (`ProfileKpis`: games and win rate, ACS / ADR,
-  K/D / KDA, headshots, KAST, rating, first duels, playtime) filtered by period (7 j · 30 j · 3 mois ·
-  Tout), queue (Toutes · Compétition · Non classée · Vélocité) and agent, then two columns —
-  "Dernières parties" (`ValMatchRow` grouped by Paris day with the day's record and net RR, 10 per
+  `ProfileHero` (the `wideart` card under a 75 % night veil, the main agent's `fullportrait`, the
+  identity and account badges on top, then a rank strip: current and peak ranks, the last ranked
+  results, and a red "Synchroniser", open to every visitor (signed in or not), that calls
+  `PATCH /val/player/{id}`), then a bar — sticky from `md:` — holding the tabs (`TabBar`: Aperçu ·
+  Style de jeu · Heatmap · Carrière, `?tab=`, `PROFILE_TABS` in `val-profile.ts`; a tab the API cannot
+  fill is not offered and falls back to the overview) and the filters they share: period (7 j · 30 j ·
+  3 mois · Tout), queue (Toutes · Compétition · Non classée · Vélocité) and the agent chip; the
+  career tab hides them. Section titles inside the tabs are `SectionTitle` (display 24px with the
+  scope in mono, "sur 3 mois · Compétition · avec Jett"), so cards no longer repeat the period: only
+  those that ignore a filter say so ("tous agents"). "Aperçu": "Performances" (`ProfileKpis`, one
+  panel: win rate, ACS / ADR, K/D / KDA and headshots large, then KAST, rating, first duels and
+  playtime compact), then two columns — "Dernières parties" (`ValMatchRow` grouped by Paris day with the day's record and net RR, 10 per
   page) beside a rail: `ProfileRankProgress` (the elo curve of the period and the RR of each ranked
-  game, a bar opening its match page when the API flags it `matchStored`), `ProfileAgents`, `ValMapList`, `ProfileDuos`. Filters live in the query string
+  game, a bar opening its match page when the API flags it `matchStored`; hovering the curve shows the
+  date, tier, RR and change of the nearest point — arrows once it has the focus — and hovering a bar
+  its date, map and `rrMoveDetail`, both announced in a live region), `ProfileAgents`, `ValMapList`, `ProfileDuos`. Filters live in the query string
   (`?period=7j&queue=competitive&agent=Jett`). The period does not restrict the history; the queue
   and the agent do. The agent filter is picked from `ProfileAgents` (a row toggles it) and shown as a
   removable chip beside the switches; it restricts the tiles, the maps, the duos and the history,
   never the rank progression (a rank is the account's, not an agent's). A crew member with no
   `valorantPuuid` gets a notice instead of the stats. Each history row opens its match page.
   With the full-data API (detected by `valorantExtrasRefreshedOn` being present, even `null`), the
-  profile adds: in the hero, a Premier badge (`GET /val/premier/{id}` after mount; HenrikDev's icon is
+  profile adds the other tabs and, in the hero, a Premier badge (`GET /val/premier/{id}` after mount; HenrikDev's icon is
   refused by the CSP, so the team colour stands in), the rank-protection shields on a protected tier,
-  the leaderboard rank and the lifetime prestige (`parsePrestige`); "Style de jeu"
+  the leaderboard rank and the lifetime prestige (`parsePrestige`); the "Style de jeu" tab
   (`ProfilePlaystyle`: attack vs defense with the gap, rounds won by buy, clutches 1v1→1v5, trades
   within 5 s, our rating beside Riot's score marked "bêta") and "Armes" (`ProfileWeapons`), both from
-  the recap so they follow every filter; "Heatmap" (`ProfileHeatmap`, `GET /val/player/{id}/heatmap`,
-  loaded after mount: map from the recap's `mapStats`, Kills / Morts, Attaque / Défense / Les deux,
-  the period and queue but never the agent, points teal on attack and red on defense, the zones list as
-  its text equivalent, an empty state that says why); and "Carrière" (`ProfileSeasons`,
+  the recap so they follow every filter; the "Heatmap" tab (`ProfileHeatmap`, `GET /val/player/{id}/heatmap`,
+  loaded when the tab opens: map picked in a select from the recap's `mapStats`, Kills et morts /
+  Kills / Morts (both by default: one request per type, in parallel), Attaque / Défense / Les deux,
+  the period and queue but never the agent; kills as teal dots and deaths as red crosses on the same
+  minimap, each with its round, zone, weapon and distance in its `title`, no density layer; the
+  zones list (kills and deaths merged per zone, busiest first, a bar split teal / red) as its text
+  equivalent, where hovering, focusing or picking a zone isolates its marks; an empty state that says
+  why); and the "Carrière" tab (`ProfileSeasons`,
   `ProfileMastery`, `ProfileAccolades` — seasons, mastery and accolades loaded after mount by
   `useProfileExtras`, each with its own "indisponible"). Every RR of a ranked game is `rrMove`
   (`rrDelta ?? lastChange`, `val-rr.ts`), its tooltip `rrMoveDetail`.
 - `/match/[id]` — one game, told from one side: "Alliés" (teal) is the team of the player in
   `?player=` (the profile's links set it), else the viewer's once mounted if they played it, else the
-  side with the most crew members. `MatchHero` (the map's splash under the night veil, the score from
-  the allies' side with V/D/N, the followed player's agent portrait and line), then "Tableau des
+  side with the most crew members. `MatchHero` (the map's splash under a 75 % night veil, the map and
+  date on top, then a strip with the score from the allies' side with V/D/N and the followed player's
+  line, their agent's portrait behind), then a bar — sticky from `md:` — with the tabs (`TabBar`:
+  Tableau des scores · Manches · Économie · Dégâts, `?tab=`, `MATCH_TABS` in `val-game.ts`) and the
+  score; the round selected in one tab stays selected in the others. Each tab opens on a
+  `SectionTitle`. "Tableau des
   scores" (`MatchScoreboard`, one table per team sorted by ACS: ACS, K, D, A, +/−, ADR, HS, KAST,
   PK, PM; the followed player on `surface-selected` with the red rule; crew members link to their
   profile), then "Manche par manche" (`MatchTimeline`: the round frieze, glyph of the round's end in
@@ -161,6 +177,17 @@ admin space.
   (`playerStore.profilePath`: the viewer's profile, else `/settings`; "Connexion" when anonymous; resolved
   after mount). The footer pads its bottom on phones to clear it. The header's search button is hidden
   on phones.
+- **Stat hints** — every named figure explains itself: `InfoTip` (`app/components/ui/InfoTip.vue`)
+  underlines the label with dots and, on hover, keyboard focus or tap, shows the figure's full name,
+  what it means and how the API computes it. The words live once, in `STAT_HINTS`
+  (`app/utils/val-glossary.ts`), and follow the API's actual computation (the PeekDiff rating's
+  weights, the 5 s trade window, a home-page game counted once per crew member). It covers the
+  profile's performance panel, hero and play style, the match hero, scoreboards and economy, and the
+  home page's tiles; `FrameHead` takes a `hint` for card titles. The bubble is teleported to
+  `#teleports` with fixed positioning (a scrolling table or a notch would clip it), sits above the
+  label and closes on Escape, an outside tap or a scroll. The same words are the label's
+  `aria-describedby`. Labels repeated on every row of a list (history, agents, maps) pass
+  `:focusable="false"`: hover only, no tab stop per row. Tested in `tests/info-tip.spec.ts`.
 - **Theme** — dark by default, "Bone" (light) through the header toggle.
 - **JungleDiff link** — a square button with JungleDiff's logo in the header (from `sm:`;
   `app/assets/img/JungleDiff_Logo.png`, a 128px copy of JungleDiff's own) and a `[ JungleDiff ↗ ]`
@@ -178,7 +205,7 @@ admin space.
 
 - `app/pages/` — orchestrate data loading with `useAsyncData` and own the page layout.
 - `app/components/ui/` — generic, domain-free UI (`AppHeader`, `AppBottomBar`, `SectionIndex`,
-  `FrameHead`, `SegmentSwitch`, `MockBadge`).
+  `SectionTitle`, `FrameHead`, `SegmentSwitch`, `TabBar`, `InfoTip`, `MockBadge`).
 - `app/components/home/` — the home page's business components.
 - `app/components/profile/` — the profile page's business components (`Profile*`).
 - `app/components/match/` — the match page's business components (`Match*`).
@@ -214,7 +241,7 @@ admin space.
 - **Utils**: kebab-case filenames; Valorant-domain helpers carry a `val-` prefix (`val-tier.ts`,
   `val-ladder.ts`, `val-assets.ts`, `val-smurf.ts`, `val-match.ts`, `val-game.ts`, `val-period.ts`,
   `val-search.ts`, `val-agents.ts`, `val-profile.ts`, `val-admin.ts`, `val-labels.ts`, `val-minimap.ts`,
-  `val-rr.ts`).
+  `val-rr.ts`, `val-glossary.ts`).
   Generic ones do not (`theme.ts`, `date.ts`, `ascii.ts`).
   Despite `app/utils/` being auto-imported, the codebase **imports these explicitly** — match that.
 - **Types**: Valorant domain types are prefixed `Val` and API payload shapes end in `Dto`

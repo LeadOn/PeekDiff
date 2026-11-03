@@ -23,7 +23,7 @@ API and renders game art from media.valorant-api.com.
   dashboard), `stats.vue` (the crew records), `player/[id].vue` (a player's profile), `match/[id].vue` (one game),
   `settings.vue` and `admin.vue` (the admin space).
 - `app/components/` — split into `ui/` (generic: `AppHeader`, `AppBottomBar`, `SectionIndex`,
-  `FrameHead`, `SegmentSwitch`, `MockBadge`), `home/` (the dashboard), `profile/` (the profile),
+  `SectionTitle`, `FrameHead`, `SegmentSwitch`, `TabBar`, `InfoTip`, `MockBadge`), `home/` (the dashboard), `profile/` (the profile),
   `match/` (the match page), `admin/` (the admin space) and `val/` (Valorant entities: `ValRankEmblem`, `ValPlayerCard`,
   `ValAgentIcon`, `ValRoleChip`, `ValMatchRow`, `ValMapList`, `ValPlayerPalette`).
 - `app/composables/` — reusable logic, including API client injection (`useGameOnVal`).
@@ -37,7 +37,8 @@ API and renders game art from media.valorant-api.com.
   builds media.valorant-api.com URLs; `val-smurf.ts` is the only smurf predicate; `val-match.ts`
   turns a game into a history row seen from one player and groups rows by Paris day; `val-game.ts`
   builds the match page (sides, scoreboard, round frieze, kill feed); `val-period.ts`
-  maps the profile's period switch onto the API's period and rank buckets; `ascii.ts` draws glyph
+  maps the profile's period switch onto the API's period and rank buckets; `val-glossary.ts` defines
+  every figure the app prints (what it means, how the API computes it); `ascii.ts` draws glyph
   bars; `theme.ts` is the single entry point for the theme.
 
 ### Server (`server/`)
@@ -210,23 +211,31 @@ Toutes) and smurfs, kept in the URL. Linked from the header, the search palette 
 
 **Done — player profiles (`/player/[id]`)**, JungleDiff's profile rebuilt in Protocol:
 
-- a hero over the player card with the main agent's portrait, current and peak ranks, the last ranked
-  results, smurf links, and "Synchroniser" for every visitor (a Riot re-sync through the API);
-- performance tiles (games and win rate, ACS / ADR, K/D / KDA, headshots, KAST, rating, first duels,
-  playtime) filtered by period (7 j · 30 j · 3 mois · Tout), queue and agent, kept in the URL;
+- a hero over the player card with the main agent's portrait and smurf links, then a rank strip:
+  current and peak ranks, the last ranked results, and "Synchroniser" for every visitor (a Riot
+  re-sync through the API);
+- tabs (Aperçu · Style de jeu · Heatmap · Carrière) in a bar that stays in view, with the filters
+  they share: period (7 j · 30 j · 3 mois · Tout), queue and agent, all kept in the URL;
+- in the overview, one performance panel (win rate, ACS / ADR, K/D / KDA and headshots up front;
+  KAST, rating, first duels and playtime beside them);
 - the last games grouped by day with the day's record and net RR, 10 at a time;
-- a rail: the elo curve over the period with the RR of each ranked game (a bar opens its match when
+- a rail: the elo curve over the period with the RR of each ranked game, each value shown on hover
+  or with the arrows (a bar opens its match when
   the game is stored), agents (a row filters the
   profile on that agent), maps, duos;
 - with the full-data API: Premier team, rank-protection shields, leaderboard rank and lifetime
-  prestige in the hero; "Style de jeu" (attack vs defense, rounds won by buy, clutches, trades, our
+  prestige in the hero; the other tabs: "Style de jeu" (attack vs defense, rounds won by buy, clutches, trades, our
   rating beside Riot's beta score) and the weapons, both following the filters; a kill / death
-  heatmap per map with its zones; "Carrière" (acts, agent mastery, accolades). The RR of a ranked game
+  heatmap per map with kills (dots) and deaths (crosses) together, and zones with their kills and
+  deaths that isolate their marks when hovered or picked; "Carrière" (acts, agent mastery, accolades). The RR of a ranked game
   is the RR applied (`rrDelta`), not the one Riot announced.
 
 **Done — match pages (`/match/[id]`)**, opened from any row of a profile's history:
 
-- a hero over the map's splash with the score from the followed player's side and their line;
+- a hero over the map's splash, then a strip with the score from the followed player's side and their
+  line;
+- tabs (Tableau des scores · Manches · Économie · Dégâts) in a bar that stays in view with the score,
+  kept in the URL; the selected round is shared between them;
 - both scoreboards (ACS, K, D, A, +/−, ADR, HS, KAST, first kills and deaths), crew members linked;
 - the round frieze (how each round ended, who won it, half time, overtime, ceremonies) and, for the
   selected round, the plant / defuse and the kill feed;
@@ -237,6 +246,11 @@ Toutes) and smurfs, kept in the URL. Linked from the header, the search palette 
   the allies' side per round, the selected round on the minimap (every player's position at a hovered
   kill, the killer's view, the spike) with zones and distances in the kill feed, and "Qui a touché
   qui", the damage matrix over the game or one round.
+
+**Done — stat hints:** every named figure (ACS, ADR, K/D, KDA, KAST, headshots, the PeekDiff
+rating, first duels, RR, clutches, trades, buys…) explains itself on hover, keyboard focus or tap —
+its full name, what it means and how it is computed — on the profile, the match page and the home
+page's tiles.
 
 **Done — settings (`/settings`)**, signed-in only: name, nickname and Riot ID (a Riot ID already
 held by another account is refused, and nothing is saved).

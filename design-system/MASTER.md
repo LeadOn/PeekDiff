@@ -135,7 +135,8 @@ Spinner : braille `⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏` (80ms/frame) ou barre `[■�
 
 **Garde-fous**
 
-- Au plus **trois motifs ASCII par vue**, hors index de section (qui est systématique).
+- Au plus **trois motifs ASCII par vue**, hors index de section (systématique, sauf dans une page à
+  onglets où la barre d'onglets en tient lieu, §7).
 - Une barre ou une sparkline glyphe a toujours la valeur en clair à côté **et** un `aria-label`
   (« Pourcentage de headshots : 68 % »).
 - Jamais d'ASCII dans une phrase, un bouton primaire, un message d'erreur.
@@ -183,6 +184,21 @@ libellés ne passent jamais à la ligne : sur mobile, le sélecteur défile hori
 `aria-pressed` sur chaque option, `aria-label` sur le groupe (« Période »). Composant :
 `ui/SegmentSwitch.vue`.
 
+### Onglets
+
+Une page trop riche pour un seul défilement se coupe en onglets (le profil : `APERÇU · STYLE DE JEU ·
+HEATMAP · CARRIÈRE`). Mono 12px MAJ., `text-ter`, hauteur 44px, posés sur le filet bas de leur barre ;
+l'onglet actif passe en `text-main` avec le **filet bas rouge 2px**. `ui/TabBar.vue` : `role="tablist"`,
+un seul onglet dans l'ordre de tabulation, flèches / Début / Fin pour se déplacer, l'onglet courant
+dans l'URL (`?tab=`). Les filtres que les onglets partagent vivent dans la même barre, à droite ;
+elle colle sous le header dès `md:` (`bg-header`, z 10) et, sur un onglet qui ne les suit pas, les
+remplace par une ligne `// …` qui le dit. Un onglet que l'API ne peut pas remplir n'est pas proposé.
+
+Dans une page à onglets, les onglets tiennent lieu d'index de section : les sections y prennent un
+**titre compact** (`ui/SectionTitle.vue`, display 24px) suivi de leur portée en mono `text-ter`
+(« sur 3 mois · Compétition · avec Jett »). Les cartes ne répètent plus la période ; seules celles
+qui ignorent un filtre le disent dans leur cadre (« tous agents »).
+
 ### Filtre par liste
 
 Quand les options sont trop nombreuses pour un sélecteur segmenté (les agents d'un joueur), la liste
@@ -207,6 +223,24 @@ icône 24px, nom en mono MAJ., `×` en `text-ter`, filet bas rouge 2px ; un clic
   mono 10px MAJ. `text-sec`, filet 1px de la couleur du rôle. À côté du nom de l'agent dans les
   listes d'agents (profil, records), dès `sm:`.
 
+### Info-bulles d'indicateur
+
+- Chaque indicateur se définit lui-même (`InfoTip`) : libellé souligné en pointillé fin
+  (`decoration-current/45`, plein au survol), curseur `help`. Survol (après 150 ms), focus clavier ou
+  tap ouvrent une bulle `surface-high`, filet `border-strong`, `shadow-float`, `animate-enter`, 300px
+  au plus : le nom complet en mono 11px MAJ. (`KAST · KILL, ASSIST, SURVIVE, TRADE`), une ou deux
+  phrases en Barlow 13px `text-sec`, puis le calcul en mono 11px `text-ter` après un filet pointillé
+  (`= kills ÷ morts`).
+- La bulle est hors du flux (téléportée, position fixe) : ni un tableau qui défile ni un coin coupé ne
+  la rognent. Au-dessus du libellé pour laisser lisible le chiffre qu'il nomme, dessous en haut
+  d'écran, recadrée à 8px des bords. Échap, un tap ailleurs, un défilement la ferment.
+- Les mots viennent d'un seul dictionnaire (`app/utils/val-glossary.ts`) et décrivent ce que l'API
+  calcule vraiment — pas une définition générique.
+- Partout où un chiffre a un nom : panneau de performances, héros et tableaux de match, style de
+  jeu, économie, tuiles de l'accueil, titres de carte (`FrameHead` prend un `hint`). Sur un libellé
+  répété à chaque ligne d'une liste (historique, agents, cartes), survol seul, sans arrêt de
+  tabulation : la définition est atteignable ailleurs au clavier.
+
 ### Cartes
 
 - **Carte de données** : `surface-base`, filet 1px, `notch`, titre en cadre ASCII.
@@ -214,12 +248,23 @@ icône 24px, nom en mono MAJ., `×` en `text-ter`, filet bas rouge 2px ; un clic
 - **Héros profil** : `night`, carte de joueur `wideart` en bandeau voilé, portrait de l'agent
   principal (`fullportrait`) détouré à droite, trame `░▒▓`, `notch-2`, filet rouge en
   `animate-wipe`, emblème du pic de rang (`ValorantPeakRankIconUrl`). Les cartes de joueur vont du
-  presque noir à l'illustration saturée en plein jour : un voile plat `night` à 50 % passe **sous** le
-  dégradé, sinon les rangs deviennent illisibles sur les plus claires. Le portrait n'apparaît qu'à
-  partir de `md:`, masqué de 10 % à 55 % de sa largeur pour ne pas couvrir les rangs. Rangs actuel et
-  pic, forme des classées (pastilles V/D), puis le CTA rouge « Synchroniser » (ouvert à tous)
-  et « Synchro il y a X min ».
-- **Héros match** : `splash` de la carte sous le voile `night`, portrait de l'agent joué.
+  presque noir à l'illustration saturée en plein jour : un voile plat `night` à 75 % passe **sous** le
+  dégradé, pour que l'illustration reste une texture et que le portrait de l'agent soit le seul sujet.
+  Le portrait n'apparaît qu'à partir de `md:`, masqué de 10 % à 55 % de sa largeur. En haut,
+  l'identité (nom, Riot ID, smurfs, filet rouge) et les distinctions du compte en une ligne mono sans
+  cadres (Premier, protection, leaderboard, prestige). En bas, une **bande de rangs** pleine largeur
+  (`night` 80 %, filet haut `on-night` 15 %) : rang actuel, pic, forme des classées (pastilles V/D),
+  séparés par des filets verticaux, puis à droite « Synchro il y a X min » et le CTA rouge
+  « Synchroniser » (ouvert à tous).
+- **Panneau de performances (profil)** : une seule carte vedette (`ticks`) découpée par des filets
+  (`gap-px` sur `border-base`) plutôt que huit cartes : quatre chiffres-clés en display 56px (victoires
+  avec sa barre glyphe, ACS, K/D, headshots), puis quatre chiffres de contexte en display 24px (KAST,
+  note, premiers duels, temps de jeu). Le regard se pose sur la première ligne.
+- **Héros match** : même construction que le héros profil — `splash` de la carte sous le voile
+  `night` à 75 %, portrait de l'agent joué ; en haut la carte et la date, en bas une bande avec le
+  score (alliés d'abord, pastille V/D/N) puis, séparée par un filet vertical, la ligne du joueur suivi
+  (`VUE DE`, K/D/A, ACS, RR en display 24px). Sous le héros, la barre d'onglets `TABLEAU DES SCORES ·
+  MANCHES · ÉCONOMIE · DÉGÂTS` rappelle le score à droite.
 
 ### Lignes
 
@@ -282,10 +327,25 @@ icône 24px, nom en mono MAJ., `×` en `text-ter`, filet bas rouge 2px ; un clic
   (`win`) sur défaites (`loss`) proportionnelle au nombre de parties, le compte au-dessus, le RR net
   du jour en dessous (`—` sans classée), l'initiale du jour au pied, le jour courant en gras. Une
   légende sous la carte ; chaque colonne porte son résumé en `aria-label`.
-- **Heatmap (profil)** : sélecteurs segmentés carte · `KILLS · MORTS` · `LES DEUX · ATTAQUE ·
-  DÉFENSE`, minimap carrée `night` 560px max, un petit carré par point (`ally` en attaque, `enemy` en
-  défense, 75 %), la liste des zones à droite (part et barre de glyphes) comme équivalent texte. L'état
-  vide dit pourquoi (API trop ancienne, carte sans minimap, parties antérieures aux positions).
+- **Heatmap (profil)** : liste déroulante `CARTE BIND · 3 PARTIES` (un joueur qui tourne sur le
+  pool a une douzaine de cartes, trop pour un sélecteur segmenté), puis sélecteurs segmentés
+  `KILLS ET MORTS · KILLS · MORTS` (les deux par défaut) et `LES DEUX · ATTAQUE · DÉFENSE`, minimap
+  carrée `night` 640px max (image à 70 %). Kills et morts sur la même carte, pour lire côte à côte les
+  duels gagnés et perdus : un **rond `ally`** par kill (là où il tirait), une **croix `enemy`** par mort
+  (là où il est tombé), filet `night` sous chaque marque ; la forme double toujours la couleur. Plus
+  petites au-delà de 80 marques ; manche, zone, arme et distance en `title`. **Pas de couche de
+  densité** : les halos brouillaient la carte. Au-dessus, `● 73 KILLS · ✕ 59 MORTS`. La liste des zones
+  à droite (kills et morts additionnés par zone, les plus actives d'abord, `12 K · 6 M`, barre de
+  glyphes coupée en `ally` puis `enemy`) reste l'équivalent texte, et chaque zone est un bouton :
+  survolée, focalisée ou choisie (`aria-pressed`, filet gauche `text-main` sur `surface-high`), elle
+  isole ses marques — agrandies — et estompe les autres. L'état vide dit pourquoi (API trop ancienne,
+  carte sans minimap, parties antérieures aux positions).
+- **Progression (profil)** : au survol, la courbe montre le point le plus proche — filet vertical
+  `border-strong`, carré cerclé `brand-red`, infobulle `surface-high` + `shadow-float` (date, rang,
+  RR, écart avec le point précédent en `win` / `loss`), sous le point s'il est dans la moitié haute,
+  au-dessus sinon. Focalisée, la courbe se parcourt aux flèches. Une barre de RR survolée ou focalisée
+  donne la date, la carte et le détail du RR. Les deux infobulles sont aussi annoncées
+  (`aria-live`).
 - **Style de jeu (profil)** : cartes de données — attaque (`ally`, filet gauche) contre défense
   (`enemy`) avec la colonne « Écart », manches gagnées par achat en barres de glyphes, clutchs en
   colonnes 1v1 → 1v5, échanges, notes PeekDiff et Riot côte à côte. Les côtés gardent leurs libellés :
@@ -464,6 +524,8 @@ commerciales ou des marques déposées de Riot Games, Inc. »*
 - ASCII décoratif `aria-hidden` ; ASCII porteur d'info doublé d'un `aria-label` ou d'un texte
   `sr-only`.
 - Cibles tactiles ≥ 44px ; `prefers-reduced-motion` respecté.
+- Une info-bulle d'indicateur est aussi la description accessible de son libellé
+  (`aria-describedby`) ; la bulle visible est `aria-hidden` pour ne pas la lire deux fois.
 - Les coins coupés (`clip-path`) rognent aussi l'outline : sur un élément `notch` focusable, poser
   le focus sur un pseudo-élément intérieur ou utiliser `outline-offset: -4px`.
 

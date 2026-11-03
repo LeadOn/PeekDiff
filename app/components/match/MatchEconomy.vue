@@ -2,7 +2,9 @@
 import { computed } from 'vue'
 import type { BuyType, EconomyRound, EconomyTeam, RoundLoadouts } from '~/utils/val-game'
 import { BUY_LABELS, SIDE_LABELS } from '~/utils/val-game'
+import { BUY_HINTS, STAT_HINTS } from '~/utils/val-glossary'
 import FrameHead from '~/components/ui/FrameHead.vue'
+import InfoTip from '~/components/ui/InfoTip.vue'
 import ValAgentIcon from '~/components/val/ValAgentIcon.vue'
 
 /**
@@ -29,7 +31,7 @@ const emit = defineEmits<{
 
 /** One letter per buy under each bar; the legend and every column's label spell them out. */
 const BUY_SHORT: Record<BuyType, string> = { pistol: 'P', eco: 'É', semi: 'S', full: 'A' }
-const BUY_LEGEND = (Object.keys(BUY_SHORT) as BuyType[]).map(buy => `${BUY_SHORT[buy]} ${BUY_LABELS[buy].toLowerCase()}`)
+const BUY_LEGEND = (Object.keys(BUY_SHORT) as BuyType[]).map(buy => ({ buy, short: BUY_SHORT[buy], label: BUY_LABELS[buy].toLowerCase() }))
 
 const maxLoadout = computed(() => Math.max(1, ...props.rounds.flatMap(round => [round.ally?.loadout ?? 0, round.enemy?.loadout ?? 0])))
 const barHeight = (team: EconomyTeam | null) => `${team ? Math.max(4, (team.loadout / maxLoadout.value) * 100) : 0}%`
@@ -42,7 +44,7 @@ const sideText = (side: 'ally' | 'enemy') => (side === 'ally' ? 'text-ally' : 't
 
 <template>
   <div class="border border-border-base bg-surface-base p-4 md:p-5">
-    <FrameHead title="Achats par manche" :aside="rounds.length ? 'valeur d\'équipement par manche' : null" />
+    <FrameHead title="Achats par manche" />
 
     <div v-if="loading && rounds.length === 0" aria-busy="true" class="h-48 animate-pulse bg-surface-high" />
 
@@ -55,7 +57,7 @@ const sideText = (side: 'ally' | 'enemy') => (side === 'ally' ? 'text-ally' : 't
     <template v-else>
       <p aria-hidden="true" class="mb-3 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11px] text-text-ter">
         <span><span class="text-ally">▀</span> alliés</span><span><span class="text-enemy">▄</span> ennemis</span>
-        <span v-for="entry in BUY_LEGEND" :key="entry">{{ entry }}</span>
+        <span v-for="entry in BUY_LEGEND" :key="entry.buy">{{ entry.short }} <InfoTip v-bind="BUY_HINTS[entry.buy]" :focusable="false">{{ entry.label }}</InfoTip></span>
         <span>axe : camp gagnant</span>
       </p>
 
@@ -87,7 +89,7 @@ const sideText = (side: 'ally' | 'enemy') => (side === 'ally' ? 'text-ally' : 't
       </div>
 
       <div v-if="selectedRound" class="mt-5 border-t border-dashed border-border-strong pt-4">
-        <h4 class="font-display text-[32px] font-extrabold uppercase leading-none">Manche {{ selectedRound.number }}</h4>
+        <h4 class="font-display text-2xl font-extrabold uppercase leading-none">Manche {{ selectedRound.number }}</h4>
 
         <div class="mt-4 grid gap-4 lg:grid-cols-2">
           <section v-for="team in loadouts" :key="team.side" :aria-label="`${team.label}, manche ${selectedRound.number}`" class="min-w-0">
@@ -95,7 +97,7 @@ const sideText = (side: 'ally' | 'enemy') => (side === 'ally' ? 'text-ally' : 't
               <span class="font-mono text-xs font-bold uppercase tracking-[0.08em]" :class="sideText(team.side)">{{ team.label }}</span>
               <template v-if="team.economy">
                 <span class="font-mono text-sm text-text-main">{{ credits(team.economy.loadout) }} <span class="text-xs text-text-ter">crédits</span></span>
-                <span class="border border-border-strong px-1.5 font-mono text-[11px] uppercase text-text-sec">{{ BUY_LABELS[team.economy.buy] }}</span>
+                <span class="border border-border-strong px-1.5 font-mono text-[11px] uppercase text-text-sec"><InfoTip v-bind="BUY_HINTS[team.economy.buy]">{{ BUY_LABELS[team.economy.buy] }}</InfoTip></span>
                 <span class="font-mono text-xs text-text-ter">{{ credits(team.economy.remaining) }} en banque · {{ credits(team.economy.damage) }} dégâts</span>
               </template>
             </p>
@@ -106,10 +108,10 @@ const sideText = (side: 'ally' | 'enemy') => (side === 'ally' ? 'text-ally' : 't
                   <tr>
                     <th scope="col" class="py-1.5 pr-2 font-medium">Joueur</th>
                     <th scope="col" class="px-2 py-1.5 font-medium">Équipement</th>
-                    <th scope="col" class="px-2 py-1.5 text-right font-medium" title="Valeur de l'équipement en début de manche">Valeur</th>
-                    <th scope="col" class="px-2 py-1.5 text-right font-medium" title="Crédits gardés après l'achat">Banque</th>
-                    <th scope="col" class="px-2 py-1.5 text-right font-medium" title="Dégâts infligés dans la manche">Dég.</th>
-                    <th scope="col" class="py-1.5 pl-2 text-right font-medium" title="Kills dans la manche">K</th>
+                    <th scope="col" class="px-2 py-1.5 text-right font-medium"><InfoTip v-bind="STAT_HINTS.loadout" /></th>
+                    <th scope="col" class="px-2 py-1.5 text-right font-medium"><InfoTip v-bind="STAT_HINTS.bank" /></th>
+                    <th scope="col" class="px-2 py-1.5 text-right font-medium"><InfoTip v-bind="STAT_HINTS.roundDamage">Dég.</InfoTip></th>
+                    <th scope="col" class="py-1.5 pl-2 text-right font-medium"><InfoTip v-bind="STAT_HINTS.roundKills">K</InfoTip></th>
                   </tr>
                 </thead>
                 <tbody>

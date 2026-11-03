@@ -5,7 +5,10 @@ import { formatDecimal, formatPercent } from '~/utils/number'
 import { glyphBar } from '~/utils/ascii'
 import { BUY_LABELS } from '~/utils/val-game'
 import { RIOT_SCORE_BETA, RIOT_SCORE_LABEL } from '~/utils/val-labels'
+import { STAT_HINTS } from '~/utils/val-glossary'
+import type { StatHintKey } from '~/utils/val-glossary'
 import FrameHead from '~/components/ui/FrameHead.vue'
+import InfoTip from '~/components/ui/InfoTip.vue'
 
 /**
  * "Style de jeu": how the player wins rounds, from the same recap as the performance tiles (so it
@@ -23,6 +26,7 @@ const props = defineProps<{
 interface SideRow {
   key: string
   label: string
+  hint: StatHintKey
   attack: string
   defense: string
   /** Defense minus attack, signed and formatted; `null` when equal. */
@@ -35,13 +39,14 @@ const sides = computed(() => {
   const attack = props.stats.attack
   const defense = props.stats.defense
   if (!attack || !defense || attack.rounds + defense.rounds === 0) return null
-  const row = (key: string, label: string, read: (side: ValSideStatsDto) => number, format: (value: number) => string, unit = ''): SideRow => {
+  const row = (key: string, label: string, hint: StatHintKey, read: (side: ValSideStatsDto) => number, format: (value: number) => string, unit = ''): SideRow => {
     const a = read(attack)
     const d = read(defense)
     const delta = Math.round((d - a) * 100) / 100
     return {
       key,
       label,
+      hint,
       attack: format(a),
       defense: format(d),
       gap: delta === 0 ? null : `${delta > 0 ? '+' : '−'}${format(Math.abs(delta))}${unit}`,
@@ -49,9 +54,9 @@ const sides = computed(() => {
     }
   }
   const rows = [
-    row('winrate', 'Manches gagnées', side => side.roundWinRatePercent, value => formatDecimal(value), ' pts'),
-    row('kd', 'K/D', side => side.kdRatio, value => formatDecimal(value)),
-    row('acs', 'ACS', side => side.acs, value => String(Math.round(value))),
+    row('winrate', 'Manches gagnées', 'sideRounds', side => side.roundWinRatePercent, value => formatDecimal(value), ' pts'),
+    row('kd', 'K/D', 'kd', side => side.kdRatio, value => formatDecimal(value)),
+    row('acs', 'ACS', 'acs', side => side.acs, value => String(Math.round(value))),
   ]
   const lead = rows[0]!
   const headline = lead.better
@@ -62,8 +67,6 @@ const sides = computed(() => {
     headline,
     attackRounds: `${attack.roundsWon}/${attack.rounds} manches`,
     defenseRounds: `${defense.roundsWon}/${defense.rounds} manches`,
-    attackBar: glyphBar(attack.roundWinRatePercent / 100, 10),
-    defenseBar: glyphBar(defense.roundWinRatePercent / 100, 10),
     attackRate: attack.roundWinRatePercent,
     defenseRate: defense.roundWinRatePercent,
   }
@@ -76,10 +79,10 @@ const buys = computed(() => {
   const b = props.stats.buyTypes
   if (!b) return null
   const rows = [
-    { key: 'pistol', label: BUY_LABELS.pistol, rounds: b.pistolRounds, won: b.pistolRoundsWon, rate: b.pistolWinRatePercent, hint: 'première manche de chaque mi-temps' },
-    { key: 'eco', label: BUY_LABELS.eco, rounds: b.ecoRounds, won: b.ecoRoundsWon, rate: b.ecoWinRatePercent, hint: 'moins de 2 000 crédits d\'équipement par joueur' },
-    { key: 'semi', label: BUY_LABELS.semi, rounds: b.forceBuyRounds, won: b.forceBuyRoundsWon, rate: b.forceBuyWinRatePercent, hint: 'achat forcé, de 2 000 à 3 899 crédits' },
-    { key: 'full', label: BUY_LABELS.full, rounds: b.fullBuyRounds, won: b.fullBuyRoundsWon, rate: b.fullBuyWinRatePercent, hint: '3 900 crédits et plus' },
+    { key: 'pistol', label: BUY_LABELS.pistol, rounds: b.pistolRounds, won: b.pistolRoundsWon, rate: b.pistolWinRatePercent, hint: STAT_HINTS.buyPistol },
+    { key: 'eco', label: BUY_LABELS.eco, rounds: b.ecoRounds, won: b.ecoRoundsWon, rate: b.ecoWinRatePercent, hint: STAT_HINTS.buyEco },
+    { key: 'semi', label: BUY_LABELS.semi, rounds: b.forceBuyRounds, won: b.forceBuyRoundsWon, rate: b.forceBuyWinRatePercent, hint: STAT_HINTS.buySemi },
+    { key: 'full', label: BUY_LABELS.full, rounds: b.fullBuyRounds, won: b.fullBuyRoundsWon, rate: b.fullBuyWinRatePercent, hint: STAT_HINTS.buyFull },
   ]
   return rows.map(row => ({
     ...row,
@@ -129,7 +132,7 @@ const riotScore = computed(() => {
 <template>
   <div class="grid gap-3 transition-opacity duration-200 md:grid-cols-2 md:gap-4 xl:grid-cols-4" :class="loading ? 'opacity-60' : ''" :aria-busy="loading">
     <section class="min-w-0 border border-border-base bg-surface-base p-4 md:col-span-2" aria-labelledby="playstyle-sides">
-      <FrameHead title="Attaque · Défense" :aside="periodPhrase" />
+      <FrameHead title="Attaque · Défense" />
       <h3 id="playstyle-sides" class="sr-only">Attaque contre défense</h3>
       <template v-if="sides">
         <p class="font-display text-2xl font-extrabold uppercase leading-none">{{ sides.headline }}</p>
@@ -137,17 +140,11 @@ const riotScore = computed(() => {
           <div class="min-w-0 border-l-2 border-l-ally pl-3">
             <span class="font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-ally">Attaque</span>
             <p class="mt-1 font-display text-[40px] font-black leading-[0.9]">{{ formatDecimal(sides.attackRate) }}<span class="ml-1 font-mono text-xs font-medium text-text-ter">%</span></p>
-            <p class="ascii mt-1 text-xs" role="img" :aria-label="`Attaque : ${formatPercent(sides.attackRate)} de manches gagnées`">
-              <span class="text-ally">{{ sides.attackBar.on }}</span><span class="text-border-ascii">{{ sides.attackBar.off }}</span>
-            </p>
             <p class="mt-1 truncate font-mono text-xs text-text-sec">{{ sides.attackRounds }}</p>
           </div>
           <div class="min-w-0 border-l-2 border-l-enemy pl-3">
             <span class="font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-enemy">Défense</span>
             <p class="mt-1 font-display text-[40px] font-black leading-[0.9]">{{ formatDecimal(sides.defenseRate) }}<span class="ml-1 font-mono text-xs font-medium text-text-ter">%</span></p>
-            <p class="ascii mt-1 text-xs" role="img" :aria-label="`Défense : ${formatPercent(sides.defenseRate)} de manches gagnées`">
-              <span class="text-enemy">{{ sides.defenseBar.on }}</span><span class="text-border-ascii">{{ sides.defenseBar.off }}</span>
-            </p>
             <p class="mt-1 truncate font-mono text-xs text-text-sec">{{ sides.defenseRounds }}</p>
           </div>
         </div>
@@ -157,12 +154,12 @@ const riotScore = computed(() => {
               <th scope="col" class="py-1 text-left font-medium"><span class="sr-only">Statistique</span></th>
               <th scope="col" class="py-1 text-right font-medium">Att.</th>
               <th scope="col" class="py-1 text-right font-medium">Déf.</th>
-              <th scope="col" class="py-1 text-right font-medium" title="Défense moins attaque">Écart</th>
+              <th scope="col" class="py-1 text-right font-medium"><InfoTip v-bind="STAT_HINTS.sideGap">Écart</InfoTip></th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="row in sides.rows" :key="row.key" class="border-t border-border-base">
-              <th scope="row" class="py-1.5 text-left font-sans text-sm font-normal text-text-sec">{{ row.label }}</th>
+              <th scope="row" class="py-1.5 text-left font-sans text-sm font-normal text-text-sec"><InfoTip v-bind="STAT_HINTS[row.hint]">{{ row.label }}</InfoTip></th>
               <td class="py-1.5 text-right">{{ row.attack }}</td>
               <td class="py-1.5 text-right">{{ row.defense }}</td>
               <td class="py-1.5 text-right font-medium" :class="gapClass(row.better)">
@@ -181,7 +178,7 @@ const riotScore = computed(() => {
       <h3 id="playstyle-buys" class="sr-only">Manches gagnées par type d'achat</h3>
       <ul v-if="buys" class="flex flex-col">
         <li v-for="row in buys" :key="row.key" class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 border-t border-border-base py-2 first:border-t-0 sm:grid-cols-[120px_minmax(0,1fr)_auto]">
-          <span class="text-sm font-semibold" :title="row.hint">{{ row.label }}</span>
+          <span class="text-sm font-semibold"><InfoTip v-bind="row.hint">{{ row.label }}</InfoTip></span>
           <span v-if="row.bar" class="ascii order-3 col-span-2 text-xs sm:order-none sm:col-span-1" role="img" :aria-label="`${row.label} : ${row.rateText} de manches gagnées`">
             <span class="text-text-main">{{ row.bar.on }}</span><span class="text-border-ascii">{{ row.bar.off }}</span>
           </span>
@@ -195,7 +192,7 @@ const riotScore = computed(() => {
     </section>
 
     <section class="min-w-0 border border-border-base bg-surface-base p-4" aria-labelledby="playstyle-clutches">
-      <FrameHead title="Clutchs" :aside="periodPhrase" />
+      <FrameHead title="Clutchs" :hint="STAT_HINTS.clutch" />
       <h3 id="playstyle-clutches" class="sr-only">Clutchs</h3>
       <template v-if="clutches && clutches.attempts > 0">
         <p class="flex items-baseline gap-2">
@@ -217,7 +214,7 @@ const riotScore = computed(() => {
     </section>
 
     <section class="min-w-0 border border-border-base bg-surface-base p-4" aria-labelledby="playstyle-trades">
-      <FrameHead title="Échanges" aside="sous 5 s" />
+      <FrameHead title="Échanges" aside="sous 5 s" :hint="STAT_HINTS.trades" />
       <h3 id="playstyle-trades" class="sr-only">Échanges</h3>
       <template v-if="trades">
         <p class="flex items-baseline gap-2">
@@ -240,17 +237,17 @@ const riotScore = computed(() => {
     </section>
 
     <section class="min-w-0 border border-border-base bg-surface-base p-4 md:col-span-2" aria-labelledby="playstyle-ratings">
-      <FrameHead title="Notes" :aside="periodPhrase" />
+      <FrameHead title="Notes" />
       <h3 id="playstyle-ratings" class="sr-only">Notes</h3>
       <div class="grid grid-cols-2 gap-4">
         <div class="min-w-0">
-          <span class="font-mono text-[11px] uppercase tracking-[0.08em] text-text-ter">// Note PeekDiff</span>
+          <span class="font-mono text-[11px] uppercase tracking-[0.08em] text-text-ter">// <InfoTip v-bind="STAT_HINTS.rating" /></span>
           <p class="mt-2 font-display text-[44px] font-black leading-[0.9]">{{ formatDecimal(stats.averageRating) }}<span class="ml-1 font-mono text-xs font-medium text-text-ter">/10</span></p>
           <p class="mt-1 text-pretty text-xs text-text-sec">Celle qui élit le MVP de chaque partie.</p>
         </div>
         <div class="min-w-0 border-l border-dashed border-border-strong pl-4">
           <span class="flex flex-wrap items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.08em] text-text-ter">
-            // {{ RIOT_SCORE_LABEL }}
+            // <InfoTip v-bind="STAT_HINTS.riotScore">{{ RIOT_SCORE_LABEL }}</InfoTip>
             <span class="border border-border-strong px-1 text-[10px] text-text-sec">{{ RIOT_SCORE_BETA }}</span>
           </span>
           <p class="mt-2 font-display text-[44px] font-black leading-[0.9]">{{ riotScore ?? '—' }}</p>

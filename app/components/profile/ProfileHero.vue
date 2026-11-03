@@ -11,6 +11,8 @@ import { formatSigned } from '~/utils/number'
 import { RESULT_LABELS } from '~/utils/val-match'
 import { useNow } from '~/composables/useNow'
 import { isSmurf } from '~/utils/val-smurf'
+import { STAT_HINTS } from '~/utils/val-glossary'
+import InfoTip from '~/components/ui/InfoTip.vue'
 import ValRankEmblem from '~/components/val/ValRankEmblem.vue'
 
 /**
@@ -134,11 +136,11 @@ const syncedLabel = computed(() => {
 </script>
 
 <template>
-  <section aria-labelledby="profile-name" class="notch-2 relative isolate overflow-hidden bg-night px-5 pb-6 pt-7 text-on-night md:min-h-[320px] md:px-8 md:pb-8">
+  <section aria-labelledby="profile-name" class="notch-2 relative isolate overflow-hidden bg-night text-on-night">
     <div aria-hidden="true" class="absolute inset-0 -z-20 bg-cover bg-center grayscale-[0.35] contrast-[1.05]" :style="bannerStyle" />
     <!-- Player cards range from near-black to saturated daylight art: a flat veil under the gradient
-         keeps the ranks legible over the brightest ones. -->
-    <div aria-hidden="true" class="absolute inset-0 -z-20 bg-night/50" />
+         turns the art into a texture and keeps the ranks legible over the brightest ones. -->
+    <div aria-hidden="true" class="absolute inset-0 -z-20 bg-night/75" />
     <div aria-hidden="true" class="scanlines bg-scrim-night absolute inset-0 -z-10" />
     <img
       v-if="portraitUrl"
@@ -149,64 +151,102 @@ const syncedLabel = computed(() => {
       class="pointer-events-none absolute -bottom-[42%] -right-10 -z-10 hidden h-[175%] w-auto max-w-none [mask-image:linear-gradient(90deg,transparent_10%,black_55%)] md:block"
     >
 
-    <p class="font-mono text-[11px] uppercase tracking-[0.08em] text-on-night-red">
-      // Profil<template v-if="mainAgentLabel"> · {{ mainAgentLabel }}</template>
-    </p>
+    <div class="px-5 pb-6 pt-7 md:px-8 md:pb-8 md:pt-9">
+      <p class="font-mono text-[11px] uppercase tracking-[0.08em] text-on-night-red">
+        // Profil<template v-if="mainAgentLabel"> · {{ mainAgentLabel }}</template>
+      </p>
 
-    <div class="mt-3 flex flex-wrap items-end gap-x-3 gap-y-2">
-      <h1 id="profile-name" class="min-w-0 break-words font-display text-[56px] font-black uppercase leading-[0.85] md:text-[88px]">{{ name }}</h1>
-      <ClientOnly>
-        <span v-if="isMe" class="mb-1.5 bg-brand-red-fill px-1.5 py-0.5 font-mono text-[11px] font-bold uppercase text-white">Vous</span>
-      </ClientOnly>
+      <div class="mt-3 flex flex-wrap items-end gap-x-3 gap-y-2">
+        <h1 id="profile-name" class="min-w-0 break-words font-display text-[56px] font-black uppercase leading-[0.85] md:text-[88px]">{{ name }}</h1>
+        <ClientOnly>
+          <span v-if="isMe" class="mb-1.5 bg-brand-red-fill px-1.5 py-0.5 font-mono text-[11px] font-bold uppercase text-white">Vous</span>
+        </ClientOnly>
+      </div>
+      <p class="mt-2 font-mono text-[13px] text-on-night-2">{{ riotId }}</p>
+
+      <div v-if="smurf || smurfs.length" class="mt-2 flex flex-wrap items-center gap-2 font-mono text-xs">
+        <template v-if="smurf">
+          <span class="border border-on-night/25 px-1.5 text-[10px] uppercase">Smurf</span>
+          <NuxtLink
+            v-if="player.primaryPlayerId"
+            :to="`/player/${player.primaryPlayerId}`"
+            class="text-on-night-2 underline decoration-on-night/30 underline-offset-4 transition-colors hover:text-on-night"
+          >Compte secondaire de {{ mainName ?? 'son compte principal' }}</NuxtLink>
+        </template>
+        <template v-else>
+          <span class="text-on-night-2">Comptes secondaires :</span>
+          <NuxtLink
+            v-for="account in smurfs"
+            :key="account.id"
+            :to="`/player/${account.id}`"
+            class="underline decoration-on-night/30 underline-offset-4 transition-colors hover:text-on-night-red"
+          >{{ playerDisplayName(account) }}</NuxtLink>
+        </template>
+      </div>
+
+      <div aria-hidden="true" class="mt-5 h-0.5 max-w-48 origin-left animate-wipe bg-on-night-red" />
+
+      <ul v-if="hasBadges" class="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 font-mono text-xs" aria-label="Distinctions du compte">
+        <li v-if="premierBadge" class="flex items-center gap-1.5">
+          <img v-if="premierBadge.imageUrl" :src="premierBadge.imageUrl" alt="" width="20" height="20" class="size-5 object-contain">
+          <span v-else aria-hidden="true" class="text-on-night-2" :style="premierBadge.color ? { color: premierBadge.color } : undefined">◆</span>
+          <span class="text-[10px] uppercase tracking-[0.08em] text-on-night-2">Premier</span>
+          <b class="font-medium">{{ premierBadge.name }}</b>
+          <span v-if="premierBadge.role" class="text-on-night-2">· {{ premierBadge.role }}</span>
+          <span v-if="premierBadge.division !== null" class="text-on-night-2">· div. {{ premierBadge.division }}</span>
+        </li>
+        <li v-if="protection" :title="protection.title" class="flex items-center gap-1.5">
+          <span aria-hidden="true" class="text-on-night-win">◈</span>
+          <span>{{ protection.text }}</span>
+          <span class="sr-only">{{ protection.title }}</span>
+        </li>
+        <li v-if="leaderboardRank !== null" class="flex items-center gap-1.5">
+          <span class="text-[10px] uppercase tracking-[0.08em] text-on-night-2"><InfoTip v-bind="STAT_HINTS.leaderboard" /></span>
+          <b class="font-medium">#{{ leaderboardRank.toLocaleString('fr-FR') }}</b>
+        </li>
+        <li v-if="prestige.length" class="flex items-center gap-2">
+          <span class="text-[10px] uppercase tracking-[0.08em] text-on-night-2"><InfoTip v-bind="STAT_HINTS.prestige" /></span>
+          <ul class="flex items-center gap-2">
+            <li
+              v-for="entry in prestige"
+              :key="entry.family"
+              :title="entry.label"
+              class="flex items-center gap-0.5"
+            >
+              <ValRankEmblem :tier-id="entry.tierId" alt="" class="size-5" />
+              <span aria-hidden="true">×{{ entry.count }}</span>
+              <span class="sr-only">{{ entry.label }}</span>
+            </li>
+          </ul>
+        </li>
+      </ul>
     </div>
-    <p class="mt-2 font-mono text-[13px] text-on-night-2">{{ riotId }}</p>
 
-    <div v-if="smurf || smurfs.length" class="mt-3 flex flex-wrap items-center gap-2 font-mono text-xs">
-      <template v-if="smurf">
-        <span class="border border-on-night/25 px-1.5 text-[10px] uppercase">Smurf</span>
-        <NuxtLink
-          v-if="player.primaryPlayerId"
-          :to="`/player/${player.primaryPlayerId}`"
-          class="text-on-night-2 underline decoration-on-night/30 underline-offset-4 transition-colors hover:text-on-night"
-        >Compte secondaire de {{ mainName ?? 'son compte principal' }}</NuxtLink>
-      </template>
-      <template v-else>
-        <span class="text-on-night-2">Comptes secondaires :</span>
-        <NuxtLink
-          v-for="account in smurfs"
-          :key="account.id"
-          :to="`/player/${account.id}`"
-          class="underline decoration-on-night/30 underline-offset-4 transition-colors hover:text-on-night-red"
-        >{{ playerDisplayName(account) }}</NuxtLink>
-      </template>
-    </div>
-
-    <div aria-hidden="true" class="mt-5 h-0.5 max-w-48 origin-left animate-wipe bg-on-night-red" />
-
-    <div class="mt-5 flex flex-wrap items-end gap-x-8 gap-y-5">
+    <!-- The rank strip: what the player is now, at their best and lately, then the one red action. -->
+    <div class="flex flex-wrap items-center gap-x-8 gap-y-4 border-t border-on-night/15 bg-night/80 px-5 py-4 md:px-8">
       <div class="flex items-center gap-3">
-        <ValRankEmblem :tier-id="current?.tierId ?? 0" :src="current?.iconUrl" size="large" alt="" class="size-14 shrink-0" :class="current ? '' : 'opacity-50'" />
+        <ValRankEmblem :tier-id="current?.tierId ?? 0" :src="current?.iconUrl" size="large" alt="" class="size-12 shrink-0" :class="current ? '' : 'opacity-50'" />
         <div>
           <span class="block font-mono text-[11px] uppercase tracking-[0.08em] text-on-night-2">Rang actuel<template v-if="current?.act"> · {{ current.act }}</template></span>
           <b class="block font-display text-2xl font-extrabold uppercase leading-none">{{ current?.label ?? 'Non classé' }}</b>
           <span v-if="current" class="mt-1 block font-mono text-xs text-on-night-2">
-            {{ current.rr }} RR<template v-if="weekDelta !== null">
-              · <span :class="weekDelta > 0 ? 'text-on-night-win' : weekDelta < 0 ? 'text-on-night-loss' : ''">{{ formatSigned(weekDelta) }}</span> en 7 j</template>
+            {{ current.rr }} <InfoTip v-bind="STAT_HINTS.rankRating">RR</InfoTip><template v-if="weekDelta !== null">
+              · <span :class="weekDelta > 0 ? 'text-on-night-win' : weekDelta < 0 ? 'text-on-night-loss' : ''">{{ formatSigned(weekDelta) }}</span> <InfoTip v-bind="STAT_HINTS.rrWeek">en 7 j</InfoTip></template>
           </span>
         </div>
       </div>
 
-      <div class="flex items-center gap-3">
-        <ValRankEmblem :tier-id="peak?.tierId ?? 0" :src="peak?.iconUrl" size="large" alt="" class="size-14 shrink-0" :class="peak ? '' : 'opacity-50'" />
+      <div class="flex items-center gap-3 sm:border-l sm:border-on-night/15 sm:pl-8">
+        <ValRankEmblem :tier-id="peak?.tierId ?? 0" :src="peak?.iconUrl" size="large" alt="" class="size-12 shrink-0" :class="peak ? '' : 'opacity-50'" />
         <div>
-          <span class="block font-mono text-[11px] uppercase tracking-[0.08em] text-on-night-2">Pic de rang<template v-if="peak?.season"> · {{ peak.season }}</template></span>
+          <span class="block font-mono text-[11px] uppercase tracking-[0.08em] text-on-night-2"><InfoTip v-bind="STAT_HINTS.peakRank" /><template v-if="peak?.season"> · {{ peak.season }}</template></span>
           <b class="block font-display text-2xl font-extrabold uppercase leading-none">{{ peak?.label ?? 'Inconnu' }}</b>
           <span v-if="peak?.rr" class="mt-1 block font-mono text-xs text-on-night-2">{{ peak.rr }} RR</span>
         </div>
       </div>
 
-      <div v-if="form.length">
-        <span class="block font-mono text-[11px] uppercase tracking-[0.08em] text-on-night-2">Forme · classées</span>
+      <div v-if="form.length" class="lg:border-l lg:border-on-night/15 lg:pl-8">
+        <span class="block font-mono text-[11px] uppercase tracking-[0.08em] text-on-night-2"><InfoTip v-bind="STAT_HINTS.form" /> · classées</span>
         <ol class="mt-1.5 flex gap-1" aria-label="Dernières parties classées, la plus récente en premier">
           <li
             v-for="(result, index) in form"
@@ -219,59 +259,23 @@ const syncedLabel = computed(() => {
           </li>
         </ol>
       </div>
-    </div>
 
-    <ul v-if="hasBadges" class="mt-5 flex flex-wrap items-center gap-2 font-mono text-xs" aria-label="Distinctions du compte">
-      <li v-if="premierBadge" class="flex h-8 items-center gap-2 border border-on-night/25 bg-night/60 pl-1 pr-2.5">
-        <img v-if="premierBadge.imageUrl" :src="premierBadge.imageUrl" alt="" width="24" height="24" class="size-6 object-contain">
-        <span v-else aria-hidden="true" class="grid size-6 place-items-center text-on-night-2" :style="premierBadge.color ? { color: premierBadge.color } : undefined">◆</span>
-        <span class="text-[10px] uppercase tracking-[0.08em] text-on-night-2">Premier</span>
-        <b class="font-medium">{{ premierBadge.name }}</b>
-        <span v-if="premierBadge.role" class="text-on-night-2">· {{ premierBadge.role }}</span>
-        <span v-if="premierBadge.division !== null" class="text-on-night-2">· div. {{ premierBadge.division }}</span>
-      </li>
-      <li v-if="protection" :title="protection.title" class="flex h-8 items-center gap-1.5 border border-on-night/25 bg-night/60 px-2.5">
-        <span aria-hidden="true" class="text-on-night-win">◈</span>
-        <span>{{ protection.text }}</span>
-        <span class="sr-only">{{ protection.title }}</span>
-      </li>
-      <li v-if="leaderboardRank !== null" class="flex h-8 items-center gap-1.5 border border-on-night/25 bg-night/60 px-2.5">
-        <span class="text-[10px] uppercase tracking-[0.08em] text-on-night-2">Leaderboard</span>
-        <b class="font-medium">#{{ leaderboardRank.toLocaleString('fr-FR') }}</b>
-      </li>
-      <li v-if="prestige.length" class="flex h-8 items-center gap-2 border border-on-night/25 bg-night/60 pl-2.5 pr-1.5">
-        <span class="text-[10px] uppercase tracking-[0.08em] text-on-night-2">Prestige</span>
-        <ul class="flex items-center gap-1">
-          <li
-            v-for="entry in prestige"
-            :key="entry.family"
-            :title="entry.label"
-            class="flex h-6 items-center gap-0.5 border-b-2 pr-1"
-            :style="{ borderBottomColor: entry.color }"
+      <div class="flex flex-wrap items-center gap-x-4 gap-y-2 md:ml-auto md:flex-row-reverse">
+        <ClientOnly>
+          <button
+            v-if="canSync"
+            type="button"
+            :disabled="syncing"
+            :aria-busy="syncing"
+            class="notch focus-visible:outline-offset-[-4px] focus-visible:outline-white inline-flex h-11 cursor-pointer items-center gap-2 bg-brand-red-fill pl-5 pr-7 text-sm font-semibold uppercase tracking-[0.08em] text-white transition-[background-color,box-shadow] duration-150 ease-snap hover:bg-brand-red-hover hover:shadow-glow-red disabled:cursor-wait disabled:opacity-70"
+            @click="emit('sync')"
           >
-            <ValRankEmblem :tier-id="entry.tierId" alt="" class="size-5" />
-            <span aria-hidden="true">×{{ entry.count }}</span>
-            <span class="sr-only">{{ entry.label }}</span>
-          </li>
-        </ul>
-      </li>
-    </ul>
-
-    <div class="mt-6 flex flex-wrap items-center gap-3">
-      <ClientOnly>
-        <button
-          v-if="canSync"
-          type="button"
-          :disabled="syncing"
-          :aria-busy="syncing"
-          class="notch focus-visible:outline-offset-[-4px] focus-visible:outline-white inline-flex h-11 cursor-pointer items-center gap-2 bg-brand-red-fill pl-5 pr-7 text-sm font-semibold uppercase tracking-[0.08em] text-white transition-[background-color,box-shadow] duration-150 ease-snap hover:bg-brand-red-hover hover:shadow-glow-red disabled:cursor-wait disabled:opacity-70"
-          @click="emit('sync')"
-        >
-          <template v-if="syncing"><span aria-hidden="true" class="ascii">[■■■□□]</span> Synchro…</template>
-          <template v-else>Synchroniser <span aria-hidden="true">▸</span></template>
-        </button>
-      </ClientOnly>
-      <span class="font-mono text-xs text-on-night-2">{{ syncedLabel }}</span>
+            <template v-if="syncing"><span aria-hidden="true" class="ascii">[■■■□□]</span> Synchro…</template>
+            <template v-else>Synchroniser <span aria-hidden="true">▸</span></template>
+          </button>
+        </ClientOnly>
+        <span class="font-mono text-xs text-on-night-2">{{ syncedLabel }}</span>
+      </div>
     </div>
   </section>
 </template>

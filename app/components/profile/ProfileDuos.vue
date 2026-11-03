@@ -24,7 +24,7 @@ const rows = computed(() => props.duos.slice(0, props.limit).map(duo => ({
 
 <template>
   <section class="border border-border-base bg-surface-base p-4">
-    <FrameHead title="Duos" :aside="periodPhrase" as="h2" />
+    <FrameHead title="Duos" as="h2" />
     <ol v-if="rows.length" class="flex flex-col">
       <li
         v-for="duo in rows"

@@ -4,6 +4,8 @@ import type { Ladder, LadderEntry } from '~/utils/val-ladder'
 import { useAnimatedNumber } from '~/composables/useAnimatedNumber'
 import { formatSigned } from '~/utils/number'
 import { glyphBar } from '~/utils/ascii'
+import { STAT_HINTS } from '~/utils/val-glossary'
+import InfoTip from '~/components/ui/InfoTip.vue'
 import ValRankEmblem from '~/components/val/ValRankEmblem.vue'
 
 /**
@@ -37,7 +39,7 @@ const peakHolder = computed(() => [...props.ladder.ranked, ...props.ladder.unran
 <template>
   <div class="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
     <div class="ticks animate-enter border border-border-base bg-surface-base p-4 md:p-5">
-      <span class="font-mono text-[11px] uppercase tracking-[0.08em] text-text-ter">// Classés</span>
+      <span class="font-mono text-[11px] uppercase tracking-[0.08em] text-text-ter">// <InfoTip v-bind="STAT_HINTS.rankedPlayers">Classés</InfoTip></span>
       <div class="mt-2 font-display text-[56px] font-black leading-[0.9] md:text-[64px]">
         {{ rankedCount }}<span class="ml-1.5 font-mono text-xs font-medium text-text-ter">/ {{ crewSize }}</span>
       </div>
@@ -47,7 +49,7 @@ const peakHolder = computed(() => [...props.ladder.ranked, ...props.ladder.unran
     </div>
 
     <div class="ticks animate-enter border border-border-base bg-surface-base p-4 [animation-delay:40ms] md:p-5">
-      <span class="font-mono text-[11px] uppercase tracking-[0.08em] text-text-ter">// RR net · 7 j</span>
+      <span class="font-mono text-[11px] uppercase tracking-[0.08em] text-text-ter">// <InfoTip v-bind="STAT_HINTS.rrNetWeek">RR net · 7 j</InfoTip></span>
       <div class="mt-2 font-display text-[56px] font-black leading-[0.9] md:text-[64px]" :class="netClass">
         {{ tracked.length ? formatSigned(Math.round(animatedNet)) : '—' }}
       </div>
@@ -57,7 +59,7 @@ const peakHolder = computed(() => [...props.ladder.ranked, ...props.ladder.unran
     </div>
 
     <div class="ticks animate-enter border border-border-base bg-surface-base p-4 [animation-delay:80ms] md:p-5">
-      <span class="font-mono text-[11px] uppercase tracking-[0.08em] text-text-ter">// Meilleur rang</span>
+      <span class="font-mono text-[11px] uppercase tracking-[0.08em] text-text-ter">// <InfoTip v-bind="STAT_HINTS.bestRank">Meilleur rang</InfoTip></span>
       <template v-if="leader">
         <div class="mt-3 flex items-center gap-2.5">
           <ValRankEmblem :tier-id="leader.rank?.tierId" :src="leader.emblemUrl" alt="" class="size-9 shrink-0 md:size-11" />
@@ -69,7 +71,7 @@ const peakHolder = computed(() => [...props.ladder.ranked, ...props.ladder.unran
     </div>
 
     <div class="ticks animate-enter border border-border-base bg-surface-base p-4 [animation-delay:120ms] md:p-5">
-      <span class="font-mono text-[11px] uppercase tracking-[0.08em] text-text-ter">// Pic du crew</span>
+      <span class="font-mono text-[11px] uppercase tracking-[0.08em] text-text-ter">// <InfoTip v-bind="STAT_HINTS.crewPeak">Pic du crew</InfoTip></span>
       <template v-if="peakHolder?.peak">
         <div class="mt-3 flex items-center gap-2.5">
           <ValRankEmblem :tier-id="peakHolder.peak.tierId" :src="peakHolder.peak.iconUrl" size="large" alt="" class="size-9 shrink-0 md:size-11" />
