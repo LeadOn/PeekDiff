@@ -61,6 +61,9 @@ export interface ValRankHistoryDto {
   wasDerankProtectionReplenished?: boolean | null;
 }
 
+/** One entry of `recentResultsValorant`. */
+export type ValRecentResult = 'Win' | 'Loss' | 'Draw';
+
 /**
  * A crew member as `GET /val/player` returns it (`PlayerDto` on the API). The DTO is shared with
  * League of Legends; only the identity and Valorant fields are declared here.
@@ -106,6 +109,11 @@ export interface ValPlayerDto {
    * history (2026-10-29) does not send them, and the front degrades instead of failing.
    */
   recentFormValorant?: boolean[];
+  /**
+   * The same results as `recentFormValorant`, in the same order, but able to tell a draw apart:
+   * `false` above is a loss or a draw. Sent by API builds after 2026-11-09; read it first.
+   */
+  recentResultsValorant?: ValRecentResult[];
   /** The agent this account played the most over the last 30 days, customs and remakes left out. */
   mainAgentName?: string | null;
   mainAgentIconUrl?: string | null;

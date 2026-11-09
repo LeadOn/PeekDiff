@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { ValPlayerDto, ValPremierTeamDto } from '~/lib/types'
+import type { ValPlayerDto, ValPremierTeamDto, ValRecentResult } from '~/lib/types'
+import type { GameResult } from '~/utils/val-match'
 import { playerDisplayName, playerPeak } from '~/utils/val-ladder'
 import { AGENT_ROLES, agentIdFromUrl, agentImageUrl, hexColor, rankIconUrl, valorantCdnUrl } from '~/utils/val-assets'
 import { agentRole } from '~/utils/val-agents'
@@ -79,8 +80,23 @@ const peak = computed(() => playerPeak(props.player))
 
 const weekDelta = computed(() => props.player.rrChange7DaysValorant ?? null)
 
-/** Ranked results newest first, as the API sends them. */
-const form = computed(() => (props.player.recentFormValorant ?? []).map(win => (win ? 'V' : 'D') as 'V' | 'D'))
+const RECENT_RESULT: Record<ValRecentResult, GameResult> = { Win: 'V', Loss: 'D', Draw: 'N' }
+
+const FORM_CLASS: Partial<Record<GameResult, string>> = {
+  V: 'bg-on-night-win/15 text-on-night-win',
+  D: 'bg-on-night-loss/15 text-on-night-loss',
+  N: 'bg-on-night/10 text-on-night-2',
+}
+
+/**
+ * Ranked results newest first, as the API sends them. `recentResultsValorant` tells a draw apart;
+ * an older API only sends the booleans, where a draw is `false` and can only be printed as a loss.
+ */
+const form = computed<GameResult[]>(() => {
+  const results = props.player.recentResultsValorant
+  if (results?.length) return results.map(result => RECENT_RESULT[result] ?? 'D')
+  return (props.player.recentFormValorant ?? []).map(win => (win ? 'V' : 'D'))
+})
 
 const smurfs = computed(() => props.player.smurfAccounts ?? [])
 const smurf = computed(() => isSmurf(props.player))
@@ -253,7 +269,7 @@ const syncedLabel = computed(() => {
             :key="index"
             :title="RESULT_LABELS[result]"
             class="grid size-6 place-items-center font-mono text-xs font-bold"
-            :class="result === 'V' ? 'bg-on-night-win/15 text-on-night-win' : 'bg-on-night-loss/15 text-on-night-loss'"
+            :class="FORM_CLASS[result]"
           >
             <span aria-hidden="true">{{ result }}</span><span class="sr-only">{{ RESULT_LABELS[result] }}</span>
           </li>

@@ -511,6 +511,10 @@ Each of these is easy to reintroduce and hard to diagnose.
   Premier icons, for one): pass foreign URLs through `valorantCdnUrl` and draw the fallback.
 - **The heatmap's `map` is a map name, and `agentName` does not apply to it.** It is required (400
   otherwise); the profile picks it from the recap's `mapStats` and says the agent filter is ignored.
+- **`recentFormValorant` cannot carry a draw.** It is `boolean[]` and a draw is `false`, so it
+  reads as a loss. The hero's form prefers `recentResultsValorant` (`"Win"` / `"Loss"` / `"Draw"`,
+  same order and length, GameOn-API `fix/valorant-recent-form-draws`) and only falls back to the
+  booleans on an API without it, where a draw still shows "D".
 - **`rrChange7DaysValorant` of `null` is not 0.** It means there is no ranked snapshot both now and
   at least 7 days ago. The ladder prints `—`, the scale draws no trail, the net-RR tile only counts
   players with a value ("N joueurs comparables"). Rank history was introduced on 2026-10-28 (the
