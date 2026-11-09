@@ -296,6 +296,10 @@ queue every 5 s while it has work.
   profile's new sections stay hidden, matches say positions and damages are unavailable and the admin
   block says its routes are unknown. Premier icons come from HenrikDev, a host the CSP refuses: the
   team colour stands in for them.
+- **Not written yet:** `recentResultsValorant` on the player (GameOn-API
+  `fix/valorant-recent-form-draws`). `recentFormValorant` is a list of booleans in which a draw is
+  `false`; the profile hero reads the new field first and, until the API sends it, still prints a
+  draw as "D".
 - **Anonymous upstream:** the sync routes (every rank, one player) and the game import are anonymous
   on the API; the admin space is where PeekDiff calls them, not what protects them.
 - **Not served:** live games (the "en partie" strip), headshots per kill (the kill
